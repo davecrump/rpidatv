@@ -396,7 +396,7 @@ sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c "carrier" -f $FREQUENCY_O
 # *********************************** TESTMODE  ******************************************
 "TESTMODE")
 
-sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c "tesmode" -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
+sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c "test" -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
 ;;
 
 

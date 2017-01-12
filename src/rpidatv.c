@@ -930,7 +930,7 @@ void print_usage()
 
 fprintf(stderr,\
 "\nrpidatv -%s\n\
-Usage:\nrpidatv -i File Input -s Symbolrate -c Fec [-o OutputMode] [-f frequency output]  [-l] [-p Power] [-h] \n\
+Usage:\nrpidatv -i File Input -s Symbolrate -c Fec [-m OutputMode] [-f frequency output]  [-l] [-p Power] [-h] \n\
 -i            path to Transport File Input \n\
 -s            SymbolRate in KS (125-4000) \n\
 -c            Fec : 1/2 or 3/4 or 5/6 or 7/8 \n\
@@ -946,7 +946,7 @@ Usage:\nrpidatv -i File Input -s Symbolrate -c Fec [-o OutputMode] [-f frequency
 -x 	      GPIO Pin output for I or RF {12,18,40}\n\
 -y	      GPIO Pin output for Q {13,19,41,45}\n\
 -h            help (print this help).\n\
-Example : sudo ./rpidatv -i sample.ts -s 250 -c 1/2 -o RF -f 437.5 -l\n\
+Example : sudo ./rpidatv -i sample.ts -s 250 -c 1/2 -m RF -f 437.5 -l\n\
 \n",\
 PROGRAM_VERSION);
 
