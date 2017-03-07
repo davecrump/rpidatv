@@ -541,18 +541,18 @@ fi
 
 do_PID_setup()
 {
-PID=$(get_config_var pidstart $CONFIGFILE)
-PID=$(whiptail --inputbox "$StrPIDSetupContext" 8 78 $PID --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
-if [ $? -eq 0 ]; then
-set_config_var pidstart "$PID" $CONFIGFILE
-set_config_var pidpmt "$PID" $CONFIGFILE
-#PID Video is PMT+1
-let PID=PID+1
-set_config_var pidvideo "$PID" $CONFIGFILE
-#PID Audiop is PMT+1
-let PID=PID+1
-set_config_var pidaudio "$PID" $CONFIGFILE
-fi
+  PID=$(get_config_var pidstart $CONFIGFILE)
+  PID=$(whiptail --inputbox "$StrPIDSetupContext" 8 78 $PID --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    set_config_var pidstart "$PID" $CONFIGFILE
+    set_config_var pidpmt "$PID" $CONFIGFILE
+    #PID Video is PMT+1
+    let PID=PID+1
+    set_config_var pidvideo "$PID" $CONFIGFILE
+    #PID Audio is PMT+1
+    let PID=PID+1
+    set_config_var pidaudio "$PID" $CONFIGFILE
+  fi
 }
 
 do_freq_setup()
@@ -931,8 +931,6 @@ $PATHSCRIPT"/check_for_update.sh"
 
 do_presets()
 {
-  whiptail --title "Not implemented yet" --msgbox "Not Implemented yet.  Please press enter to continue" 8 78
-
   PFREQ1=$(get_config_var pfreq1 $CONFIGFILE)
   PFREQ1=$(whiptail --inputbox "Enter Preset Frequency 1 in MHz" 8 78 $PFREQ1 --title "SET TOUCHSCREEN PRESETS" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
@@ -967,7 +965,6 @@ do_presets()
 
 do_preset_SRs()
 {
-  whiptail --title "Not implemented yet" --msgbox "Not Implemented yet.  Please press enter to continue" 8 78
 
   PSR1=$(get_config_var psr1 $CONFIGFILE)
   PSR1=$(whiptail --inputbox "Enter Preset Symbol Rate 1 in KS/s" 8 78 $PSR1 --title "SET TOUCHSCREEN PRESETS" 3>&1 1>&2 2>&3)
@@ -999,7 +996,6 @@ do_preset_SRs()
     set_config_var psr5 "$PSR5" $CONFIGFILE
   fi
 }
-
 
 do_4351_ref()
 {
@@ -1035,11 +1031,6 @@ do_4351_levels()
   if [ $? -eq 0 ]; then
     set_config_var adflevel3 "$ADFLEVEL3" $CONFIGFILE
   fi
-}
-
-do_SD_info()
-{
-$PATHSCRIPT"/sd_card_info.sh"
 }
 
 do_set_express()
@@ -1348,6 +1339,70 @@ do_vfinder()
   fi
 }
 
+do_SD_info()
+{
+  $PATHSCRIPT"/sd_card_info.sh"
+}
+
+do_factory()
+{
+  FACTORY=""
+  FACTORY=$(whiptail --inputbox "Enter y or n" 8 78 $FACTORY --title "RESET TO INITIAL SETTINGS?" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    if [[ "$FACTORY" == "y" || "$FACTORY" == "Y" ]]; then
+      mv $PATHSCRIPT"/rpidatvconfig.txt" $PATHSCRIPT"/rpidatvconfig.txt.bak"
+      cp $PATHSCRIPT"/configs/rpidatvconfig.txt.factory" $PATHSCRIPT"/rpidatvconfig.txt"
+      whiptail --title "Message" --msgbox "Factory Configuration Restored.  Please press enter to continue" 8 78
+    else
+      whiptail --title "Message" --msgbox "Current Configuration Retained.  Please press enter to continue" 8 78
+    fi
+  fi
+}
+
+do_back_up()
+{
+  BACKUP=""
+  BACKUP=$(whiptail --inputbox "Enter y or n" 8 78 $BACKUP --title "SAVE TO USB? EXISTING FILE WILL BE OVER-WRITTEN" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    if [[ "$BACKUP" == "y" || "$BACKUP" == "Y" ]]; then
+      ls -l /dev/disk/by-uuid|grep -q sda  # returns 0 if USB drive connected
+      if [ $? -eq 0 ]; then
+        sudo mv -f /media/usb0/rpidatvconfig.txt /media/usb0/rpidatvconfig.txt.bak >/dev/null 2>/dev/null
+        sudo cp $PATHSCRIPT"/rpidatvconfig.txt" /media/usb0/rpidatvconfig.txt >/dev/null 2>/dev/null
+        whiptail --title "Message" --msgbox "Configuration file copied to USB.  Please press enter to continue" 8 78
+      else
+        whiptail --title "Message" --msgbox "No USB Drive found.  Please press enter to continue" 8 78
+      fi
+    else
+      whiptail --title "Message" --msgbox "Configuration file not copied.  Please press enter to continue" 8 78
+    fi
+  fi
+}
+
+do_load_settings()
+{
+  BACKUP=""
+  BACKUP=$(whiptail --inputbox "Enter y or n" 8 78 $BACKUP --title "LOAD CONFIG FROM USB? EXISTING FILE WILL BE OVER-WRITTEN" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    if [[ "$BACKUP" == "y" || "$BACKUP" == "Y" ]]; then
+      ls -l /dev/disk/by-uuid|grep -q sda  # returns 0 if USB drive connected
+      if [ $? -eq 0 ]; then
+        if [ -f /media/usb0/rpidatvconfig.txt ]; then
+          mv -f $PATHSCRIPT"/rpidatvconfig.txt" $PATHSCRIPT"/rpidatvconfig.txt.bak" >/dev/null 2>/dev/null
+          cp /media/usb0/rpidatvconfig.txt $PATHSCRIPT"/rpidatvconfig.txt" >/dev/null 2>/dev/null
+          whiptail --title "Message" --msgbox "Configuration file copied from USB.  Please press enter to continue" 8 78
+        else
+          whiptail --title "Message" --msgbox "File rpidatvconfig.txt not found.  Please press enter to continue" 8 78
+        fi
+      else
+        whiptail --title "Message" --msgbox "No USB Drive found.  Please press enter to continue" 8 78
+      fi
+    else
+      whiptail --title "Message" --msgbox "Configuration file not copied.  Please press enter to continue" 8 78
+    fi
+  fi
+}
+
 do_beta()
 {
   whiptail --title "Not implemented yet" --msgbox "Not Implemented yet.  Please press enter to continue" 8 78
@@ -1402,30 +1457,35 @@ menuchoice=$(whiptail --title "$StrSystemTitle" --menu "$StrSystemContext" 16 78
 
 do_system_setup_2()
 {
-menuchoice=$(whiptail --title "$StrSystemTitle" --menu "$StrSystemContext" 16 78 10 \
+  menuchoice=$(whiptail --title "$StrSystemTitle" --menu "$StrSystemContext" 20 78 13 \
     "1 Set Presets" "For Touchscreen Frequencies"  \
     "2 Set Presets" "For Touchscreen Symbol Rates"  \
     "3 ADF4351 Ref Freq" "Set ADF4351 Reference Freq and Cal" \
     "4 ADF4351 Levels" "Set ADF4351 Levels for Each Band" \
-    "5 SD Card Info" "Show SD Card Information"  \
-    "6 DATV Express" "Configure DATV Express Settings for each band" \
-    "7 Contest Numbers" "Set Contest Numbers for each band" \
-    "8 Viewfinder" "Disable or Enable Viewfinder on Touchscreen" \
-    "9 Beta Software" "Choose whether to use experimental software" \
+    "5 DATV Express" "Configure DATV Express Settings for each band" \
+    "6 Contest Numbers" "Set Contest Numbers for each band" \
+    "7 Viewfinder" "Disable or Enable Viewfinder on Touchscreen" \
+    "8 SD Card Info" "Show SD Card Information"  \
+    "9 Factory Settings" "Restore Initial Configuration" \
+    "10 Back-up Settings" "Save Settings to a USB drive" \
+    "11 Load Settings" "Load settings from a USB Drive" \
+    "12 Beta Software" "Choose whether to use experimental software" \
     3>&2 2>&1 1>&3)
-    case "$menuchoice" in
-        1\ *) do_presets ;;
-        2\ *) do_preset_SRs ;;
-        3\ *) do_4351_ref  ;;
-        4\ *) do_4351_levels ;;
-        5\ *) do_SD_info ;;
-        6\ *) do_set_express ;;
-        7\ *) do_numbers ;;
-        8\ *) do_vfinder ;;
-        9\ *) do_beta ;;
-      esac
+  case "$menuchoice" in
+    1\ *) do_presets ;;
+    2\ *) do_preset_SRs ;;
+    3\ *) do_4351_ref  ;;
+    4\ *) do_4351_levels ;;
+    5\ *) do_set_express ;;
+    6\ *) do_numbers ;;
+    7\ *) do_vfinder ;;
+    8\ *) do_SD_info ;;
+    9\ *) do_factory;;
+    10\ *) do_back_up;;
+    11\ *) do_load_settings;;
+    12\ *) do_beta ;;
+  esac
 }
-
 
 do_language_setup()
 {
@@ -1514,13 +1574,10 @@ menuchoice=$(whiptail --title "Shutdown Menu" --menu "Select Choice" 16 78 7 \
 
 display_splash()
 {
-
-sudo killall -9 fbcp >/dev/null 2>/dev/null
-fbcp & >/dev/null 2>/dev/null  ## fbcp gets started here and stays running. Not called by a.sh
-sudo fbi -T 1 -noverbose -a $PATHSCRIPT"/images/BATC_Black.png" >/dev/null 2>/dev/null
-(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
-
-
+  sudo killall -9 fbcp >/dev/null 2>/dev/null
+  fbcp & >/dev/null 2>/dev/null  ## fbcp gets started here and stays running. Not called by a.sh
+  sudo fbi -T 1 -noverbose -a $PATHSCRIPT"/images/BATC_Black.png" >/dev/null 2>/dev/null
+  (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
 }
 
 OnStartup()
@@ -1647,4 +1704,3 @@ while [ "$status" -eq 0 ]
     exitstatus1=$status1
   done
 exit
-

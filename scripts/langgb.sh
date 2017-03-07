@@ -70,7 +70,7 @@ StrOutputMode="Output Mode"
 
 StrPIDSetup="PID setup"
 StrPIDSetupTitle="PID setup"
-StrPIDSetupContext="PID PMT (512 for example)"
+StrPIDSetupContext="Set PMT PID. Video PID will be PMT PID +1, Audio PID will be PMT + 2"
 
 
 ######### STATUS ##########

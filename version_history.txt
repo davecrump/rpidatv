@@ -1,3 +1,12 @@
+201703060
+Added capability to configure Frequency and SR presets for LCD display
+Added Factory reset for Configuration file (not start-up action)
+Added capability to save Configuration file to USB
+Added capability to load Configuration file from USB
+Adds Console Menu command to bash history during initial install
+Repaired French install option
+Clarified PID input
+
 201702190
 Added streaming from PiCam with sound to BATC Streamer
 Added streaming from PiCam with sound to any other FMLE streamer

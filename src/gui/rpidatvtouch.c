@@ -77,10 +77,11 @@ char ModeOutput[255];
 // Values to be stored in and read from rpidatvconfig.txt:
 
 int TabSR[5]={125,333,1000,2000,4000};
+char SRLabel[5][255]={"SR 125","SR 333","SR1000","SR2000","SR4000"};
 int TabFec[5]={1,2,3,5,7};
 char TabModeInput[5][255]={"CAMMPEG-2","CAMH264","PATERNAUDIO","ANALOGCAM","CARRIER"};
 char TabFreq[5][255]={"71","146.5","437","1249","1255"};
-
+char FreqLabel[5][255]={" 71 MHz ","146.5 MHz","437 MHz ","1249 MHz","1255 MHz"};
 int Inversed=0;//Display is inversed (Waveshare=1)
 
 pthread_t thfft,thbutton;
@@ -167,6 +168,98 @@ void SetConfigParam(char *PathConfigFile,char *Param,char *Value)
     fclose(fw);
   }
 }
+
+
+/***************************************************************************//**
+ * @brief Reads the Presets from rpidatvconfig.txt and formats them for
+ *        Display and switching
+ *
+ * @param None.  Works on global variables
+ *
+ * @return void
+*******************************************************************************/
+
+void ReadPresets()
+{
+  int n;
+  char Param[255];
+  char Value[255];
+  char SRTag[5][255]={"psr1","psr2","psr3","psr4","psr5"};
+  char FreqTag[5][255]={"pfreq1","pfreq2","pfreq3","pfreq4","pfreq5"};
+  char SRValue[5][255];
+  //char FreqValue[5];
+  int len;
+
+  // Read SRs
+  for( n = 0; n < 5; n = n + 1)
+  {
+    strcpy(Param, SRTag[ n ]);
+    GetConfigParam(PATH_CONFIG,Param,Value);
+    strcpy(SRValue[ n ], Value);
+    TabSR[n] = atoi(SRValue[n]);
+    if (TabSR[n] > 999)
+    {
+      strcpy(SRLabel[n], "SR");
+      strcat(SRLabel[n], SRValue[n]);
+    }
+    else
+    {
+      strcpy(SRLabel[n], "SR ");
+      strcat(SRLabel[n], SRValue[n]);
+    }
+  printf("Read Presets\n");
+  printf("Value=%s %s\n",SRValue[ n ],"SR");
+  }
+
+  // Read Frequencies
+  for( n = 0; n < 5; n = n + 1)
+  {
+    strcpy(Param, FreqTag[ n ]);
+    GetConfigParam(PATH_CONFIG,Param,Value);
+    strcpy(TabFreq[ n ], Value);
+    len  = strlen(TabFreq[n]);
+    switch (len)
+    {
+      case 2:
+        strcpy(FreqLabel[n], " ");
+        strcat(FreqLabel[n], TabFreq[n]);
+        strcat(FreqLabel[n], " MHz ");
+        break;
+      case 3:
+        strcpy(FreqLabel[n], TabFreq[n]);
+        strcat(FreqLabel[n], " MHz ");
+        break;
+      case 4:
+        strcpy(FreqLabel[n], TabFreq[n]);
+        strcat(FreqLabel[n], " MHz");
+        break;
+      case 5:
+        strcpy(FreqLabel[n], TabFreq[n]);
+        strcat(FreqLabel[n], "MHz");
+        break;
+      default:
+        strcpy(FreqLabel[n], TabFreq[n]);
+        strcat(FreqLabel[n], " M");
+        break;
+    }
+  printf("Read Freqs\n");
+  printf("Value=%d %s\n",len,"SR");
+  }
+
+}
+
+//    strcpy(Param,"vfinder");
+//    GetConfigParam(PATH_CONFIG,Param,Value);
+//    if(strcmp(Value,"on")==0)
+//    {
+//      IsDisplayOn=0;
+//      finish();
+//      system("v4l2-ctl --overlay=1 >/dev/null 2>/dev/null");
+//    }
+//  strcpy(BackupConfigName,PathConfigFile);
+//  strcat(BackupConfigName,".bak");
+
+
 
 int mymillis()
 {
@@ -450,18 +543,17 @@ void SelectInGroup(int StartButton,int StopButton,int NoButton,int Status)
 
 void SelectFreq(int NoButton)  //Frequency
 {
-	SelectInGroup(0,4,NoButton,1);
-	strcpy(freqtxt,TabFreq[NoButton-0]);
-	char Param[]="freqoutput";
-        printf("************** Set Frequency = %s\n",freqtxt);
-	SetConfigParam(PATH_CONFIG,Param,freqtxt);
+  SelectInGroup(0,4,NoButton,1);
+  strcpy(freqtxt,TabFreq[NoButton-0]);
+  char Param[]="freqoutput";
+  printf("************** Set Frequency = %s\n",freqtxt);
+  SetConfigParam(PATH_CONFIG,Param,freqtxt);
 
   // Set the Band (and filter) Switching
 
   system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
 
 }
-
 
 void SelectSR(int NoButton)  // Symbol Rate
 {
@@ -1063,70 +1155,73 @@ int main(int argc, char **argv) {
 	int wbuttonsize=(wscreen-25)/5;
 	int hbuttonsize=hscreen/6;
 
+  // Read in the presets from the Config file
+  ReadPresets();
+
 // Frequency
 
 	int button=AddButton(0*wbuttonsize+20,0+hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	color_t Col;
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," 71 MHz ",&Col);
+	AddButtonStatus(button,FreqLabel[0],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," 71 MHz ",&Col);
+	AddButtonStatus(button,FreqLabel[0],&Col);
 
 	button=AddButton(1*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"146.5 MHz",&Col);
+	AddButtonStatus(button,FreqLabel[1],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"146.5 MHz",&Col);
+	AddButtonStatus(button,FreqLabel[1],&Col);
 
 	button=AddButton(2*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"437 MHz ",&Col);
+	AddButtonStatus(button,FreqLabel[2],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"437 MHz ",&Col);
+	AddButtonStatus(button,FreqLabel[2],&Col);
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"1249 MHz",&Col);
+	AddButtonStatus(button,FreqLabel[3],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"1249 MHz",&Col);
+	AddButtonStatus(button,FreqLabel[3],&Col);
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"1255 MHz",&Col);
+	AddButtonStatus(button,FreqLabel[4],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"1255 MHz",&Col);
+	AddButtonStatus(button,FreqLabel[4],&Col);
 
 // Symbol Rate
 
 	button=AddButton(0*wbuttonsize+20,0+hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"SR 125",&Col);
+	AddButtonStatus(button,SRLabel[0],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"SR 125",&Col);
+	AddButtonStatus(button,SRLabel[0],&Col);
 
 	button=AddButton(1*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"SR 333",&Col);
+	AddButtonStatus(button,SRLabel[1],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"SR 333",&Col);
+	AddButtonStatus(button,SRLabel[1],&Col);
 
 	button=AddButton(2*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"SR1000",&Col);
+	AddButtonStatus(button,SRLabel[2],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"SR1000",&Col);
+	AddButtonStatus(button,SRLabel[2],&Col);
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"SR2000",&Col);
+	AddButtonStatus(button,SRLabel[3],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"SR2000",&Col);
+	AddButtonStatus(button,SRLabel[3],&Col);
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"SR4000",&Col);
+	AddButtonStatus(button,SRLabel[4],&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"SR4000",&Col);
+	AddButtonStatus(button,SRLabel[4],&Col);
 
 // FEC
 
@@ -1213,49 +1308,61 @@ int main(int argc, char **argv) {
 	Start(wscreen,hscreen);
 	IsDisplayOn=1;
 
-// Determine button highlights
+// Determine button highlights at start-up
 
-	// Frequency
+  // Frequency
 
- 	strcpy(Param,"freqoutput");
-	GetConfigParam(PATH_CONFIG,Param,Value);
-	strcpy(freqtxt,Value);
-	printf("Value=%s %s\n",Value,"Freq");
-	if(strcmp(Value,"71")==0)
-	{
-	     SelectFreq(0);
-	}
-	if(strcmp(Value,"146.5")==0)
-        {
-             SelectFreq(1);
-        }
-        if(strcmp(Value,"437")==0)
-        {
-             SelectFreq(2);
-        }
-        if(strcmp(Value,"1249")==0)
-        {
-             SelectFreq(3);
-        }
-        if(strcmp(Value,"1255")==0)
-        {
-             SelectFreq(4);
-        }
+  strcpy(Param,"freqoutput");
+  GetConfigParam(PATH_CONFIG,Param,Value);
+  strcpy(freqtxt,Value);
+  printf("Value=%s %s\n",Value,"Freq");
+  if(strcmp(Value,TabFreq[0])==0)
+  {
+    SelectFreq(0);
+  }
+  if(strcmp(Value,TabFreq[1])==0)
+  {
+    SelectFreq(1);
+  }
+  if(strcmp(Value,TabFreq[2])==0)
+  {
+    SelectFreq(2);
+  }
+  if(strcmp(Value,TabFreq[3])==0)
+  {
+    SelectFreq(3);
+  }
+  if(strcmp(Value,TabFreq[4])==0)
+  {
+    SelectFreq(4);
+  }
 
-	// Symbol Rate
+  // Symbol Rate
 
-	strcpy(Param,"symbolrate");
-	GetConfigParam(PATH_CONFIG,Param,Value);
-	SR=atoi(Value);
-	printf("Value=%s %s\n",Value,"SR");
-	switch(SR)
-	{
-		case 125:SelectSR(5);break;
-		case 333:SelectSR(6);break;
-		case 1000:SelectSR(7);break;
-		case 2000:SelectSR(8);break;
-		case 4000:SelectSR(9);break;
-	}
+  strcpy(Param,"symbolrate");
+  GetConfigParam(PATH_CONFIG,Param,Value);
+  SR=atoi(Value);
+  printf("Value=%s %s\n",Value,"SR");
+  if ( SR == TabSR[0] )
+  {
+    SelectSR(5);
+  }
+  else if ( SR == TabSR[1] )
+  {
+    SelectSR(6);
+  }
+  else if ( SR == TabSR[2] )
+  {
+    SelectSR(7);
+  }
+  else if ( SR == TabSR[3] )
+  {
+    SelectSR(8);
+  }
+  else if ( SR == TabSR[4] )
+  {
+    SelectSR(9);
+  }
 
 	// FEC
 

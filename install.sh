@@ -179,6 +179,9 @@ chmod +x /home/pi/pi-sdn
 # Create directory for Autologin link
 sudo mkdir -p /etc/systemd/system/getty.target.wants
 
+# Add the console menu to the bash history
+/home/pi/rpidatv/scripts/configs/add_menu_to_history.sh
+
 # Show console menu at first user log-in
 cp /home/pi/rpidatv/scripts/configs/console.bashrc /home/pi/.bashrc
 
@@ -190,12 +193,12 @@ cd /home/pi
 # Switch to French if required
 if [ "$1" == "fr" ];
 then
-  echo "Installing French Language and Keyboard"
+  echo "Installation de la langue française et du clavier"
   cd /home/pi/rpidatv/scripts/
   sudo cp configs/keyfr /etc/default/keyboard
-  cp configs/rpidatvconfig.fr rpidatvconfig.txt
+  sed -i 's/^menulanguage.*/menulanguage=fr/' rpidatvconfig.txt
   cd /home/pi
-  echo "Completed French Install"
+  echo "Installation française terminée"
 else
   echo "Completed English Install"
 fi
