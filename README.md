@@ -27,18 +27,7 @@ wget https://raw.githubusercontent.com/BritishAmateurTelevisionClub/rpidatv/mast
 chmod +x install.sh
 ./install.sh
 ```
-Note:  As of 21 February 2017, you will get the question :
-#############################################################
-WARNING: This update bumps to rpi-4.9.y linux tree
-Be aware there could be compatibility issues with some drivers
-Discussion here:
-https://www.raspberrypi.org/forums/viewtopic.php?f=29&t=167934
-##############################################################
-Would you like to proceed? (y/N)
-
-Answer: N
-
-We are working on some compatibiity issues to allow the new linux tree to be used.
+As of this update (201704030), you should not need to answer any questions during the installation.  However, the installation takes a little longer as the operating system is brought fully up-to-date.
 
 - If your ISP is Virgin Media and you receive an error after entering the wget line: 'GnuTLS: A TLS fatal alert has been received.', it may be that your ISP is blocking access to GitHub.  If (only if) you get this error with Virgin Media, paste the following command in, and press return.
 ```sh
