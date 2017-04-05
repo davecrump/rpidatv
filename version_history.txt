@@ -1,3 +1,11 @@
+201704030
+Deleted conflicting touchscreen driver in /boot/config.txt
+Added routine software upgrade to install and upgrade scripts
+Removed the need for a user decision about kernel update on install
+Tidied IPTS Input mode so that it can be used
+Added Contest Number TX facility for Console control (not touchscreen yet)
+Added facility for future German language menus. 
+
 201703060
 Added capability to configure Frequency and SR presets for LCD display
 Added Factory reset for Configuration file (not start-up action)

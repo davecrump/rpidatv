@@ -598,6 +598,7 @@ void TransmitStart()
   char Param[255];
   char Value[255];
   #define PATH_SCRIPT_A "sudo /home/pi/rpidatv/scripts/a.sh >/dev/null 2>/dev/null"
+
   // Check if camera selected
   if((strcmp(ModeInput,TabModeInput[0])==0)||(strcmp(ModeInput,TabModeInput[1])==0))
   {
@@ -611,6 +612,17 @@ void TransmitStart()
       system("v4l2-ctl --overlay=1 >/dev/null 2>/dev/null");
     }
   }
+
+  // Check if CONTEST selected; if so, display desktop
+//  strcpy(Param,"modeinput");
+//  GetConfigParam(PATH_CONFIG,Param,Value);
+//  strcpy(ModeOutput,Value);
+//  if(strcmp(Value,"CONTEST")==0)
+//  {
+//    finish();
+//  }
+
+  // Call a.sh to transmit
   system(PATH_SCRIPT_A);
 }
 
@@ -634,16 +646,15 @@ void TransmitStop()
     system(expressrx);
     strcpy( expressrx, "echo \"set car off\" >> /tmp/expctrl" );
     system(expressrx);
+    system("sudo killall netcat >/dev/null 2>/dev/null");
   }
-
-  // Kill netcat as used by DATV Express
-  system("sudo killall netcat >/dev/null 2>/dev/null");
 
   // Kill the key processes as nicely as possible
   system("sudo killall rpidatv >/dev/null 2>/dev/null");
   system("sudo killall ffmpeg >/dev/null 2>/dev/null");
   system("sudo killall tcanim >/dev/null 2>/dev/null");
   system("sudo killall avc2ts >/dev/null 2>/dev/null");
+  system("sudo killall netcat >/dev/null 2>/dev/null");
 
   // Turn the Viewfinder off
   system("v4l2-ctl --overlay=0 >/dev/null 2>/dev/null");

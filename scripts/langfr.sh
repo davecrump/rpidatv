@@ -1,3 +1,6 @@
+######### GENERAL ##########################
+StrNotImplemented="Pas encore mis en œuvre"
+StrNotImpMsg="Pas encore mis en œuvre.  Appuyez sur enter pour continuer"
 
 ######## INPUT MENU #####################
 StrInputSetupTitle="Choix de l'entrée"
@@ -11,8 +14,8 @@ StrInputSetupTESTMODE="Porteuse spéciale"
 StrInputSetupIPTSIN="Transport stream provenant du réseau"
 StrInputSetupFILETSName="Fichier TS est maintenant"
 StrInputSetupPATERNAUDIOName="Fichier mire JPEG est maintenant"
-StrInputSetupIPTSINName="Adresse IP à recevoir (port 10000)"
-StrInputSetupIPTSINTitle="Configuration adresse IP"
+StrInputSetupIPTSINName="Envoyer UDP Stream vers le port 10000 au "
+StrInputSetupIPTSINTitle="Information pour UDP Stream"
 StrInputSetupANALOGCAM="Caméra analogique"
 StrInputSetupANALOGCAMTitle="Camera analogique"
 StrInputSetupANALOGCAMName="Nom de l'entrée analogique (/dev/video0)"
@@ -20,6 +23,7 @@ StrInputSetupVNC="Ecran PC via VNC"
 StrInputSetupVNCName="IP du PC avec VNC (mot de passe datv)"
 StrInputSetupVNCTitle="Configuration VNC"
 StrInputSetupDESKTOP="Ecran du rasberry"
+StrInputSetupCONTEST="Afficher les numéros du concours"
 
 StrPIN_IContext="GPIO pour I {12,18,40} (12 par defaut:pin32)"
 StrPIN_ITitle="Sortie GPIO pour I"
@@ -83,7 +87,7 @@ StrSystemTitle="Configure le système"
 StrSystemContext="Choix:"
 StrAutostartMenu="Démarrage automatique"
 StrDisplayMenu="Ecran"
-StrIPMenu="Adresse IP"
+StrIPMenu="Afficher l'adresse IP actuelle"
 
 ######## AUTOSTART MENU #########
 

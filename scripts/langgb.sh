@@ -1,3 +1,6 @@
+######### GENERAL ##########################
+StrNotImplemented="Not Implemented Yet"
+StrNotImpMsg="Not implemented yet.  Please press enter to continue"
 
 ######## INPUT MENU #####################
 StrInputSetupTitle="Input choice"
@@ -11,8 +14,8 @@ StrInputSetupTESTMODE="Testmode for Carrier Null"
 StrInputSetupIPTSIN="Transport stream from network"
 StrInputSetupFILETSName="TS file is now"
 StrInputSetupPATERNAUDIOName="JPEG picture is now"
-StrInputSetupIPTSINName="IP address to receive (port 10000)"
-StrInputSetupIPTSINTitle="Setup IP address"
+StrInputSetupIPTSINName="Send UDP Stream to port 10000 at "
+StrInputSetupIPTSINTitle="Information for UDP Stream"
 StrInputSetupANALOGCAM="Analog (EasyCap) Video Input"
 StrInputSetupANALOGCAMTitle="Analog input setup"
 StrInputSetupANALOGCAMName="Input analog name (/dev/video0)"
@@ -20,6 +23,8 @@ StrInputSetupVNC="Show PC Desktop via VNC"
 StrInputSetupVNCName="IP of PC using VNC (password datv)"
 StrInputSetupVNCTitle="VNC setup"
 StrInputSetupDESKTOP="Show Touchscreen or Raspberry Pi Display"
+StrInputSetupCONTEST="Show Contest Numbers"
+
 StrPIN_IContext="I GPIO {12,18,40} (12 is default for Portsdown: pin32)"
 StrPIN_ITitle="I output GPIO"
 StrPIN_QContext="Q GPIO {13,19,41} (13 is default for Portsdown: pin33)"
@@ -41,6 +46,7 @@ StrOutputSetupBATC="Stream to BATC.TV"
 StrOutputSetupDigithin="Use Digithin Modulator Card"
 StrOutputSetupDTX1="Use DTX1 TS Extender Card"
 StrOutputSetupDATVExpress="Use DATV Express connected by USB"
+
 StrOutputSetupIP="Transmit on IP network"
 StrOutputSetupIPTSOUTName="IP address: 230.0.0.1 for example"
 StrOutputSetupIPTSOUTTitle="Output network setup"
@@ -81,7 +87,7 @@ StrSystemTitle="System setup"
 StrSystemContext="Choice:"
 StrAutostartMenu="Automatic startup"
 StrDisplayMenu="Display type"
-StrIPMenu="IP Address"
+StrIPMenu="Display Current IP Address"
 
 ######## AUTOSTART MENU #########
 

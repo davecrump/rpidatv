@@ -1,7 +1,7 @@
 #! /bin/bash
 # set -x #Uncomment for testing
 
-# Version 201702190
+# Version 201704030
 
 ############# SET GLOBAL VARIABLES ####################
 
@@ -573,4 +573,49 @@ PORT=10000
     # Temporary fix for swapped carrier and test modes:
     sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c "carrier" -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
   ;;
+
+#============================================ CONTEST =============================================================
+  "CONTEST")
+    # Select the right image
+    INT_FREQ_OUTPUT=${FREQ_OUTPUT%.*}
+    if (( $INT_FREQ_OUTPUT \< 100 )); then
+      cp -f /home/pi/rpidatv/scripts/images/contest0.png /home/pi/rpidatv/scripts/images/contest.png
+    elif (( $INT_FREQ_OUTPUT \< 250 )); then
+      cp -f /home/pi/rpidatv/scripts/images/contest1.png /home/pi/rpidatv/scripts/images/contest.png
+    elif (( $INT_FREQ_OUTPUT \< 950 )); then
+      cp -f /home/pi/rpidatv/scripts/images/contest2.png /home/pi/rpidatv/scripts/images/contest.png
+    else
+      cp -f /home/pi/rpidatv/scripts/images/contest3.png /home/pi/rpidatv/scripts/images/contest.png
+    fi
+
+    # Display the numbers on the desktop
+    #sudo killall -9 fbcp >/dev/null 2>/dev/null
+    #fbcp & >/dev/null 2>/dev/null  ## fbcp gets started here and stays running. Not called by a.sh
+    sudo fbi -T 1 -noverbose -a $PATHSCRIPT"/images/contest.png" >/dev/null 2>/dev/null
+    (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+
+    sudo modprobe -r bcm2835_v4l2
+    case "$MODE_OUTPUT" in
+      "BATC")
+        sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC &
+      ;;
+      "IP")
+        OUTPUT_FILE=""
+      ;;
+      "DATVEXPRESS")
+        echo "set ptt tx" >> /tmp/expctrl
+        sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
+      ;;
+      *)
+        sudo nice -n -30 $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K \
+          -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
+
+      ;;
+    esac
+
+    $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT \
+      -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
+
+  ;;
+
 esac

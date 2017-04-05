@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 201702110
-
+# Updated by davecrump 20170403
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -9,7 +8,8 @@
 
 reset
 
-printf "\nCommencing update.\n"
+printf "\nCommencing update.\n\n"
+printf "Note that update 201704030 is a major update and will take longer than previous updates\n\n"
 
 # Note previous version number
 cp -f -r /home/pi/rpidatv/scripts/installed_version.txt /home/pi/prev_installed_version.txt
@@ -18,10 +18,25 @@ cp -f -r /home/pi/rpidatv/scripts/installed_version.txt /home/pi/prev_installed_
 cp -f -r /home/pi/rpidatv/scripts/rpidatvconfig.txt /home/pi/rpidatvconfig.txt
 
 # Check if fbi (frame buffer imager) needs to be installed
-
 if [ ! -f "/usr/bin/fbi" ]; then
   sudo apt-get -y install fbi
 fi
+
+# Uninstall the apt-listchanges package to allow silent install of ca certificates
+# http://unix.stackexchange.com/questions/124468/how-do-i-resolve-an-apparent-hanging-update-process
+sudo apt-get -y remove apt-listchanges
+
+# Update the distribution (added 20170403)
+sudo apt-get -y dist-upgrade
+
+# Check if ImageMagick needs to be installed (201704030)
+if [ ! -f "/usr/bin/convert" ]; then
+  sudo apt-get -y install imagemagick
+fi
+
+#  Delete the duplicate touchscreen driver if it is still there (201704030)
+cd /boot
+sudo sed -i '/dtoverlay=ads7846/d' config.txt
 
 # ---------- Update rpidatv -----------
 

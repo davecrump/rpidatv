@@ -123,22 +123,27 @@ FREQ_OUTPUT=$(get_config_var freqoutput $CONFIGFILE)
 INT_FREQ_OUTPUT=${FREQ_OUTPUT%.*}
 
 ############### Switch GPIOs based on Frequency ########
+# Switch contest images at the same time
 
 if (( $INT_FREQ_OUTPUT \< 100 )); then
-                gpio -g write $band_bit0 0;
-                gpio -g write $band_bit1 0;
+  gpio -g write $band_bit0 0;
+  gpio -g write $band_bit1 0;
+  cp -f /home/pi/rpidatv/scripts/images/contest0.png /home/pi/rpidatv/scripts/images/contest.png
 elif (( $INT_FREQ_OUTPUT \< 250 )); then
-                gpio -g write $band_bit0 1;
-                gpio -g write $band_bit1 0;
+  gpio -g write $band_bit0 1;
+  gpio -g write $band_bit1 0;
+  cp -f /home/pi/rpidatv/scripts/images/contest1.png /home/pi/rpidatv/scripts/images/contest.png
 elif (( $INT_FREQ_OUTPUT \< 950 )); then
-                gpio -g write $band_bit0 0;
-                gpio -g write $band_bit1 1;
+  gpio -g write $band_bit0 0;
+  gpio -g write $band_bit1 1;
+  cp -f /home/pi/rpidatv/scripts/images/contest2.png /home/pi/rpidatv/scripts/images/contest.png
 elif (( $INT_FREQ_OUTPUT \< 4400 )); then
-                gpio -g write $band_bit0 1;
-                gpio -g write $band_bit1 1;
+  gpio -g write $band_bit0 1;
+  gpio -g write $band_bit1 1;
+  cp -f /home/pi/rpidatv/scripts/images/contest3.png /home/pi/rpidatv/scripts/images/contest.png
 else
-                gpio -g write $band_bit0 0;
-                gpio -g write $band_bit1 0;
+  gpio -g write $band_bit0 0;
+  gpio -g write $band_bit1 0;
 fi
 
 ################ If DATVEXPRESS in use, Set Ports ########

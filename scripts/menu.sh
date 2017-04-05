@@ -120,219 +120,199 @@ elif [ $RET -eq 0 ]; then
 fi
 }
 
-do_input_setup() {
-MODE_INPUT=$(get_config_var modeinput $CONFIGFILE)
-case "$MODE_INPUT" in
-	CAMH264) 
-	Radio1=ON
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-	Radio5=OFF
-	Radio6=OFF
-	Radio7=OFF
-	Radio8=OFF
-	Radio9=OFF
-	Radio10=OFF
-	;;
-	CAMMPEG-2) 
-	Radio1=OFF
-	Radio2=ON
-	Radio3=OFF
-	Radio4=OFF
-	Radio5=OFF
-	Radio6=OFF
-	Radio7=OFF
-	Radio8=OFF
-	Radio9=OFF
-	Radio10=OFF
-	;;
-	FILETS) 
-	Radio1=OFF
-	Radio2=OFF
-	Radio3=ON
-	Radio4=OFF
-	Radio5=OFF
-	Radio6=OFF
-	Radio7=OFF
-	Radio8=OFF
-	Radio9=OFF
-	Radio10=OFF
-	;;
-	PATERNAUDIO) 
-	Radio1=OFF
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=ON
-	Radio5=OFF
-	Radio6=OFF
-	Radio7=OFF
-	Radio8=OFF
-	Radio9=OFF
-	Radio10=OFF
-	;;
-	CARRIER) 
-	Radio1=OFF
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-	Radio5=ON
-	Radio6=OFF
-	Radio7=OFF
-	Radio8=OFF
-	Radio9=OFF
-	Radio10=OFF
-	;;
-	TESTMODE) 
-	Radio1=OFF
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-	Radio5=OFF
-	Radio6=ON
-	Radio7=OFF
-	Radio8=OFF
-	Radio9=OFF
-	Radio10=OFF
-	;;
-	IPTSIN) 
-	Radio1=OFF
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-	Radio5=OFF
-	Radio6=OFF
-	Radio7=ON
-	Radio8=OFF
-	Radio9=OFF
-	Radio10=OFF
-	;;
-	ANALOGCAM) 
-	Radio1=OFF
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-	Radio5=OFF
-	Radio6=OFF
-	Radio7=OFF
-	Radio8=ON
-	Radio9=OFF
-	Radio10=OFF
-	;;
-	VNC) 
-	Radio1=OFF
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-	Radio5=OFF
-	Radio6=OFF
-	Radio7=OFF
-	Radio8=OFF
-	Radio9=ON
-	Radio10=OFF
-	;;
-	DESKTOP) 
-	Radio1=OFF
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-	Radio5=OFF
-	Radio6=OFF
-	Radio7=OFF
-	Radio8=OFF
-	Radio9=OFF
-	Radio10=ON
-	;;
+############### Function to rewrite in-use Contest Numbers Image #########################
 
-	*) 
-	Radio1=ON
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-	Radio5=OFF
-	Radio6=OFF
-	Radio7=OFF
-	Radio8=OFF
-	Radio9=OFF
-	Radio10=OFF
-	;;
-esac
+do_refresh_numbers()
+{
+  FREQ_OUTPUT=$(get_config_var freqoutput $CONFIGFILE)
+  INT_FREQ_OUTPUT=${FREQ_OUTPUT%.*}
+  LOCATOR=$(get_config_var locator $CONFIGFILE)
 
-chinput=$(whiptail --title "$StrInputSetupTitle" --radiolist \
-		"$StrInputSetupDescription" 20 78 10 \
-		"CAMH264" "$StrInputSetupCAMH264" $Radio1 \
-		"CAMMPEG-2" "$StrInputSetupCAMMPEG_2" $Radio2 \
-		"FILETS" "$StrInputSetupFILETS" $Radio3\
-		"PATERNAUDIO" "$StrInputSetupPATERNAUDIO" $Radio4 \
-		"CARRIER" "$StrInputSetupCARRIER" $Radio5 \
-		"TESTMODE" "$StrInputSetupTESTMODE" $Radio6 \
-		"IPTSIN" "$StrInputSetupIPTSIN" $Radio7 \
-		"ANALOGCAM" "$StrInputSetupANALOGCAM" $Radio8 \
-		"VNC" "$StrInputSetupVNC" $Radio9 \
-		"DESKTOP" "$StrInputSetupDESKTOP" $Radio10 3>&2 2>&1 1>&3)
-		if [ $? -eq 0 ]; then
-	     	 case "$chinput" in
-		    FILETS)
-			TSVIDEOFILE=$(get_config_var tsvideofile $CONFIGFILE)
-			filename=$TSVIDEOFILE
-			FileBrowserTitle=TS:
-			Filebrowser "$PATHTS/"
-			whiptail --title "$StrInputSetupFILETSName" --msgbox "$filename" 8 44
-			set_config_var tsvideofile "$filename" $CONFIGFILE
-			PATHTS=`dirname $filename`
-	 		set_config_var pathmedia "$PATHTS" $CONFIGFILE
-		    ;;
-	            PATERNAUDIO)
-			PATERNFILE=$(get_config_var paternfile $CONFIGFILE)
-			filename=$PATERNFILE
-			FileBrowserTitle=JPEG:
-			Pathbrowser "$PATHTS/"
-			whiptail --title "$StrInputSetupPATERNAUDIOName" --msgbox "$filename" 8 44
-			set_config_var paternfile "$filename" $CONFIGFILE
-			set_config_var pathmedia "$filename" $CONFIGFILE	
-		    ;;
-		    IPTSIN)
-		    UDPINADDR=$(get_config_var udpinaddr $CONFIGFILE)
+  NUMBERS0=$(get_config_var numbers0 $CONFIGFILE)
+  convert -size 480x320 xc:white \
+    -gravity North -pointsize 75 -annotate 0 "$CALL" \
+    -gravity Center -pointsize 150 -annotate 0 "$NUMBERS0" \
+    -gravity South -pointsize 50 -annotate 0 "$LOCATOR""    4 Metres" \
+    /home/pi/rpidatv/scripts/images/contest0.png
 
-		    UDPINADDR=$(whiptail --inputbox "$StrInputSetupIPTSINName" 8 78 $UDPINADDR --title "$StrInputSetupIPTSINTitle" 3>&1 1>&2 2>&3)
-		    if [ $? -eq 0 ]; then
-			set_config_var udpinaddr "$UDPINADDR" $CONFIGFILE
-		    fi
-		    ;;
-		    ANALOGCAM)
-		    ANALOGCAMNAME=$(get_config_var analogcamname $CONFIGFILE)
-		    ANALOGCAMNAME=$(whiptail --inputbox "$StrInputSetupANALOGCAMName" 8 78 $ANALOGCAMNAME --title "$StrInputSetupANALOGCAMTitle" 3>&1 1>&2 2>&3)
-		    if [ $? -eq 0 ]; then
-			set_config_var analogcamname "$ANALOGCAMNAME" $CONFIGFILE
-		    fi
-		    ;;
-		 VNC)
-		    VNCADDR=$(get_config_var vncaddr $CONFIGFILE)
+  NUMBERS1=$(get_config_var numbers1 $CONFIGFILE)
+  convert -size 480x320 xc:white \
+    -gravity North -pointsize 75 -annotate 0 "$CALL" \
+    -gravity Center -pointsize 150 -annotate 0 "$NUMBERS1" \
+    -gravity South -pointsize 50 -annotate 0 "$LOCATOR""    2 Metres" \
+    /home/pi/rpidatv/scripts/images/contest1.png
 
-		    VNCADDR=$(whiptail --inputbox "$StrInputSetupVNCName" 8 78 $VNCADDR --title "$StrInputSetupVNCTitle" 3>&1 1>&2 2>&3)
-		    if [ $? -eq 0 ]; then
-			set_config_var vncaddr "$VNCADDR" $CONFIGFILE
-		    fi
-		    ;;
-		esac
-		set_config_var modeinput "$chinput" $CONFIGFILE
-		fi
+  NUMBERS2=$(get_config_var numbers2 $CONFIGFILE)
+  convert -size 480x320 xc:white \
+    -gravity North -pointsize 75 -annotate 0 "$CALL" \
+    -gravity Center -pointsize 150 -annotate 0 "$NUMBERS2" \
+    -gravity South -pointsize 50 -annotate 0 "$LOCATOR""    70 cm" \
+    /home/pi/rpidatv/scripts/images/contest2.png
+
+  NUMBERS3=$(get_config_var numbers3 $CONFIGFILE)
+  convert -size 480x320 xc:white \
+    -gravity North -pointsize 75 -annotate 0 "$CALL" \
+    -gravity Center -pointsize 150 -annotate 0 "$NUMBERS3" \
+    -gravity South -pointsize 50 -annotate 0 "$LOCATOR""    23 cm" \
+    /home/pi/rpidatv/scripts/images/contest3.png
+
+  if (( $INT_FREQ_OUTPUT \< 100 )); then
+    cp -f /home/pi/rpidatv/scripts/images/contest0.png /home/pi/rpidatv/scripts/images/contest.png
+  elif (( $INT_FREQ_OUTPUT \< 250 )); then
+    cp -f /home/pi/rpidatv/scripts/images/contest1.png /home/pi/rpidatv/scripts/images/contest.png
+  elif (( $INT_FREQ_OUTPUT \< 950 )); then
+    cp -f /home/pi/rpidatv/scripts/images/contest2.png /home/pi/rpidatv/scripts/images/contest.png
+  else
+    cp -f /home/pi/rpidatv/scripts/images/contest3.png /home/pi/rpidatv/scripts/images/contest.png
+  fi
 }
 
-do_station_setup() {
-CALL=$(get_config_var call $CONFIGFILE)
-CALL=$(whiptail --inputbox "$StrCallContext" 8 78 $CALL --title "$StrCallTitle" 3>&1 1>&2 2>&3)
-if [ $? -eq 0 ]; then
-set_config_var call "$CALL" $CONFIGFILE
-fi
+############### Function to show in-use Contest Numbers Image #########################
 
-LOCATOR=$(get_config_var locator $CONFIGFILE)
-LOCATOR=$(whiptail --inputbox "$StrLocatorContext" 8 78 $LOCATOR --title "$StrLocatorTitle" 3>&1 1>&2 2>&3)
-if [ $? -eq 0 ]; then
-set_config_var locator "$LOCATOR" $CONFIGFILE
-fi
+do_show_numbers()
+{
+  sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/contest.png >/dev/null 2>/dev/null
+  (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
 }
 
+################################### Menus ####################################
+
+do_input_setup()
+{
+  MODE_INPUT=$(get_config_var modeinput $CONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  Radio3=OFF
+  Radio4=OFF
+  Radio5=OFF
+  Radio6=OFF
+  Radio7=OFF
+  Radio8=OFF
+  Radio9=OFF
+  Radio10=OFF
+  Radio11=OFF
+  case "$MODE_INPUT" in
+  CAMH264)
+    Radio1=ON
+  ;;
+  CAMMPEG-2)
+    Radio2=ON
+  ;;
+  FILETS)
+    Radio3=ON
+  ;;
+  PATERNAUDIO)
+    Radio4=ON
+  ;;
+  CARRIER)
+    Radio5=ON
+  ;;
+  TESTMODE)
+    Radio6=ON
+  ;;
+  IPTSIN)
+    Radio7=ON
+  ;;
+  ANALOGCAM)
+    Radio8=ON
+  ;;
+  VNC)
+    Radio9=ON
+  ;;
+  DESKTOP)
+    Radio10=ON
+  ;;
+  CONTEST)
+    Radio11=ON
+  ;;
+  *)
+    Radio1=ON
+  ;;
+  esac
+
+  chinput=$(whiptail --title "$StrInputSetupTitle" --radiolist \
+    "$StrInputSetupDescription" 20 78 11 \
+    "CAMH264" "$StrInputSetupCAMH264" $Radio1 \
+    "CAMMPEG-2" "$StrInputSetupCAMMPEG_2" $Radio2 \
+    "FILETS" "$StrInputSetupFILETS" $Radio3\
+    "PATERNAUDIO" "$StrInputSetupPATERNAUDIO" $Radio4 \
+    "CARRIER" "$StrInputSetupCARRIER" $Radio5 \
+    "TESTMODE" "$StrInputSetupTESTMODE" $Radio6 \
+    "IPTSIN" "$StrInputSetupIPTSIN" $Radio7 \
+    "ANALOGCAM" "$StrInputSetupANALOGCAM" $Radio8 \
+    "VNC" "$StrInputSetupVNC" $Radio9 \
+    "DESKTOP" "$StrInputSetupDESKTOP" $Radio10 \
+    "CONTEST" "$StrInputSetupCONTEST" $Radio11 3>&2 2>&1 1>&3)
+
+  if [ $? -eq 0 ]; then
+    case "$chinput" in
+    FILETS)
+      TSVIDEOFILE=$(get_config_var tsvideofile $CONFIGFILE)
+      filename=$TSVIDEOFILE
+      FileBrowserTitle=TS:
+      Filebrowser "$PATHTS/"
+      whiptail --title "$StrInputSetupFILETSName" --msgbox "$filename" 8 44
+      set_config_var tsvideofile "$filename" $CONFIGFILE
+      PATHTS=`dirname $filename`
+      set_config_var pathmedia "$PATHTS" $CONFIGFILE
+    ;;
+    PATERNAUDIO)
+      PATERNFILE=$(get_config_var paternfile $CONFIGFILE)
+      filename=$PATERNFILE
+      FileBrowserTitle=JPEG:
+      Pathbrowser "$PATHTS/"
+      whiptail --title "$StrInputSetupPATERNAUDIOName" --msgbox "$filename" 8 44
+      set_config_var paternfile "$filename" $CONFIGFILE
+      set_config_var pathmedia "$filename" $CONFIGFILE
+    ;;
+    IPTSIN)
+      CURRENTIP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
+      whiptail --title "$StrInputSetupIPTSINTitle" --msgbox "$StrInputSetupIPTSINName""$CURRENTIP" 8 78
+    ;;
+    ANALOGCAM)
+      ANALOGCAMNAME=$(get_config_var analogcamname $CONFIGFILE)
+      ANALOGCAMNAME=$(whiptail --inputbox "$StrInputSetupANALOGCAMName" 8 78 $ANALOGCAMNAME --title "$StrInputSetupANALOGCAMTitle" 3>&1 1>&2 2>&3)
+      if [ $? -eq 0 ]; then
+        set_config_var analogcamname "$ANALOGCAMNAME" $CONFIGFILE
+      fi
+    ;;
+    VNC)
+      VNCADDR=$(get_config_var vncaddr $CONFIGFILE)
+      VNCADDR=$(whiptail --inputbox "$StrInputSetupVNCName" 8 78 $VNCADDR --title "$StrInputSetupVNCTitle" 3>&1 1>&2 2>&3)
+      if [ $? -eq 0 ]; then
+        set_config_var vncaddr "$VNCADDR" $CONFIGFILE
+      fi
+    ;;
+    CONTEST)
+      do_refresh_numbers
+      do_show_numbers
+    ;;
+    esac
+    set_config_var modeinput "$chinput" $CONFIGFILE
+  fi
+}
+
+do_station_setup()
+{
+  CALL=$(get_config_var call $CONFIGFILE)
+  CALL=$(whiptail --inputbox "$StrCallContext" 8 78 $CALL --title "$StrCallTitle" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    set_config_var call "$CALL" $CONFIGFILE
+  fi
+
+  LOCATOR=$(get_config_var locator $CONFIGFILE)
+  LOCATOR=$(whiptail --inputbox "$StrLocatorContext" 8 78 $LOCATOR --title "$StrLocatorTitle" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    set_config_var locator "$LOCATOR" $CONFIGFILE
+  fi
+
+  do_refresh_numbers
+
+  MODE_INPUT=$(get_config_var modeinput $CONFIGFILE)
+  if [ "$MODE_INPUT" == "CONTEST" ]; then
+    do_show_numbers
+  fi
+}
 
 do_output_setup_mode()
 {
@@ -346,7 +326,7 @@ do_output_setup_mode()
   Radio7=OFF
   Radio8=OFF
   case "$MODE_OUTPUT" in
-  IQ) 
+  IQ)
     Radio1=ON
   ;;
   QPSKRF)
@@ -557,12 +537,13 @@ do_PID_setup()
 
 do_freq_setup()
 {
-FREQ_OUTPUT=$(get_config_var freqoutput $CONFIGFILE)
-FREQ=$(whiptail --inputbox "$StrOutputRFFreqContext" 8 78 $FREQ_OUTPUT --title "$StrOutputRFFreqTitle" 3>&1 1>&2 2>&3)
-if [ $? -eq 0 ]; then
-  set_config_var freqoutput "$FREQ" $CONFIGFILE
-  $PATHSCRIPT"/ctlfilter.sh" ## Refresh the band and port switching
-fi
+  FREQ_OUTPUT=$(get_config_var freqoutput $CONFIGFILE)
+  FREQ=$(whiptail --inputbox "$StrOutputRFFreqContext" 8 78 $FREQ_OUTPUT --title "$StrOutputRFFreqTitle" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    set_config_var freqoutput "$FREQ" $CONFIGFILE
+    $PATHSCRIPT"/ctlfilter.sh" ## Refresh the band and port switching
+  fi
+  do_refresh_numbers
 }
 
 do_output_setup() {
@@ -606,10 +587,11 @@ do_transmit()
 do_stop_transmit()
 {
   # Stop DATV Express transmitting if required
-
-  echo "set car off" >> /tmp/expctrl
-  echo "set ptt rx" >> /tmp/expctrl
-  sudo killall netcat >/dev/null 2>/dev/null
+  if [ "$MODE_OUTPUT" == "DATVEXPRESS" ]; then
+    echo "set car off" >> /tmp/expctrl
+    echo "set ptt rx" >> /tmp/expctrl
+    sudo killall netcat >/dev/null 2>/dev/null
+  fi
 
   # Turn the Local Oscillator off
   sudo $PATHRPI"/adf4351" off
@@ -619,6 +601,7 @@ do_stop_transmit()
   sudo killall ffmpeg >/dev/null 2>/dev/null
   sudo killall tcanim >/dev/null 2>/dev/null
   sudo killall avc2ts >/dev/null 2>/dev/null
+  sudo killall netcat >/dev/null 2>/dev/null
 
   # Then pause and make sure that avc2ts has really been stopped (needed at high SRs)
   sleep 0.1
@@ -630,16 +613,12 @@ do_stop_transmit()
 
 do_display_on()
 {
-	#tvservice -p
-	#sudo chvt 2
-	#sudo chvt 1
-	v4l2-ctl --overlay=1 >/dev/null 2>/dev/null
+  v4l2-ctl --overlay=1 >/dev/null 2>/dev/null
 }
 
 do_display_off()
 {
-	v4l2-ctl --overlay=0 >/dev/null 2>/dev/null
-	#tvservice -o
+  v4l2-ctl --overlay=0 >/dev/null 2>/dev/null
 }
 
 do_receive_status()
@@ -844,19 +823,19 @@ fi
 
 do_IP_setup()
 {
-CURRENTIP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
-whiptail --title "IP" --msgbox "$CURRENTIP" 8 78
+  CURRENTIP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
+  whiptail --title "IP" --msgbox "$CURRENTIP" 8 78
 }
 
 do_WiFi_setup()
 {
-$PATHSCRIPT"/wifisetup.sh"
+  $PATHSCRIPT"/wifisetup.sh"
 }
 
 do_WiFi_Off()
 {
-sudo ifconfig wlan0 down                           ## Disable it now
-cp $PATHCONFIGS"/text.wifi_off" /home/pi/.wifi_off ## Disable at start-up
+  sudo ifconfig wlan0 down                           ## Disable it now
+  cp $PATHCONFIGS"/text.wifi_off" /home/pi/.wifi_off ## Disable at start-up
 }
 
 do_Enable_DigiThin()
@@ -1288,8 +1267,6 @@ do_set_express()
 
 do_numbers()
 {
-  whiptail --title "Not implemented yet" --msgbox "Not Implemented yet.  Please press enter to continue" 8 78
-
   NUMBERS0=$(get_config_var numbers0 $CONFIGFILE)
   NUMBERS0=$(whiptail --inputbox "Enter 4 digits" 8 78 $NUMBERS0 --title "SET CONTEST NUMBERS FOR THE 71 MHz BAND" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
@@ -1313,6 +1290,9 @@ do_numbers()
   if [ $? -eq 0 ]; then
     set_config_var numbers3 "$NUMBERS3" $CONFIGFILE
   fi
+
+  do_refresh_numbers
+  do_show_numbers
 }
 
 do_vfinder()
@@ -1434,7 +1414,7 @@ do_system_setup()
 menuchoice=$(whiptail --title "$StrSystemTitle" --menu "$StrSystemContext" 16 78 9 \
     "1 Autostart" "$StrAutostartMenu"  \
     "2 Display" "$StrDisplayMenu" \
-    "3 IP" "$StrIPMenu" \
+    "3 Show IP" "$StrIPMenu" \
     "4 WiFi Set-up" "SSID and password"  \
     "5 WiFi Off" "Turn the WiFi Off" \
     "6 Enable DigiThin" "Not Implemented Yet" \
@@ -1489,67 +1469,69 @@ do_system_setup_2()
 
 do_language_setup()
 {
-menuchoice=$(whiptail --title "$StrLanguageTitle" --menu "$StrOutputContext" 16 78 6 \
-        "1 French Menus" "Menus Francais"  \
-        "2 English Menus" "Change Menus to English" \
-        "3 French Keyboard" "$StrKeyboardChange" \
-        "4 UK Keyboard" "$StrKeyboardChange" \
-        "5 US Keyboard" "$StrKeyboardChange" \
-         3>&2 2>&1 1>&3)
-        case "$menuchoice" in
-            1\ *) set_config_var menulanguage "fr" $CONFIGFILE ;;
-            2\ *) set_config_var menulanguage "en" $CONFIGFILE ;;
-            3\ *) sudo cp $PATHCONFIGS"/keyfr" /etc/default/keyboard ;;
-            4\ *) sudo cp $PATHCONFIGS"/keygb" /etc/default/keyboard ;;
-            5\ *) sudo cp $PATHCONFIGS"/keyus" /etc/default/keyboard ;;
-        esac
+  menuchoice=$(whiptail --title "$StrLanguageTitle" --menu "$StrOutputContext" 16 78 6 \
+    "1 French Menus" "Menus Francais"  \
+    "2 English Menus" "Change Menus to English" \
+    "3 German Menus" "$StrNotImplemented" \
+    "4 French Keyboard" "$StrKeyboardChange" \
+    "5 UK Keyboard" "$StrKeyboardChange" \
+    "6 US Keyboard" "$StrKeyboardChange" \
+      3>&2 2>&1 1>&3)
+    case "$menuchoice" in
+      1\ *) set_config_var menulanguage "fr" $CONFIGFILE ;;
+      2\ *) set_config_var menulanguage "en" $CONFIGFILE ;;
+      3\ *) set_config_var menulanguage "en" $CONFIGFILE ;;
+      4\ *) sudo cp $PATHCONFIGS"/keyfr" /etc/default/keyboard ;;
+      5\ *) sudo cp $PATHCONFIGS"/keygb" /etc/default/keyboard ;;
+      6\ *) sudo cp $PATHCONFIGS"/keyus" /etc/default/keyboard ;;
+    esac
 
-        # Check Language
+  # Check Language
 
-        MENU_LANG=$(get_config_var menulanguage $CONFIGFILE)
+  MENU_LANG=$(get_config_var menulanguage $CONFIGFILE)
 
-        # Set Language
+  # Set Language
 
-        if [ "$MENU_LANG" == "en" ]; then
-          source $PATHSCRIPT"/langgb.sh"
-        else
-          source $PATHSCRIPT"/langfr.sh"
-        fi
+  if [ "$MENU_LANG" == "en" ]; then
+    source $PATHSCRIPT"/langgb.sh"
+  else
+    source $PATHSCRIPT"/langfr.sh"
+  fi
 }
 
 do_Exit()
 {
-exit
+  exit
 }
 
 do_Reboot()
 {
-sudo reboot now
+  sudo reboot now
 }
 
 do_Shutdown()
 {
-sudo shutdown now
+  sudo shutdown now
 }
 
 do_TouchScreen()
 {
-reset
-sudo killall fbcp >/dev/null 2>/dev/null
-fbcp &
-~/rpidatv/bin/rpidatvgui 1
+  reset
+  sudo killall fbcp >/dev/null 2>/dev/null
+  fbcp &
+  /home/pi/rpidatv/bin/rpidatvgui 1
 }
 
 do_EnableButtonSD()
 {
-cp $PATHCONFIGS"/text.pi-sdn" ~/.pi-sdn  ## Load it at logon
-~/.pi-sdn                                ## Load it now
+  cp $PATHCONFIGS"/text.pi-sdn" /home/pi/.pi-sdn  ## Load it at logon
+  /home/pi/.pi-sdn                                ## Load it now
 }
 
 do_DisableButtonSD()
 {
-rm ~/.pi-sdn             ## Stop it being loaded at log-on
-sudo pkill -x pi-sdn     ## kill the current process
+  rm /home/pi/.pi-sdn             ## Stop it being loaded at log-on
+  sudo pkill -x pi-sdn            ## kill the current process
 } 
 
 do_shutdown_menu()
