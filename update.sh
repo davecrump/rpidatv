@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 20170403
+# Updated by davecrump 20170405
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -9,7 +9,7 @@
 reset
 
 printf "\nCommencing update.\n\n"
-printf "Note that update 201704030 is a major update and will take longer than previous updates\n\n"
+printf "Note that update 201704050 is a major update and will take longer than previous updates\n\n"
 
 # Note previous version number
 cp -f -r /home/pi/rpidatv/scripts/installed_version.txt /home/pi/prev_installed_version.txt
@@ -26,13 +26,16 @@ fi
 # http://unix.stackexchange.com/questions/124468/how-do-i-resolve-an-apparent-hanging-update-process
 sudo apt-get -y remove apt-listchanges
 
+# Prepare to update the distribution (added 20170405)
+sudo dpkg --configure -a
+sudo apt-get clean
+sudo apt-get update
+
 # Update the distribution (added 20170403)
 sudo apt-get -y dist-upgrade
 
-# Check if ImageMagick needs to be installed (201704030)
-if [ ! -f "/usr/bin/convert" ]; then
-  sudo apt-get -y install imagemagick
-fi
+# Check that ImageMagick is installed (201704050)
+sudo apt-get -y install imagemagick
 
 #  Delete the duplicate touchscreen driver if it is still there (201704030)
 cd /boot

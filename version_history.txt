@@ -1,3 +1,6 @@
+201704050
+Update package lists before updating packages
+
 201704030
 Deleted conflicting touchscreen driver in /boot/config.txt
 Added routine software upgrade to install and upgrade scripts
