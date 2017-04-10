@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump on 20170403
+# Updated by davecrump on 20170408
 
 # Update the package manager
 sudo dpkg --configure -a
@@ -144,11 +144,14 @@ make
 sudo install fbcp /usr/local/bin/fbcp
 cd ../../
 
-# Install Waveshare DTOVERLAY
+# Install Waveshare 3.5A DTOVERLAY
 cd /home/pi/rpidatv/scripts/
 sudo cp ./waveshare35a.dtbo /boot/overlays/
 
-# Install the Waveshare driver
+# Install Waveshare 3.5B DTOVERLAY
+sudo cp ./waveshare35b.dtbo /boot/overlays/
+
+# Install the Waveshare 3.5A driver
 
 sudo bash -c 'cat /home/pi/rpidatv/scripts/configs/waveshare_mkr.txt >> /boot/config.txt'
 

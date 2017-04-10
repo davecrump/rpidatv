@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 20170405
+# Updated by davecrump 20170408
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -9,7 +9,7 @@
 reset
 
 printf "\nCommencing update.\n\n"
-printf "Note that update 201704050 is a major update and will take longer than previous updates\n\n"
+printf "Note that if you have not updated since 201703060, this will take longer than previous updates\n\n"
 
 # Note previous version number
 cp -f -r /home/pi/rpidatv/scripts/installed_version.txt /home/pi/prev_installed_version.txt
@@ -217,6 +217,11 @@ else
 fi
 rm -f /home/pi/rpidatvconfig.txt
 rm -f /home/pi/rpidatv/scripts/copy_config.sh
+
+# Install Waveshare 3.5B DTOVERLAY if required (201704080)
+if [ ! -f /boot/overlays/waveshare35b.dtbo ]; then
+  sudo cp /home/pi/rpidatv/scripts/waveshare35b.dtbo /boot/overlays/
+fi
 
 # Update the version number
 rm -rf /home/pi/rpidatv/scripts/installed_version.txt

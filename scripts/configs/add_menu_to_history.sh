@@ -1,10 +1,5 @@
 #!/bin/bash -i
 
-set -x
-
-#HISTFILE=/home/pi/.bash_history
-#set -o history
-
 # Append the memory history list to the history file
 history -a
 

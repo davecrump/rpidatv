@@ -1,3 +1,8 @@
+201704080
+Added German Language Menus
+Added support for Waveshare 3.5b display
+Bug fix for display reverting to TonTec when display setting cancelled
+
 201704050
 Update package lists before updating packages
 

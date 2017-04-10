@@ -550,9 +550,9 @@ void SelectFreq(int NoButton)  //Frequency
   SetConfigParam(PATH_CONFIG,Param,freqtxt);
 
   // Set the Band (and filter) Switching
-
   system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
-
+  // And wait for it to finish using rpidatvconfig.txt
+  usleep(100000);
 }
 
 void SelectSR(int NoButton)  // Symbol Rate
@@ -1117,7 +1117,7 @@ int main(int argc, char **argv) {
 		sigaction(i, &sa, NULL);
 	}
 
-// Determine if using waveshare screen
+// Determine if using waveshare or waveshare B screen
 // Either by first argument or from rpidatvconfig.txt
 	if(argc>1)
 		Inversed=atoi(argv[1]);
@@ -1126,10 +1126,13 @@ int main(int argc, char **argv) {
         GetConfigParam(PATH_CONFIG,Param,Value);
         if(strcmp(Value,"Waveshare")==0)
         	Inversed=1;
+        if(strcmp(Value,"WaveshareB")==0)
+                Inversed=1;
 
-// Set the Band (and filter) Switching
-
+  // Set the Band (and filter) Switching
   system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
+  // and wait for it to finish using rpidatvconfig.txt
+  usleep(100000);
 
 // Determine if ReceiveDirect 2nd argument 
 	if(argc>2)

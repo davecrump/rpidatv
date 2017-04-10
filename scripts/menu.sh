@@ -739,86 +739,76 @@ do_autostart_setup()
 
 do_display_setup()
 {
-MODE_DISPLAY=$(get_config_var display $CONFIGFILE)
-case "$MODE_DISPLAY" in
+  MODE_DISPLAY=$(get_config_var display $CONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  Radio3=OFF
+  Radio4=OFF
+  Radio5=OFF
+  case "$MODE_DISPLAY" in
+  Tontec35)
+    Radio1=ON
+  ;;
+  HDMITouch)
+    Radio2=ON
+  ;;
+  Waveshare)
+    Radio3=ON
+  ;;
+  WaveshareB)
+    Radio4=ON
+  ;;
+  Console)
+    Radio5=ON
+  ;;
+  *)
+    Radio1=ON
+  esac
 
-	Tontec35)
-	Radio1=ON
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-	;;
-	HDMITouch)
-	Radio1=OFF
-	Radio2=ON
-	Radio3=OFF
-	Radio4=OFF
- 	;;
-	Waveshare)
-	Radio1=OFF
-	Radio2=OFF
-	Radio3=ON
-	Radio4=OFF
-	;;
-        Console)
-        Radio1=OFF
-        Radio2=OFF
-        Radio3=OFF
-        Radio4=ON
-        ;;
-	*)
-	Radio1=ON
-	Radio2=OFF
-	Radio3=OFF
-	Radio4=OFF
-esac
-
-chdisplay=$(whiptail --title "$StrDisplaySetupTitle" --radiolist \
-	"$StrDisplaySetupContext" 20 78 8 \
-	"Tontec35" "$DisplaySetupTontec" $Radio1 \
-	"HDMITouch" "$DisplaySetupHDMI" $Radio2 \
-	"Waveshare" "$DisplaySetupRpiLCD" $Radio3 \
-        "Console" "$DisplaySetupConsole" $Radio4 \
+  chdisplay=$(whiptail --title "$StrDisplaySetupTitle" --radiolist \
+    "$StrDisplaySetupContext" 20 78 9 \
+    "Tontec35" "$DisplaySetupTontec" $Radio1 \
+    "HDMITouch" "$DisplaySetupHDMI" $Radio2 \
+    "Waveshare" "$DisplaySetupRpiLCD" $Radio3 \
+    "WaveshareB" "$DisplaySetupRpiBLCD" $Radio4 \
+    "Console" "$DisplaySetupConsole" $Radio5 \
  	 3>&2 2>&1 1>&3)
 
-## This section modifies and replaces the end of /boot/config.txt
-## to allow (only) the correct LCD drivers to be loaded at next boot
+  if [ $? -eq 0 ]; then                     ## If the selection has changed
 
-## Set constants for the amendment of /boot/config.txt below
+    ## This section modifies and replaces the end of /boot/config.txt
+    ## to allow (only) the correct LCD drivers to be loaded at next boot
 
-PATHCONFIGS="/home/pi/rpidatv/scripts/configs"  ## Path to config files
-lead='^## Begin LCD Driver'               ## Marker for start of inserted text
-tail='^## End LCD Driver'                 ## Marker for end of inserted text
-CHANGEFILE="/boot/config.txt"             ## File requiring added text
-APPENDFILE=$PATHCONFIGS"/lcd_markers.txt" ## File containing both markers
-TRANSFILE=$PATHCONFIGS"/transfer.txt"     ## File used for transfer
+    ## Set constants for the amendment of /boot/config.txt
+    PATHCONFIGS="/home/pi/rpidatv/scripts/configs"  ## Path to config files
+    lead='^## Begin LCD Driver'               ## Marker for start of inserted text
+    tail='^## End LCD Driver'                 ## Marker for end of inserted text
+    CHANGEFILE="/boot/config.txt"             ## File requiring added text
+    APPENDFILE=$PATHCONFIGS"/lcd_markers.txt" ## File containing both markers
+    TRANSFILE=$PATHCONFIGS"/transfer.txt"     ## File used for transfer
 
-if [ $? -eq 0 ]; then                     ## If the selection has changed
+    grep -q "$lead" "$CHANGEFILE"     ## Is the first marker already present?
+    if [ $? -ne 0 ]; then
+      sudo bash -c 'cat '$APPENDFILE' >> '$CHANGEFILE' '  ## If not append the markers
+    fi
 
-	grep -q "$lead" "$CHANGEFILE"     ## Is the first marker already present?
-	if [ $? -ne 0 ]; then
-		sudo bash -c 'cat '$APPENDFILE' >> '$CHANGEFILE' '  ## If not append the markers
-	fi
+    case "$chdisplay" in              ## Select the correct driver text
+      Tontec35)  INSERTFILE=$PATHCONFIGS"/tontec35.txt" ;; ## Message to be added
+      HDMITouch) INSERTFILE=$PATHCONFIGS"/hdmitouch.txt" ;;
+      Waveshare) INSERTFILE=$PATHCONFIGS"/waveshare.txt" ;;
+      WaveshareB) INSERTFILE=$PATHCONFIGS"/waveshareb.txt" ;;
+      Console)   INSERTFILE=$PATHCONFIGS"/console.txt" ;;
+    esac
 
-	case "$chdisplay" in              ## Select the correct driver text
-
-		Tontec35)  INSERTFILE=$PATHCONFIGS"/tontec35.txt" ;; ## Message to be added
-		HDMITouch) INSERTFILE=$PATHCONFIGS"/hdmitouch.txt" ;;
-	        Waveshare) INSERTFILE=$PATHCONFIGS"/waveshare.txt" ;;
-		Console)   INSERTFILE=$PATHCONFIGS"/console.txt" ;;
-
-	esac
-
-	## Replace whatever is between the markers with the driver text
-
-	sed -e "/$lead/,/$tail/{ /$lead/{p; r $INSERTFILE
+    ## Replace whatever is between the markers with the driver text
+    sed -e "/$lead/,/$tail/{ /$lead/{p; r $INSERTFILE
 	        }; /$tail/p; d }" $CHANGEFILE >> $TRANSFILE
 
-	sudo cp "$TRANSFILE" "$CHANGEFILE"          ## Copy from the transfer file
-	rm $TRANSFILE                               ## Delete the transfer file
+    sudo cp "$TRANSFILE" "$CHANGEFILE"          ## Copy from the transfer file
+    rm $TRANSFILE                               ## Delete the transfer file
 
-	set_config_var display "$chdisplay" $CONFIGFILE
-fi
+    set_config_var display "$chdisplay" $CONFIGFILE
+  fi
 }
 
 do_IP_setup()
@@ -1472,7 +1462,7 @@ do_language_setup()
   menuchoice=$(whiptail --title "$StrLanguageTitle" --menu "$StrOutputContext" 16 78 6 \
     "1 French Menus" "Menus Francais"  \
     "2 English Menus" "Change Menus to English" \
-    "3 German Menus" "$StrNotImplemented" \
+    "3 German Menus" "Menüs auf Deutsch wechseln" \
     "4 French Keyboard" "$StrKeyboardChange" \
     "5 UK Keyboard" "$StrKeyboardChange" \
     "6 US Keyboard" "$StrKeyboardChange" \
@@ -1480,7 +1470,7 @@ do_language_setup()
     case "$menuchoice" in
       1\ *) set_config_var menulanguage "fr" $CONFIGFILE ;;
       2\ *) set_config_var menulanguage "en" $CONFIGFILE ;;
-      3\ *) set_config_var menulanguage "en" $CONFIGFILE ;;
+      3\ *) set_config_var menulanguage "de" $CONFIGFILE ;;
       4\ *) sudo cp $PATHCONFIGS"/keyfr" /etc/default/keyboard ;;
       5\ *) sudo cp $PATHCONFIGS"/keygb" /etc/default/keyboard ;;
       6\ *) sudo cp $PATHCONFIGS"/keyus" /etc/default/keyboard ;;
@@ -1492,11 +1482,20 @@ do_language_setup()
 
   # Set Language
 
-  if [ "$MENU_LANG" == "en" ]; then
+  case "$MENU_LANG" in
+  en)
     source $PATHSCRIPT"/langgb.sh"
-  else
+  ;;
+  fr)
     source $PATHSCRIPT"/langfr.sh"
-  fi
+  ;;
+  de)
+    source $PATHSCRIPT"/langde.sh"
+  ;;
+  *)
+    source $PATHSCRIPT"/langgb.sh"
+  ;;
+  esac
 }
 
 do_Exit()
@@ -1588,11 +1587,27 @@ do_transmit
 MENU_LANG=$(get_config_var menulanguage $CONFIGFILE)
 
 # Set Language
-if [ "$MENU_LANG" == "en" ]; then
-  source $PATHSCRIPT"/langgb.sh"
-else
-  source $PATHSCRIPT"/langfr.sh"
-fi
+  case "$MENU_LANG" in
+  en)
+    source $PATHSCRIPT"/langgb.sh"
+  ;;
+  fr)
+    source $PATHSCRIPT"/langfr.sh"
+  ;;
+  de)
+    source $PATHSCRIPT"/langde.sh"
+  ;;
+  *)
+    source $PATHSCRIPT"/langgb.sh"
+  ;;
+  esac
+
+
+#if [ "$MENU_LANG" == "en" ]; then
+#  source $PATHSCRIPT"/langgb.sh"
+#else
+#  source $PATHSCRIPT"/langfr.sh"
+#fi
 
 # Display Splash on Touchscreen if fitted
 display_splash
@@ -1654,11 +1669,11 @@ while [ "$status" -eq 0 ]
         "1 Source" "$StrMainMenuSource"" ("$MODE_INPUT" selected)" \
 	"2 Output" "$StrMainMenuOutput"" ("$MODE_OUTPUT" selected)" \
 	"3 Station" "$StrMainMenuCall" \
-	"4 Receive" "Receive via rtlsdr" \
+	"4 Receive" "$StrMainMenuReceive" \
 	"5 System" "$StrMainMenuSystem" \
-        "6 System 2" "Advanced System Setup" \
-	"7 Language" "Set Language and Keyboard" \
-        "8 Shutdown" "Shutdown and reboot options" \
+        "6 System 2" "$StrMainMenuSystem2" \
+	"7 Language" "$StrMainMenuLanguage" \
+        "8 Shutdown" "$StrMainMenuShutdown" \
  	3>&2 2>&1 1>&3)
 
         case "$menuchoice" in
