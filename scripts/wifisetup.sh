@@ -29,7 +29,16 @@ fi
 ## Check current network name
 
 printf "Current WiFi Status:\n\n"
-iwgetid
+NETCONN=$(iwgetid)
+
+  if [ "${#NETCONN}" -le 1 ] ; then
+    NetCaption="Not connected"
+  else
+    NetCaption="Connected to: "$NETCONN
+  fi
+
+printf "$NetCaption""\n"
+
 printf "\nDo you want to set up a new network? (y/n)\n"
 read -n 1
 printf "\n"
@@ -39,7 +48,7 @@ fi
 if [ "$REPLY" = "n" ]; then
    exit
 fi
- 
+
 ## Set up new network
 
 printf "\nThe following networks are available:\n"
@@ -118,6 +127,7 @@ sudo ifdown wlan0
 sudo ifup wlan0
 
 printf "WiFi Configured\n"
-sleep 1
+
+sleep 2
 
 exit
