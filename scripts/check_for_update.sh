@@ -62,7 +62,7 @@ then
         chmod +x update.sh
         /home/pi/update.sh -d
         exit
-    elif [[ "$REPLY" = "s" || "$REPLY" = "F" ]]; then  ## Staging upgrade requested
+    elif [[ "$REPLY" = "s" || "$REPLY" = "S" ]]; then  ## Staging upgrade requested
         printf "\nUpgrading now to the BATC Staging Version...\n"
         cd /home/pi
         rm update.sh >/dev/null 2>/dev/null
@@ -101,7 +101,37 @@ then
 else                                            ## Version Error 
     printf "There has been an error, or the installed version is newer than the published version\n"
     printf "The installed version is "$INSTALLEDVERSION".\n"
-    printf "The latest version is    "$LATESTVERSION".\n"
-    sleep 2
+    printf "The latest version is    "$LATESTVERSION".\n\n"
+    printf "Do you want to force an upgrade now? (y/n)\n"
+    read -n 1
+    printf "\n"
+    if [[ "$REPLY" = "y" || "$REPLY" = "Y" ]]; then  ## Force upgrade requested
+        printf "\nUpgrading now...\n"
+        cd /home/pi
+        rm update.sh >/dev/null 2>/dev/null
+        wget https://raw.githubusercontent.com/BritishAmateurTelevisionClub/rpidatv/master/update.sh
+        chmod +x update.sh
+        /home/pi/update.sh
+        exit
+    elif [[ "$REPLY" = "d" || "$REPLY" = "D" ]]; then  ## Development upgrade requested
+        printf "\nUpgrading now to the Development Version...\n"
+        cd /home/pi
+        rm update.sh >/dev/null 2>/dev/null
+        wget https://raw.githubusercontent.com/davecrump/rpidatv/master/update.sh
+        chmod +x update.sh
+        /home/pi/update.sh -d
+        exit
+    elif [[ "$REPLY" = "s" || "$REPLY" = "S" ]]; then  ## Staging upgrade requested
+        printf "\nUpgrading now to the BATC Staging Version...\n"
+        cd /home/pi
+        rm update.sh >/dev/null 2>/dev/null
+        wget https://raw.githubusercontent.com/BritishAmateurTelevisionClub/rpidatv/batc_staging/update.sh
+        chmod +x update.sh
+        /home/pi/update.sh -s
+        exit
+    else                                        ## Force upgrade not required
+        printf "Not upgrading\n"
+        sleep 2
+    fi
+    exit
 fi
-

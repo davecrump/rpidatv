@@ -654,87 +654,46 @@ do_receive()
 
 do_autostart_setup()
 {
-    MODE_STARTUP=$(get_config_var startup $CONFIGFILE)
+  MODE_STARTUP=$(get_config_var startup $CONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  Radio3=OFF
+  Radio4=OFF
+  Radio5=OFF
 
-    Radio1=OFF
-    Radio2=OFF
-    Radio3=OFF
-    Radio4=OFF
-    Radio5=OFF
-    Radio6=OFF
-    Radio7=OFF
+  case "$MODE_STARTUP" in
+    Prompt)
+      Radio1=ON
+    ;;
+    Console)
+      Radio2=ON
+    ;;
+    TX_boot)
+      Radio3=ON
+    ;;
+    Display_boot)
+      Radio4=ON
+    ;;
+    Button_boot)
+      Radio5=ON
+    ;;
+    *)
+      Radio1=ON
+    ;;
+  esac
 
-    case "$MODE_STARTUP" in
-        Prompt)
-            Radio1=ON;;
-        Console)
-            Radio2=ON;;
-        Display)
-            Radio3=ON;;
-        Button)
-            Radio4=ON;;
-        TX_boot)
-            Radio5=ON;;
-        Display_boot)
-            Radio6=ON;;
-        Button_boot)
-            Radio7=ON;;
-        *)
-            Radio1=ON;;
-    esac
+  chstartup=$(whiptail --title "$StrAutostartSetupTitle" --radiolist \
+   "$StrAutostartSetupContext" 20 78 5 \
+   "Prompt" "$AutostartSetupPrompt" $Radio1 \
+   "Console" "$AutostartSetupConsole" $Radio2 \
+   "TX_boot" "$AutostartSetupTX_boot" $Radio3 \
+   "Display_boot" "$AutostartSetupDisplay_boot" $Radio4 \
+   "Button_boot" "$AutostartSetupButton_boot" $Radio5 \
+   3>&2 2>&1 1>&3)
 
-    chstartup=$(whiptail --title "$StrAutostartSetupTitle" --radiolist \
-        "$StrAutostartSetupContext" 20 78 8 \
-        "Prompt" "$AutostartSetupPrompt" $Radio1 \
-        "Console" "$AutostartSetupConsole" $Radio2 \
-        "Display" "$AutostartSetupDisplay" $Radio3 \
-        "Button" "$AutostartSetupButton" $Radio4 \
-        "TX_boot" "$AutostartSetupTX_boot" $Radio5 \
-        "Display_boot" "$AutostartSetupDisplay_boot" $Radio6 \
-        "Button_boot" "$AutostartSetupButton_boot" $Radio7 \
-        3>&2 2>&1 1>&3)
-
-    if [ $? -eq 0 ]; then
-        case "$chstartup" in
-            Prompt)
-                sudo rm /etc/systemd/system/getty.target.wants/getty@tty1.service >/dev/null 2>/dev/null
-                cp $PATHCONFIGS"/prompt.bashrc" /home/pi/.bashrc;;
-            Console)
-                sudo rm /etc/systemd/system/getty.target.wants/getty@tty1.service >/dev/null 2>/dev/null
-                cp $PATHCONFIGS"/console.bashrc" /home/pi/.bashrc;;
-            Display)
-                sudo rm /etc/systemd/system/getty.target.wants/getty@tty1.service >/dev/null 2>/dev/null
-                MODE_DISPLAY=$(get_config_var display $CONFIGFILE)
-                case "$MODE_DISPLAY" in
-                    Waveshare)
-                        cp $PATHCONFIGS"/displaywaveshare.bashrc" /home/pi/.bashrc;;
-                    *)
-                        cp $PATHCONFIGS"/display.bashrc" /home/pi/.bashrc;;
-                esac;;
-            Button)
-                sudo rm /etc/systemd/system/getty.target.wants/getty@tty1.service /dev/null 2>/dev/null
-                cp $PATHCONFIGS"/button.bashrc" /home/pi/.bashrc;;
-            TX_boot)
-                sudo ln -fs /etc/systemd/system/autologin@.service \
-/etc/systemd/system/getty.target.wants/getty@tty1.service
-                cp $PATHCONFIGS"/console_tx.bashrc" /home/pi/.bashrc;;
-            Display_boot)
-                sudo ln -fs /etc/systemd/system/autologin@.service \
-/etc/systemd/system/getty.target.wants/getty@tty1.service
-                MODE_DISPLAY=$(get_config_var display $CONFIGFILE)
-                case "$MODE_DISPLAY" in
-                    Waveshare)
-                        cp $PATHCONFIGS"/displaywaveshare.bashrc" /home/pi/.bashrc >/dev/null 2>/dev/null;;
-                    *)
-                        cp $PATHCONFIGS"/display.bashrc" /home/pi/.bashrc >/dev/null 2>/dev/null;;
-                esac;;
-            Button_boot)
-                sudo ln -fs /etc/systemd/system/autologin@.service \
-/etc/systemd/system/getty.target.wants/getty@tty1.service
-                cp $PATHCONFIGS"/button.bashrc" /home/pi/.bashrc;;
-        esac
-        set_config_var startup "$chstartup" $CONFIGFILE
-    fi
+  if [ $? -eq 0 ]; then
+     set_config_var startup "$chstartup" $CONFIGFILE
+  fi
 }
 
 do_display_setup()

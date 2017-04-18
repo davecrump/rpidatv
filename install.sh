@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump on 20170408
+# Updated by davecrump on 20170416
 
 # Update the package manager
 sudo dpkg --configure -a
@@ -193,8 +193,16 @@ sudo mkdir -p /etc/systemd/system/getty.target.wants
 # Add the console menu to the bash history
 /home/pi/rpidatv/scripts/configs/add_menu_to_history.sh
 
-# Show console menu at first user log-in
-cp /home/pi/rpidatv/scripts/configs/console.bashrc /home/pi/.bashrc
+# Load new .bashrc to source the startup script at boot and log-on (201704160)
+cp /home/pi/rpidatv/scripts/configs/startup.bashrc /home/pi/.bashrc
+
+# Always auto-logon and run .bashrc (and hence startup.sh) (201704160)
+sudo ln -fs /etc/systemd/system/autologin@.service\
+ /etc/systemd/system/getty.target.wants/getty@tty1.service
+
+# Reduce the dhcp client timeout to speed off-network startup (201704160)
+sudo bash -c 'echo -e "\n# Shorten dhcpcd timeout from 30 to 15 secs" >> /etc/dhcpcd.conf'
+sudo bash -c 'echo -e "\ntimeout 15\n" >> /etc/dhcpcd.conf'
 
 # Record Version Number
 cd /home/pi/rpidatv/scripts/

@@ -1,3 +1,10 @@
+201704160
+Totally revised boot-up procedure
+Display IP Address on splash screen
+Improved wifi setup information
+Faster boot without network connection
+Offer forced update if version error detected
+
 201704080
 Added German Language Menus
 Added support for Waveshare 3.5b display

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 20170408
+# Updated by davecrump 20170416
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -221,6 +221,20 @@ rm -f /home/pi/rpidatv/scripts/copy_config.sh
 # Install Waveshare 3.5B DTOVERLAY if required (201704080)
 if [ ! -f /boot/overlays/waveshare35b.dtbo ]; then
   sudo cp /home/pi/rpidatv/scripts/waveshare35b.dtbo /boot/overlays/
+fi
+
+# Load new .bashrc to source the startup script at boot and log-on (201704160)
+cp -f /home/pi/rpidatv/scripts/configs/startup.bashrc /home/pi/.bashrc
+
+# Always auto-logon and run .bashrc (and hence startup.sh) (201704160)
+sudo ln -fs /etc/systemd/system/autologin@.service\
+ /etc/systemd/system/getty.target.wants/getty@tty1.service
+
+# Reduce the dhcp client timeout to speed off-network startup (201704160)
+# If required
+if ! grep -q timeout /etc/dhcpcd.conf; then
+  sudo bash -c 'echo -e "\n# Shorten dhcpcd timeout from 30 to 15 secs" >> /etc/dhcpcd.conf'
+  sudo bash -c 'echo -e "timeout 15\n" >> /etc/dhcpcd.conf'
 fi
 
 # Update the version number
