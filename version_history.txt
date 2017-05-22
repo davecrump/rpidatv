@@ -1,3 +1,9 @@
+201705200
+Now uses new version of pi-sdn which is not so trigger-happy
+Pi Camera uses auto shutter in H264.  Fixes dark and light images
+Touchscreen orientation corrected on exit from menu with non-waveshare
+Express Server is started on entrance to gui if required
+
 201704160
 Totally revised boot-up procedure
 Display IP Address on splash screen

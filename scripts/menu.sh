@@ -1477,7 +1477,7 @@ do_TouchScreen()
   reset
   sudo killall fbcp >/dev/null 2>/dev/null
   fbcp &
-  /home/pi/rpidatv/bin/rpidatvgui 1
+  /home/pi/rpidatv/bin/rpidatvgui
 }
 
 do_EnableButtonSD()
