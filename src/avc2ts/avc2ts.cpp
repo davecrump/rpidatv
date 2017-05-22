@@ -955,9 +955,9 @@ namespace rpi_omx
             exposure_value->xEVCompensation = xEVCompensation;
             exposure_value->nSensitivity = nSensitivity;
             exposure_value->bAutoSensitivity = bAutoSensitivity;
-	    //exposure_value->bAutoShutterSpeed=OMX_TRUE;
-	exposure_value->bAutoShutterSpeed=OMX_FALSE;
-	    exposure_value->nShutterSpeedMsec=10000;
+	    exposure_value->bAutoShutterSpeed=OMX_TRUE;
+	    // exposure_value->bAutoShutterSpeed=OMX_FALSE;
+	    // exposure_value->nShutterSpeedMsec=10000;
 
             ERR_OMX( OMX_SetConfig(component_, OMX_IndexConfigCommonExposureValue, &exposure_value), "set camera exposure value");
         }

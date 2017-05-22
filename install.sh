@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump on 20170416
+# Updated by davecrump on 20170520
 
 # Update the package manager
 sudo dpkg --configure -a
@@ -183,9 +183,13 @@ sudo bash -c 'echo -e "\ngpu_mem=128\nstart_x=1\n" >> /boot/config.txt'
 # Disable sync option for usbmount
 sudo sed -i 's/sync,//g' /etc/usbmount/usbmount.conf
 
-# Install executable for hardware shutdown button
-wget 'https://github.com/philcrump/pi-sdn/releases/download/v1.1/pi-sdn' -O /home/pi/pi-sdn
-chmod +x /home/pi/pi-sdn
+# Download, compile and install the executable for hardware shutdown button
+# Updated version that is less trigger-happy (201705200)
+git clone https://github.com/philcrump/pi-sdn /home/pi/pi-sdn-build
+cd /home/pi/pi-sdn-build
+make
+mv pi-sdn /home/pi/
+cd /home/pi
 
 # Create directory for Autologin link
 sudo mkdir -p /etc/systemd/system/getty.target.wants
