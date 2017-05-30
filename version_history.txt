@@ -1,3 +1,8 @@
+201705301
+Introduces Touchscreen Menu 2 with shutdown and extra selection buttons
+Enables Contest mode operation from touchscreen
+Touching screen anywhere during Pattern transmission returns unit to standby
+
 201705200
 Now uses new version of pi-sdn which is not so trigger-happy
 Pi Camera uses auto shutter in H264.  Fixes dark and light images
