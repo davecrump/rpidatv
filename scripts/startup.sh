@@ -169,6 +169,11 @@ case "$MODE_STARTUP" in
     /home/pi/rpidatv/bin/rpidatvgui
     return
   ;;
+  TestRig_boot)
+    # Start the touchscreen interface for the filter-mod test rig
+    /home/pi/rpidatv/bin/testrig
+    return
+  ;;
   Button_boot)
     # If this is on boot, start the button listener
     if [ "$SESSION_TYPE" == "boot" ]; then

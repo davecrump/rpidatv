@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 20170520
+# Updated by davecrump 20170630
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -37,6 +37,9 @@ sudo apt-get -y dist-upgrade
 # Check that ImageMagick is installed (201704050)
 sudo apt-get -y install imagemagick
 
+# Check that libraries required for new ffmpeg are installed (20170630)
+sudo apt-get -y install libvdpau-dev libva-dev
+
 #  Delete the duplicate touchscreen driver if it is still there (201704030)
 cd /boot
 sudo sed -i '/dtoverlay=ads7846/d' config.txt
@@ -63,7 +66,7 @@ fi
 unzip -o master.zip
 
 if [ "$1" == "-s" ]; then
-  # cp -f -r rpidatv-batc_staging/bin rpidatv
+  cp -f -r rpidatv-batc_staging/bin rpidatv
   # cp -f -r rpidatv-batc_staging/doc rpidatv
   cp -f -r rpidatv-batc_staging/scripts rpidatv
   cp -f -r rpidatv-batc_staging/src rpidatv
@@ -73,7 +76,7 @@ if [ "$1" == "-s" ]; then
   rm master.zip
   rm -rf rpidatv-batc_staging
 else
-  # cp -f -r rpidatv-master/bin rpidatv
+  cp -f -r rpidatv-master/bin rpidatv
   # cp -f -r rpidatv-master/doc rpidatv
   cp -f -r rpidatv-master/scripts rpidatv
   cp -f -r rpidatv-master/src rpidatv

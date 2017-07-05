@@ -1,3 +1,12 @@
+201706301
+Clears the Contest numbers when contest mode is deselected on the touchscreen
+Adds an audio switching option in the menu, but not the functionality
+Adds an auto option for the usb video device name, but not the functionality 
+Adds numeric entry for all PIDs in the menu, but not the functionality
+Includes the F-M testrig software in the core build
+Implements some beta functionality
+New versions of a.sh and ffmpeg in beta functionality
+
 201705301
 Introduces Touchscreen Menu 2 with shutdown and extra selection buttons
 Enables Contest mode operation from touchscreen
