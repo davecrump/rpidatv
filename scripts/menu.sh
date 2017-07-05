@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Version 201702190
+# Version 20170630
 
 ############ Set Environment Variables ###############
 
@@ -191,6 +191,7 @@ do_input_setup()
   Radio9=OFF
   Radio10=OFF
   Radio11=OFF
+  Radio12=OFF
   case "$MODE_INPUT" in
   CAMH264)
     Radio1=ON
@@ -225,13 +226,16 @@ do_input_setup()
   CONTEST)
     Radio11=ON
   ;;
+  ANALOGMPEG-2)
+    Radio12=ON
+  ;;
   *)
     Radio1=ON
   ;;
   esac
 
   chinput=$(whiptail --title "$StrInputSetupTitle" --radiolist \
-    "$StrInputSetupDescription" 20 78 11 \
+    "$StrInputSetupDescription" 20 78 12 \
     "CAMH264" "$StrInputSetupCAMH264" $Radio1 \
     "CAMMPEG-2" "$StrInputSetupCAMMPEG_2" $Radio2 \
     "FILETS" "$StrInputSetupFILETS" $Radio3\
@@ -242,7 +246,8 @@ do_input_setup()
     "ANALOGCAM" "$StrInputSetupANALOGCAM" $Radio8 \
     "VNC" "$StrInputSetupVNC" $Radio9 \
     "DESKTOP" "$StrInputSetupDESKTOP" $Radio10 \
-    "CONTEST" "$StrInputSetupCONTEST" $Radio11 3>&2 2>&1 1>&3)
+    "CONTEST" "$StrInputSetupCONTEST" $Radio11  \
+    "ANALOGMPEG-2" "Not Implemented Yet" $Radio12 3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
     case "$chinput" in
@@ -270,10 +275,36 @@ do_input_setup()
       whiptail --title "$StrInputSetupIPTSINTitle" --msgbox "$StrInputSetupIPTSINName""$CURRENTIP" 8 78
     ;;
     ANALOGCAM)
+
       ANALOGCAMNAME=$(get_config_var analogcamname $CONFIGFILE)
-      ANALOGCAMNAME=$(whiptail --inputbox "$StrInputSetupANALOGCAMName" 8 78 $ANALOGCAMNAME --title "$StrInputSetupANALOGCAMTitle" 3>&1 1>&2 2>&3)
+      Radio1=OFF
+      Radio2=OFF
+      Radio3=OFF
+
+      case "$ANALOGCAMNAME" in
+        "/dev/video0")
+          Radio1=ON
+        ;;
+        "/dev/video1")
+          Radio2=ON
+        ;;
+        auto)
+          Radio3=ON
+        ;;
+        *)
+          Radio1=ON
+        ;;
+      esac
+
+      newcamname=$(whiptail --title "$StrInputSetupANALOGCAMName" --radiolist \
+        "$StrInputSetupANALOGCAMTitle" 20 78 5 \
+        "/dev/video0" "Normal with no PiCam" $Radio1 \
+        "/dev/video1" "Sometimes required with PiCam" $Radio2 \
+        "auto" "Not Implemented Yet" $Radio3 \
+        3>&2 2>&1 1>&3)
+
       if [ $? -eq 0 ]; then
-        set_config_var analogcamname "$ANALOGCAMNAME" $CONFIGFILE
+         set_config_var analogcamname "$newcamname" $CONFIGFILE
       fi
     ;;
     VNC)
@@ -521,18 +552,29 @@ fi
 
 do_PID_setup()
 {
-  PID=$(get_config_var pidstart $CONFIGFILE)
-  PID=$(whiptail --inputbox "$StrPIDSetupContext" 8 78 $PID --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
+  PIDPMT=$(get_config_var pidpmt $CONFIGFILE)
+  PIDPMT=$(whiptail --inputbox "$StrPIDSetupContext" 8 78 $PIDPMT --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var pidstart "$PID" $CONFIGFILE
-    set_config_var pidpmt "$PID" $CONFIGFILE
-    #PID Video is PMT+1
-    let PID=PID+1
-    set_config_var pidvideo "$PID" $CONFIGFILE
-    #PID Audio is PMT+1
-    let PID=PID+1
-    set_config_var pidaudio "$PID" $CONFIGFILE
+    set_config_var pidpmt "$PIDPMT" $CONFIGFILE
   fi
+  PIDPCR=$(get_config_var pidstart $CONFIGFILE)
+  PIDPCR=$(whiptail --inputbox "PCR PID - Not Implemented Yet" 8 78 $PIDPCR --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    set_config_var pidstart "$PIDPCR" $CONFIGFILE
+  fi
+  PIDVIDEO=$(get_config_var pidvideo $CONFIGFILE)
+  PIDVIDEO=$(whiptail --inputbox "Video PID - Not Implemented Yet" 8 78 $PIDVIDEO --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    set_config_var pidvideo "$PIDVIDEO" $CONFIGFILE
+  fi
+  PIDAUDIO=$(get_config_var pidaudio $CONFIGFILE)
+  PIDAUDIO=$(whiptail --inputbox "Audio PID - Not Implemented Yet" 8 78 $PIDAUDIO --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    set_config_var pidaudio "$PIDAUDIO" $CONFIGFILE
+  fi
+
+  whiptail --title "PID Selection Check - Not Implemented - Do not use!" \
+    --msgbox "PMT: "$PIDPMT" PCR: "$PIDPCR" Video: "$PIDVIDEO" Audio: "$PIDAUDIO".  Press any key to continue" 8 78
 }
 
 do_freq_setup()
@@ -660,6 +702,7 @@ do_autostart_setup()
   Radio3=OFF
   Radio4=OFF
   Radio5=OFF
+  Radio6=OFF
 
   case "$MODE_STARTUP" in
     Prompt)
@@ -674,8 +717,11 @@ do_autostart_setup()
     Display_boot)
       Radio4=ON
     ;;
-    Button_boot)
+    TestRig_boot)
       Radio5=ON
+    ;;
+    Button_boot)
+      Radio6=ON
     ;;
     *)
       Radio1=ON
@@ -683,12 +729,13 @@ do_autostart_setup()
   esac
 
   chstartup=$(whiptail --title "$StrAutostartSetupTitle" --radiolist \
-   "$StrAutostartSetupContext" 20 78 5 \
+   "$StrAutostartSetupContext" 20 78 6 \
    "Prompt" "$AutostartSetupPrompt" $Radio1 \
    "Console" "$AutostartSetupConsole" $Radio2 \
    "TX_boot" "$AutostartSetupTX_boot" $Radio3 \
    "Display_boot" "$AutostartSetupDisplay_boot" $Radio4 \
-   "Button_boot" "$AutostartSetupButton_boot" $Radio5 \
+   "TestRig_boot" "Boot-up to Test Rig for F-M Boards" $Radio5 \
+   "Button_boot" "$AutostartSetupButton_boot" $Radio6 \
    3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
@@ -826,24 +873,44 @@ do_EasyCap()
     fi
 }
 
+
 do_audio_switch()
 {
-  whiptail --title "Not implemented yet" --msgbox "Not Implemented yet.  Please press enter to continue" 8 78
+  # whiptail --title "Not implemented yet" --msgbox "Not Implemented yet.  Please press enter to continue" 8 78
   AUDIO=$(get_config_var audio $CONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  Radio3=OFF
+  Radio4=OFF
+  Radio5=OFF
   case "$AUDIO" in
-  usb)
+  auto)
     Radio1=ON
-    Radio2=OFF
   ;;
-  easycap)
-    Radio1=OFF
+  mic)
     Radio2=ON
+  ;;
+  video)
+    Radio3=ON
+  ;;
+  bleeps)
+    Radio4=ON
+  ;;
+  no_audio)
+    Radio5=ON
+  ;;
+  *)
+    Radio1=ON
+  ;;
   esac
 
   AUDIO=$(whiptail --title "SELECT AUDIO SOURCE" --radiolist \
     "Select one" 20 78 8 \
-    "usb" "Use the USB Audio Dongle Input" $Radio1 \
-    "easycap" "Use the EasyCap Audio Input" $Radio2 \
+    "auto" "Auto-select from Mic or EasyCap Dongle" $Radio1 \
+    "mic" "Use the USB Audio Dongle Mic Input" $Radio2 \
+    "video" "Use the EasyCap Video Dongle Audio Input" $Radio3 \
+    "bleeps" "Generate test bleeps" $Radio4 \
+    "no_audio" "Transmit silence or no sound" $Radio5 \
     3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then                     ## If the selection has changed
@@ -1334,8 +1401,6 @@ do_load_settings()
 
 do_beta()
 {
-  whiptail --title "Not implemented yet" --msgbox "Not Implemented yet.  Please press enter to continue" 8 78
-
   BETA=$(get_config_var beta $CONFIGFILE)
   case "$BETA" in
   no)
@@ -1355,6 +1420,21 @@ do_beta()
 
   if [ $? -eq 0 ]; then                     ## If the selection has changed
     set_config_var beta "$BETA" $CONFIGFILE
+    # and switch the files
+    case "$BETA" in
+      no)
+        SAVECHANGES="n"
+        SAVECHANGES=$(whiptail --inputbox "Save Changes to beta a.sh? y/n" 8 78 $SAVECHANGES --title "Opportunity to Save Recent Changes to a.sh" 3>&1 1>&2 2>&3)
+        if [ "$SAVECHANGES" == "y" ]; then
+          cp /home/pi/rpidatv/scripts/a.sh /home/pi/rpidatv/scripts/a.sh.beta
+        fi
+        cp /home/pi/rpidatv/scripts/a.sh.rel /home/pi/rpidatv/scripts/a.sh
+        cp /home/pi/rpidatv/bin/ffmpeg.old /home/pi/rpidatv/bin/ffmpeg
+      ;;
+      yes)
+        cp /home/pi/rpidatv/scripts/a.sh.beta /home/pi/rpidatv/scripts/a.sh
+        cp /home/pi/rpidatv/bin/ffmpeg.new /home/pi/rpidatv/bin/ffmpeg
+    esac
   fi
 }
 
@@ -1480,6 +1560,14 @@ do_TouchScreen()
   /home/pi/rpidatv/bin/rpidatvgui
 }
 
+do_TestRig()
+{
+  reset
+  sudo killall fbcp >/dev/null 2>/dev/null
+  fbcp &
+  /home/pi/rpidatv/bin/testrig
+}
+
 do_EnableButtonSD()
 {
   cp $PATHCONFIGS"/text.pi-sdn" /home/pi/.pi-sdn  ## Load it at logon
@@ -1499,16 +1587,18 @@ menuchoice=$(whiptail --title "Shutdown Menu" --menu "Select Choice" 16 78 7 \
     "2 Reboot now" "Immediate reboot" \
     "3 Exit to Linux" "Exit menu to Command Prompt" \
     "4 Restore TouchScreen" "Exit to LCD.  Use ctrl-C to return" \
-    "5 Button Enable" "Enable Shutdown Button" \
-    "6 Button Disable" "Disable Shutdown Button" \
+    "5 Start Test Rig"  "Test rig for pre-sale testing of FM Boards" \
+    "6 Button Enable" "Enable Shutdown Button" \
+    "7 Button Disable" "Disable Shutdown Button" \
       3>&2 2>&1 1>&3)
     case "$menuchoice" in
         1\ *) do_Shutdown ;;
         2\ *) do_Reboot ;;
         3\ *) do_Exit ;;
         4\ *) do_TouchScreen ;;
-        5\ *) do_EnableButtonSD ;;
-        6\ *) do_DisableButtonSD ;;
+        5\ *) do_TestRig ;;
+        6\ *) do_EnableButtonSD ;;
+        7\ *) do_DisableButtonSD ;;
     esac
 }
 

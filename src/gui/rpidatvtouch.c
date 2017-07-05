@@ -625,12 +625,16 @@ void SelectFec(int NoButton)  // FEC
 
 void SelectSource(int NoButton,int Status)  //Input mode
 {
-	SelectInGroup(15,19,NoButton,Status);
-        SelectInGroup(Menu1Buttons+15,Menu1Buttons+16,NoButton,Status);
-	strcpy(ModeInput,TabModeInput[NoButton-15]);
-	printf("************** Set Input Mode = %s\n",ModeInput);
-	char Param[]="modeinput";
-	SetConfigParam(PATH_CONFIG,Param,ModeInput);
+  SelectInGroup(15,19,NoButton,Status);
+  SelectInGroup(Menu1Buttons+15,Menu1Buttons+16,NoButton,Status);
+  strcpy(ModeInput,TabModeInput[NoButton-15]);
+  printf("************** Set Input Mode = %s\n",ModeInput);
+  char Param[]="modeinput";
+  SetConfigParam(PATH_CONFIG,Param,ModeInput);
+
+  // Replace Contest Numbers with BATC Logo
+  system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/BATC_Black.png\" >/dev/null 2>/dev/null");
+  system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
 }
 
 void SelectPTT(int NoButton,int Status)  // TX/RX
@@ -1036,12 +1040,11 @@ void ReceiveStart()
 
 void ReceiveStop()
 {
-	system("sudo killall leandvb");
-	system("sudo killall hello_video.bin");
-	//system("sudo killall mplayer");
+  system("sudo killall leandvb >/dev/null 2>/dev/null");
+  system("sudo killall hello_video.bin >/dev/null 2>/dev/null");
 }
 
-// wait for a screen touch 
+// wait for a screen touch
 void waituntil(int w,int h)
 {
   int rawX, rawY, rawPressure,i;

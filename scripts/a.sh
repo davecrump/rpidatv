@@ -104,6 +104,12 @@ let FECDEN=FEC+1
 
 detect_audio
 
+# Deal with $ANALOGCAMNAME="auto" which is a new mode
+# Not yet supported
+if [ "$ANALOGCAMNAME" == "auto" ]; then
+  ANALOGCAMNAME="/dev/video0"
+fi
+
 ######################### Pre-processing for each Output Mode ###############
 
 case "$MODE_OUTPUT" in
@@ -169,7 +175,7 @@ case "$MODE_OUTPUT" in
     if pgrep -x "express_server" > /dev/null
     then
       # Express already running
-      echo > null
+      :
     else
       # Stopped, so make sure the control file is not locked and start it
       # From its own folder otherwise it doesnt read the config file
