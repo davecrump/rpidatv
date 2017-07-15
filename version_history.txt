@@ -1,3 +1,10 @@
+201707120
+Introduces the Composite Video Output Mode to provide an analog video source
+Sets the RPi Composite Video Output to PAL
+Changes the framing of the CAMH264 and CAMMPEG-2 viewfinders
+Correctly frames the Test Card Patterns
+Adds an audio switching option in the touchscreen, but not the functionality
+
 201706301
 Clears the Contest numbers when contest mode is deselected on the touchscreen
 Adds an audio switching option in the menu, but not the functionality

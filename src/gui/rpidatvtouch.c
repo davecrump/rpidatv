@@ -79,6 +79,7 @@ int fec;
 int SR;
 char ModeInput[255];
 char freqtxt[255];
+char ModeAudio[255];
 char ModeOutput[255];
 char ModeSTD[255];
 char ModeOP[255];
@@ -92,8 +93,9 @@ int TabFec[5]={1,2,3,5,7};
 char TabModeInput[7][255]={"CAMMPEG-2","CAMH264","PATERNAUDIO","ANALOGCAM","CARRIER","CONTEST","IPTSIN"};
 char TabFreq[5][255]={"71","146.5","437","1249","1255"};
 char FreqLabel[5][255]={" 71 MHz ","146.5 MHz","437 MHz ","1249 MHz","1255 MHz"};
+char TabModeAudio[3][255]={"usb","auto","video"};
 char TabModeSTD[2][255]={"6","0"};
-char TabModeOP[5][255]={"IQ","QPSKRF","DATVEXPRESS","BATC","IP"};
+char TabModeOP[5][255]={"IQ","QPSKRF","DATVEXPRESS","BATC","COMPVID"};
 int Inversed=0;//Display is inversed (Waveshare=1)
 
 pthread_t thfft,thbutton;
@@ -651,6 +653,15 @@ void SelectSTD(int NoButton,int Status)  // PAL or NTSC
 	SetConfigParam(PATH_CONFIG,Param,ModeSTD);
 }
 
+void SelectAudio(int NoButton,int Status)  // Audio Input
+{
+	SelectInGroup(Menu1Buttons+5,Menu1Buttons+7,NoButton,Status);
+	strcpy(ModeAudio,TabModeAudio[NoButton-Menu1Buttons-5]);
+	printf("************** Set Audio Input = %s\n",ModeAudio);
+	char Param[]="audio";
+	SetConfigParam(PATH_CONFIG,Param,ModeAudio);
+}
+
 void SelectOP(int NoButton,int Status)  //Output mode
 {
   SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,NoButton,Status);
@@ -1193,17 +1204,9 @@ void waituntil(int w,int h)
           {
             ; // Menu 4 todo
           }
-          if(i==(Menu1Buttons+5)) // Spare
+          if((i>=(Menu1Buttons+5))&&(i<=(Menu1Buttons+7))) // Audio Selection
           {
-            ; // Spare todo
-          }
-          if(i==(Menu1Buttons+6)) // Spare
-          {
-            ; // Spare todo
-          }
-          if(i==(Menu1Buttons+8)) // No VF
-          {
-            ; // No VF todo
+            SelectAudio(i,1);
           }
           if((i>=(Menu1Buttons+8))&&(i<=(Menu1Buttons+9))) // PAL or NTSC
           {
@@ -1564,40 +1567,40 @@ void Define_Menu2()
 	Col.r=0;Col.g=128;Col.b=0;
 	AddButtonStatus(button," Menu 4",&Col);
 
-// 2nd row up: Spare, Spare, No VF, PAL, NTSC
+// 2nd row up: Audio Mic, Audio Auto, Audio EC, PAL In, NTSC In
 
 	button=AddButton(0*wbuttonsize+20,0+hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Audio Mic",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Audio Mic",&Col);
 
 	button=AddButton(1*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Audio Auto",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Audio Auto",&Col);
 
 	button=AddButton(2*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Audio EC ",&Col);
 	//AddButtonStatus(button," No VF ",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," No VF ",&Col);
+	AddButtonStatus(button,"Audio EC ",&Col);
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"  PAL ",&Col);
+	AddButtonStatus(button," PAL in",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"  PAL ",&Col);
+	AddButtonStatus(button," PAL in",&Col);
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"  NTSC",&Col);
+	AddButtonStatus(button,"NTSC in",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"  NTSC",&Col);
+	AddButtonStatus(button,"NTSC in",&Col);
 
-// 3rd row up: Output to: IQ, Ugly, Express, BATC, IP
+// 3rd row up: Output to: IQ, Ugly, Express, BATC, COMPVID
 
 	button=AddButton(0*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
@@ -1625,9 +1628,9 @@ void Define_Menu2()
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"  IP  ",&Col);
+	AddButtonStatus(button,"Vid Out",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"  IP  ",&Col);
+	AddButtonStatus(button,"Vid Out",&Col);
 
 // Top row, 2 more sources:
 
@@ -1678,12 +1681,31 @@ void Start_Highlights_Menu2()
   char Value[255];
   int STD=1;
 
+  // Audio Input
+
+  strcpy(Param,"audio");
+  strcpy(Value,"");
+  GetConfigParam(PATH_CONFIG,Param,Value);
+  printf("Value=%s %s\n",Value,"Audio");
+  if(strcmp(Value,"usb")==0)
+  {
+    SelectInGroup(Menu1Buttons+5,Menu1Buttons+7,Menu1Buttons+5,1);
+  }
+  if(strcmp(Value,"auto")==0)
+  {
+    SelectInGroup(Menu1Buttons+5,Menu1Buttons+7,Menu1Buttons+6,1);
+  }
+  if(strcmp(Value,"video")==0)
+  {
+    SelectInGroup(Menu1Buttons+5,Menu1Buttons+7,Menu1Buttons+7,1);
+  }
+
   // PAL or NTSC
 
   strcpy(Param,"analogcamstandard");
   GetConfigParam(PATH_CONFIG,Param,Value);
   STD=atoi(Value);
-  printf("Value=%s %s\n",Value,"STD");
+  printf("Value=%s %s\n",Value,"Video Standard");
   if ( STD == 6 ) //PAL
   {
     SelectInGroup(Menu1Buttons+8,Menu1Buttons+9,Menu1Buttons+8,1);

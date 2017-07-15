@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump on 20170630
+# Updated by davecrump on 20170712
 
 # Update the package manager
 sudo dpkg --configure -a
@@ -208,6 +208,11 @@ sudo ln -fs /etc/systemd/system/autologin@.service\
 # Reduce the dhcp client timeout to speed off-network startup (201704160)
 sudo bash -c 'echo -e "\n# Shorten dhcpcd timeout from 30 to 15 secs" >> /etc/dhcpcd.conf'
 sudo bash -c 'echo -e "\ntimeout 15\n" >> /etc/dhcpcd.conf'
+
+# Enable the Video output in PAL mode (201707120)
+cd /boot
+sudo sed -i 's/^#sdtv_mode=2/sdtv_mode=2/' config.txt
+cd /home/pi
 
 # Record Version Number
 cd /home/pi/rpidatv/scripts/

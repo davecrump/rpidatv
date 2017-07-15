@@ -1,7 +1,7 @@
 #! /bin/bash
 # set -x #Uncomment for testing
 
-# Version 201704030
+# Version 201707120
 
 ############# SET GLOBAL VARIABLES ####################
 
@@ -225,6 +225,11 @@ case "$MODE_OUTPUT" in
     #GAIN=0
   ;;
 
+  COMPVID)
+    FREQUENCY_OUT=0
+    OUTPUT="/dev/null"
+  ;;
+
 esac
 
 #CALL="F5OEO"
@@ -310,9 +315,10 @@ case "$MODE_INPUT" in
 
   #============================================ H264 INPUT MODE =========================================================
   "CAMH264")
-    # Start Pi Camera
+    # Free up Pi Camera for direct OMX Coding by removing driver
     sudo modprobe -r bcm2835_v4l2
 
+    # Set up means to transport of stream out of unit
     case "$MODE_OUTPUT" in
       "BATC")
         : # Do nothing
@@ -327,13 +333,17 @@ case "$MODE_INPUT" in
       "DATVEXPRESS")
         echo "set ptt tx" >> /tmp/expctrl
         sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots & 
-     ;;
+      ;;
+      "COMPVID")
+        OUTPUT_FILE="/dev/null" #Send avc2ts output to /dev/null
+      ;;
       *)
         # For IQ, QPSKRF, DIGITHIN and DTX1
         sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
       ;;
     esac
 
+    # Now generate the stream
     if [ "$AUDIO_CARD" == 0 ]; then
       # ******************************* H264 VIDEO, NO AUDIO ************************************
       $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT -f $VIDEO_FPS -i 100 -p $PIDPMT -s $CHANNEL $OUTPUT_FILE $OUTPUT_IP > /dev/null &
@@ -363,6 +373,7 @@ case "$MODE_INPUT" in
     # "-00:00:1.0" works well at SR2000 on IQ mode
     ITS_OFFSET="-00:00:1.0"
 
+    # Set up means to transport of stream out of unit
     case "$MODE_OUTPUT" in
       "BATC")
         ITS_OFFSET="-00:00:5.0"
@@ -385,14 +396,16 @@ case "$MODE_INPUT" in
         echo "set ptt tx" >> /tmp/expctrl
         # ffmpeg sends the stream directly to DATVEXPRESS
       ;;
+      "COMPVID")
+        : # Do nothing
+      ;;
       *)
         # For IQ, QPSKRF, DIGITHIN and DTX1 rpidatv generates the IQ (and RF for QPSKRF)
         sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
       ;;
     esac
 
-#    AUDIO_CARD=0
-
+    # Now generate the stream
     if [ "$AUDIO_CARD" == 0 ]; then
       # ******************************* MPEG-2 VIDEO WITH BEEP ************************************
       sudo $PATHRPI"/ffmpeg"  -loglevel $MODE_DEBUG -itsoffset -00:00:0.2\
@@ -423,50 +436,68 @@ case "$MODE_INPUT" in
 #============================================ H264 PATERN =============================================================
 
 
-"PATERNAUDIO")
-sudo modprobe -r bcm2835_v4l2
+  "PATERNAUDIO")
 
-case "$MODE_OUTPUT" in
-	"BATC")
-		sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC & ;;
-	"IP")
-		OUTPUT_FILE="" ;;
-	"DATVEXPRESS")
-                echo "set ptt tx" >> /tmp/expctrl
-		sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots & ;;
-	*)
-		sudo  $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &;;
+    # Unload the Pi Cam Driver
+    sudo modprobe -r bcm2835_v4l2
+
+    # Set up means to transport of stream out of unit
+    case "$MODE_OUTPUT" in
+      "BATC")
+        sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC &
+      ;;
+      "IP")
+        OUTPUT_FILE=""
+      ;;
+      "DATVEXPRESS")
+        echo "set ptt tx" >> /tmp/expctrl
+        sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
+      ;;
+      "COMPVID")
+        OUTPUT_FILE="/dev/null" #Send avc2ts output to /dev/null
+      ;;
+      *)
+        sudo  $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
+      ;;
 	esac
 
+    # Now generate the stream
 
-$PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP  &
+    $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP  &
 
-$PATHRPI"/tcanim" $PATERNFILE"/*10" "48" "72" "CQ" "CQ CQ CQ DE "$CALL" IN $LOCATOR - DATV $SYMBOLRATEK KS FEC "$FECNUM"/"$FECDEN &
+    $PATHRPI"/tcanim" $PATERNFILE"/*10" "48" "72" "CQ" "CQ CQ CQ DE "$CALL" IN $LOCATOR - DATV $SYMBOLRATEK KS FEC "$FECNUM"/"$FECDEN &
 
-;;
+  ;;
 
 #============================================ VNC =============================================================
 
+  "VNC")
+    # Unload the Pi Cam Driver
+    sudo modprobe -r bcm2835_v4l2
 
-"VNC")
-sudo modprobe -r bcm2835_v4l2
-case "$MODE_OUTPUT" in
-	"BATC")
-		sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC & ;;
-	"IP")
-		OUTPUT_FILE="" ;;
-	"DATVEXPRESS")
-          echo "set ptt tx" >> /tmp/expctrl
-	  sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
-        ;;
-	*)
-		sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &;;
-	esac
+    # Set up means to transport of stream out of unit
+    case "$MODE_OUTPUT" in
+      "BATC")
+        sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC & 
+      ;;
+      "IP")
+        OUTPUT_FILE=""
+      ;;
+      "DATVEXPRESS")
+        echo "set ptt tx" >> /tmp/expctrl
+        sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
+      ;;
+      "COMPVID")
+        OUTPUT_FILE="/dev/null" #Send avc2ts output to /dev/null
+      ;;
+      *)
+        sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &;;
+      esac
 
+    # Now generate the stream
+    $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 4 -e $VNCADDR -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
 
-$PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 4 -e $VNCADDR -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
-
-;;
+  ;;
 
   #============================================ ANALOG =============================================================
   "ANALOGCAM")
@@ -480,6 +511,7 @@ $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEI
 
     sudo modprobe -r bcm2835_v4l2
 
+    # Set up means to transport of stream out of unit
     case "$MODE_OUTPUT" in
       "BATC")
 #    sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC & 
@@ -493,55 +525,84 @@ $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEI
         echo "set ptt tx" >> /tmp/expctrl
         sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
       ;;
+      "COMPVID")
+        : # Do nothing.  Mode does not work yet
+      ;;
       *)
         sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
       ;;
     esac
 
+    # Now generate the stream
     $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT\
       -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 2 -e $ANALOGCAMNAME -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
   ;;
 
 #============================================ DESKTOP =============================================================
-"DESKTOP")
-sudo modprobe -r bcm2835_v4l2
-case "$MODE_OUTPUT" in
-	"BATC")
-		sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC & ;;
-	"IP")
-		OUTPUT_FILE="" ;;
-	"DATVEXPRESS")
-          echo "set ptt tx" >> /tmp/expctrl
-	  sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
-        ;;
-	*)
-		sudo nice -n -30 $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &;;
-	esac
 
-$PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
+  "DESKTOP")
+    # Unload the Pi Cam Driver
+    sudo modprobe -r bcm2835_v4l2
 
-;;
+    # Set up means to transport of stream out of unit
+    case "$MODE_OUTPUT" in
+      "BATC")
+        sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC &
+      ;;
+      "IP")
+        OUTPUT_FILE=""
+      ;;
+      "DATVEXPRESS")
+        echo "set ptt tx" >> /tmp/expctrl
+        sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
+      ;;
+      "COMPVID")
+        OUTPUT_FILE="/dev/null" #Send avc2ts output to /dev/null
+      ;;
+      *)
+        sudo nice -n -30 $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
+      ;;
+
+    esac
+
+    # Now generate the stream
+    $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
+
+  ;;
 
 # *********************************** TRANSPORT STREAM INPUT THROUGH IP ******************************************
-"IPTSIN")
-case "$MODE_OUTPUT" in
-	"BATC")
-		sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC & ;;
-	"DATVEXPRESS")
-		nice -n -30 nc -u -4 127.0.0.1 1314 < videots & ;;
-	*)
-		sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &;;
-	esac
 
-PORT=10000
-# $PATHRPI"/mnc" -l -i eth0 -p $PORT $UDPINADDR > videots &
-# Unclear why Evariste uses multicast address here - my BT router dislikes routing multicast intensely so
-# I have changed it to just listen on the predefined port number for a UDP stream
-	netcat -u -4 -l $PORT > videots &
-;;
+  "IPTSIN")
+
+    # Set up means to transport of stream out of unit
+    case "$MODE_OUTPUT" in
+      "BATC")
+        sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC &
+      ;;
+      "DATVEXPRESS")
+        nice -n -30 nc -u -4 127.0.0.1 1314 < videots &
+      ;;
+      "COMPVID")
+        : # Do nothing.  Mode does not work yet
+      ;;
+      *)
+        sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
+      ;;
+    esac
+
+    # Now generate the stream
+
+    PORT=10000
+    # $PATHRPI"/mnc" -l -i eth0 -p $PORT $UDPINADDR > videots &
+    # Unclear why Evariste uses multicast address here - my BT router dislikes routing multicast intensely so
+    # I have changed it to just listen on the predefined port number for a UDP stream
+    netcat -u -4 -l $PORT > videots &
+  ;;
 
   # *********************************** TRANSPORT STREAM INPUT FILE ******************************************
+
   "FILETS")
+    # Set up means to transport of stream out of unit
     case "$MODE_OUTPUT" in
       "BATC")
         sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i $TSVIDEOFILE -y $OUTPUT_BATC &
@@ -557,6 +618,7 @@ PORT=10000
   ;;
 
   # *********************************** CARRIER  ******************************************
+
   "CARRIER")
     case "$MODE_OUTPUT" in
       "DATVEXPRESS")
@@ -600,7 +662,10 @@ PORT=10000
     sudo fbi -T 1 -noverbose -a $PATHSCRIPT"/images/contest.png" >/dev/null 2>/dev/null
     (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
 
+    # Unload the Pi Camera Driver
     sudo modprobe -r bcm2835_v4l2
+
+    # Set up means to transport of stream out of unit
     case "$MODE_OUTPUT" in
       "BATC")
         sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC &
@@ -611,6 +676,9 @@ PORT=10000
       "DATVEXPRESS")
         echo "set ptt tx" >> /tmp/expctrl
         sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
+      ;;
+      "COMPVID")
+        OUTPUT_FILE="/dev/null" #Send avc2ts output to /dev/null
       ;;
       *)
         sudo nice -n -30 $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K \
@@ -623,5 +691,8 @@ PORT=10000
       -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
 
   ;;
+#============================================ END =============================================================
+
+# Program flow never gets here....
 
 esac

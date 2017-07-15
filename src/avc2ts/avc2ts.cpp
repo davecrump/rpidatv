@@ -2153,6 +2153,8 @@ public:
             } 
 	
 	 // configuring encoders
+		// Amended for PAL framebuffer
+		// Original line was videorender.SetDestRect(0,0,640,480);
 		{
 		    VideoFromat vfResized = VideoFormat;
 		    
@@ -2160,8 +2162,8 @@ public:
 		    camera.getPortDefinition(Camera::OPORT_VIDEO, portDef);
 
 		    videorender.setupPortFromCamera(portDef);
-		videorender.SetDestRect(0,0,640,480);
-		    
+		    videorender.SetDestRect(0,0,720,576);
+
 		    portDef->format.video.nFrameWidth = vfResized.width;
 		    portDef->format.video.nFrameHeight = vfResized.height;
 	
