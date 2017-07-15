@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Version 20170630
+# Version 201707120
 
 ############ Set Environment Variables ###############
 
@@ -124,33 +124,39 @@ fi
 
 do_refresh_numbers()
 {
+  # Delete old numbers
+  rm /home/pi/rpidatv/scripts/images/contest0.png >/dev/null 2>/dev/null
+  rm /home/pi/rpidatv/scripts/images/contest1.png >/dev/null 2>/dev/null
+  rm /home/pi/rpidatv/scripts/images/contest2.png >/dev/null 2>/dev/null
+  rm /home/pi/rpidatv/scripts/images/contest3.png >/dev/null 2>/dev/null
+
   FREQ_OUTPUT=$(get_config_var freqoutput $CONFIGFILE)
   INT_FREQ_OUTPUT=${FREQ_OUTPUT%.*}
   LOCATOR=$(get_config_var locator $CONFIGFILE)
 
   NUMBERS0=$(get_config_var numbers0 $CONFIGFILE)
-  convert -size 480x320 xc:white \
+  convert -size 480x360 xc:white \
     -gravity North -pointsize 75 -annotate 0 "$CALL" \
     -gravity Center -pointsize 150 -annotate 0 "$NUMBERS0" \
     -gravity South -pointsize 50 -annotate 0 "$LOCATOR""    4 Metres" \
     /home/pi/rpidatv/scripts/images/contest0.png
 
   NUMBERS1=$(get_config_var numbers1 $CONFIGFILE)
-  convert -size 480x320 xc:white \
+  convert -size 480x360 xc:white \
     -gravity North -pointsize 75 -annotate 0 "$CALL" \
     -gravity Center -pointsize 150 -annotate 0 "$NUMBERS1" \
     -gravity South -pointsize 50 -annotate 0 "$LOCATOR""    2 Metres" \
     /home/pi/rpidatv/scripts/images/contest1.png
 
   NUMBERS2=$(get_config_var numbers2 $CONFIGFILE)
-  convert -size 480x320 xc:white \
+  convert -size 480x360 xc:white \
     -gravity North -pointsize 75 -annotate 0 "$CALL" \
     -gravity Center -pointsize 150 -annotate 0 "$NUMBERS2" \
     -gravity South -pointsize 50 -annotate 0 "$LOCATOR""    70 cm" \
     /home/pi/rpidatv/scripts/images/contest2.png
 
   NUMBERS3=$(get_config_var numbers3 $CONFIGFILE)
-  convert -size 480x320 xc:white \
+  convert -size 480x360 xc:white \
     -gravity North -pointsize 75 -annotate 0 "$CALL" \
     -gravity Center -pointsize 150 -annotate 0 "$NUMBERS3" \
     -gravity South -pointsize 50 -annotate 0 "$LOCATOR""    23 cm" \
@@ -356,6 +362,7 @@ do_output_setup_mode()
   Radio6=OFF
   Radio7=OFF
   Radio8=OFF
+  Radio9=OFF
   case "$MODE_OUTPUT" in
   IQ)
     Radio1=ON
@@ -381,8 +388,11 @@ do_output_setup_mode()
   IP)
     Radio7=ON
   ;;
-  *)
+  COMPVID)
     Radio8=ON
+  ;;
+  *)
+    Radio9=ON
   ;;
   esac
 
@@ -394,7 +404,9 @@ do_output_setup_mode()
     "STREAMER" "Stream to other Streaming Facility" $Radio4 \
     "DIGITHIN" "$StrOutputSetupDigithin" $Radio5 \
     "DATVEXPRESS" "$StrOutputSetupDATVExpress" $Radio6 \
-    "IP" "$StrOutputSetupIP" $Radio7 3>&2 2>&1 1>&3)
+    "IP" "$StrOutputSetupIP" $Radio7 \
+    "COMPVID" "Output PAL Comp Video from Raspberry Pi AV Socket" $Radio8 \
+    3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
     case "$choutput" in
@@ -462,7 +474,7 @@ do_output_setup_mode()
       fi
       # Make sure that the Control file is not locked
       sudo rm /tmp/expctrl >/dev/null 2>/dev/null
-      # Start Express from its own folder otherwise it doesnt read the config file
+      # Start Express from its own folder otherwise it doesn't read the config file
       cd /home/pi/express_server
       sudo nice -n -40 /home/pi/express_server/express_server  >/dev/null 2>/dev/null &
       cd /home/pi
@@ -476,6 +488,9 @@ do_output_setup_mode()
       if [ $? -eq 0 ]; then
         set_config_var udpoutaddr "$UDPOUTADDR" $CONFIGFILE
       fi
+    ;;
+    COMPVID)
+      :
     ;;
     esac
     set_config_var modeoutput "$choutput" $CONFIGFILE

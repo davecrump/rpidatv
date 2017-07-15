@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 20170630
+# Updated by davecrump 20170712
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -245,6 +245,11 @@ if ! grep -q timeout /etc/dhcpcd.conf; then
   sudo bash -c 'echo -e "\n# Shorten dhcpcd timeout from 30 to 15 secs" >> /etc/dhcpcd.conf'
   sudo bash -c 'echo -e "timeout 15\n" >> /etc/dhcpcd.conf'
 fi
+
+# Enable the Video output in PAL mode (201707120)
+cd /boot
+sudo sed -i 's/^#sdtv_mode=2/sdtv_mode=2/' config.txt
+cd /home/pi
 
 # Update the version number
 rm -rf /home/pi/rpidatv/scripts/installed_version.txt
