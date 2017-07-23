@@ -83,6 +83,7 @@ char ModeAudio[255];
 char ModeOutput[255];
 char ModeSTD[255];
 char ModeOP[255];
+char Caption[255];
 
 // Values for buttons
 // May be over-written by values from from rpidatvconfig.txt:
@@ -90,10 +91,10 @@ char ModeOP[255];
 int TabSR[5]={125,333,1000,2000,4000};
 char SRLabel[5][255]={"SR 125","SR 333","SR1000","SR2000","SR4000"};
 int TabFec[5]={1,2,3,5,7};
-char TabModeInput[7][255]={"CAMMPEG-2","CAMH264","PATERNAUDIO","ANALOGCAM","CARRIER","CONTEST","IPTSIN"};
+char TabModeInput[8][255]={"CAMMPEG-2","CAMH264","PATERNAUDIO","ANALOGCAM","CARRIER","CONTEST","IPTSIN","ANALOGMPEG-2"};
 char TabFreq[5][255]={"71","146.5","437","1249","1255"};
 char FreqLabel[5][255]={" 71 MHz ","146.5 MHz","437 MHz ","1249 MHz","1255 MHz"};
-char TabModeAudio[3][255]={"usb","auto","video"};
+char TabModeAudio[3][255]={"mic","auto","video"};
 char TabModeSTD[2][255]={"6","0"};
 char TabModeOP[5][255]={"IQ","QPSKRF","DATVEXPRESS","BATC","COMPVID"};
 int Inversed=0;//Display is inversed (Waveshare=1)
@@ -628,12 +629,17 @@ void SelectFec(int NoButton)  // FEC
 void SelectSource(int NoButton,int Status)  //Input mode
 {
   SelectInGroup(15,19,NoButton,Status);
-  SelectInGroup(Menu1Buttons+15,Menu1Buttons+16,NoButton,Status);
+  SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,NoButton,Status);
   strcpy(ModeInput,TabModeInput[NoButton-15]);
   printf("************** Set Input Mode = %s\n",ModeInput);
   char Param[]="modeinput";
   SetConfigParam(PATH_CONFIG,Param,ModeInput);
 
+  // Load the Pi Cam driver for CAMMPEG-2 mode
+  if(strcmp(ModeInput,"CAMMPEG-2")==0)
+  {
+    system("sudo modprobe bcm2835_v4l2");
+  }
   // Replace Contest Numbers with BATC Logo
   system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/BATC_Black.png\" >/dev/null 2>/dev/null");
   system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
@@ -643,6 +649,29 @@ void SelectPTT(int NoButton,int Status)  // TX/RX
 {
 	SelectInGroup(20,21,NoButton,Status);
 }
+
+void SelectCaption(int NoButton,int Status)  // Caption on or off
+{
+  char Param[]="caption";
+  char Value[255];
+
+            strcpy(Param,"caption");
+            GetConfigParam(PATH_CONFIG,Param,Value);
+            printf("Value=%s %s\n",Value,"Caption old");
+            if(strcmp(Value,"on")==0)
+            {
+               Status=0;
+               SetConfigParam(PATH_CONFIG,Param,"off");
+            }
+            else
+            {
+              Status=1;
+               SetConfigParam(PATH_CONFIG,Param,"on");
+            }
+	SelectInGroup(Menu1Buttons+3,Menu1Buttons+3,NoButton,Status);
+
+}
+
 
 void SelectSTD(int NoButton,int Status)  // PAL or NTSC
 {
@@ -674,9 +703,9 @@ void SelectOP(int NoButton,int Status)  //Output mode
 void SelectSource2(int NoButton,int Status)  //Input mode
 {
   SelectInGroup(15,19,NoButton,Status);
-  SelectInGroup(Menu1Buttons+15,Menu1Buttons+16,NoButton,Status);
+  SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,NoButton,Status);
   strcpy(ModeInput,TabModeInput[NoButton-Menu1Buttons-10]);
-  printf("************** Set Input Mode = %s\n",ModeInput);
+  printf("************** Menu 2 Set Input Mode = %s\n",ModeInput);
   char Param[]="modeinput";
   SetConfigParam(PATH_CONFIG,Param,ModeInput);
 }
@@ -1196,11 +1225,12 @@ void waituntil(int w,int h)
             //Text(10, 400, "IP 192.168.xxx.xxx", SansTypeface, 30);
             //Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize)
           }
-          if(i==(Menu1Buttons+3)) // Menu 3
+          if(i==(Menu1Buttons+3)) // Caption on/off
           {
-            ; // Menu 3 todo
+            SelectCaption(i,1);
+              UpdateWindow();
           }
-          if(i==(Menu1Buttons+4)) // Menu 4
+          if(i==(Menu1Buttons+4)) // Menu 3
           {
             ; // Menu 4 todo
           }
@@ -1216,13 +1246,9 @@ void waituntil(int w,int h)
           {
             SelectOP(i,1);
           }
-          if((i>=(Menu1Buttons+15))&&(i<=(Menu1Buttons+16))) // Select Source 2
+          if((i>=(Menu1Buttons+15))&&(i<=(Menu1Buttons+17))) // Select Source 2
           {
             SelectSource2(i,1);
-          }
-          if(i==(Menu1Buttons+17)) // Spare
-          {
-            ; // Spare todo
           }
           if(i==(Menu1Buttons+18)) // Spare
           {
@@ -1497,9 +1523,9 @@ void Define_Menu1()
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Analog",&Col);
+	AddButtonStatus(button,"VID H264",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Analog",&Col);
+	AddButtonStatus(button,"VID H264",&Col);
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
@@ -1555,17 +1581,16 @@ void Define_Menu2()
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
-	//AddButtonStatus(button," Menu 3",&Col);
+	AddButtonStatus(button,"Caption",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," Menu 3",&Col);
+	AddButtonStatus(button,"Caption",&Col);
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
 	AddButtonStatus(button," ",&Col);
-	//AddButtonStatus(button," Menu 4",&Col);
+	//AddButtonStatus(button," Menu 3",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," Menu 4",&Col);
+	AddButtonStatus(button," Menu 3",&Col);
 
 // 2nd row up: Audio Mic, Audio Auto, Audio EC, PAL In, NTSC In
 
@@ -1632,7 +1657,7 @@ void Define_Menu2()
 	Col.r=0;Col.g=128;Col.b=0;
 	AddButtonStatus(button,"Vid Out",&Col);
 
-// Top row, 2 more sources:
+// Top row, 3 more sources:
 
 	button=AddButton(0*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
@@ -1648,9 +1673,9 @@ void Define_Menu2()
 
 	button=AddButton(2*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"VID MPEG2",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"VID MPEG2",&Col);
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
@@ -1687,7 +1712,7 @@ void Start_Highlights_Menu2()
   strcpy(Value,"");
   GetConfigParam(PATH_CONFIG,Param,Value);
   printf("Value=%s %s\n",Value,"Audio");
-  if(strcmp(Value,"usb")==0)
+  if(strcmp(Value,"mic")==0)
   {
     SelectInGroup(Menu1Buttons+5,Menu1Buttons+7,Menu1Buttons+5,1);
   }
@@ -1751,11 +1776,29 @@ void Start_Highlights_Menu2()
 
   if(strcmp(Value,"CONTEST")==0)
   {
-    SelectInGroup(Menu1Buttons+15,Menu1Buttons+16,Menu1Buttons+15,1);
+    SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,Menu1Buttons+15,1);
   }
   if(strcmp(Value,"IPTSIN")==0)
   {
-    SelectInGroup(Menu1Buttons+15,Menu1Buttons+16,Menu1Buttons+16,1);
+    SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,Menu1Buttons+16,1);
+  }
+  if(strcmp(Value,"ANALOGMPEG-2")==0)
+  {
+    SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,Menu1Buttons+17,1);
+  }
+
+  // Caption
+  strcpy(Param,"caption");
+  GetConfigParam(PATH_CONFIG,Param,Value);
+  strcpy(Caption,Value);
+  printf("Value=%s %s\n",Value,"Caption");
+  if(strcmp(Value,"on")==0)
+  {
+    SelectInGroup(Menu1Buttons+3,Menu1Buttons+3,Menu1Buttons+3,1);
+  }
+  else
+  {
+    SelectInGroup(Menu1Buttons+3,Menu1Buttons+3,Menu1Buttons+3,0);
   }
 }
 

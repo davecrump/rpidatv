@@ -76,7 +76,7 @@ StrOutputMode="Output Mode"
 
 StrPIDSetup="PID setup"
 StrPIDSetupTitle="PID setup"
-StrPIDSetupContext="Set PMT PID. Video PID will be PMT PID +1, Audio PID will be PMT + 2"
+StrPIDSetupContext="Set PMT PID for MPEG-2. For H264 it will be set to Video PID-1"
 
 
 ######### STATUS ##########

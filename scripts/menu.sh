@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Version 201707120
+# Version 201707220
 
 ############ Set Environment Variables ###############
 
@@ -253,10 +253,17 @@ do_input_setup()
     "VNC" "$StrInputSetupVNC" $Radio9 \
     "DESKTOP" "$StrInputSetupDESKTOP" $Radio10 \
     "CONTEST" "$StrInputSetupCONTEST" $Radio11  \
-    "ANALOGMPEG-2" "Not Implemented Yet" $Radio12 3>&2 2>&1 1>&3)
+    "ANALOGMPEG-2" "MPEG-2 and sound from Comp Video Input" $Radio12 3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
     case "$chinput" in
+    CAMMPEG-2)
+      # Make sure that the camera driver is loaded
+      lsmod | grep -q 'bcm2835_v4l2'
+      if [ $? != 0 ]; then   ## not loaded
+        sudo modprobe bcm2835_v4l2
+      fi
+  ;;
     FILETS)
       TSVIDEOFILE=$(get_config_var tsvideofile $CONFIGFILE)
       filename=$TSVIDEOFILE
@@ -306,7 +313,7 @@ do_input_setup()
         "$StrInputSetupANALOGCAMTitle" 20 78 5 \
         "/dev/video0" "Normal with no PiCam" $Radio1 \
         "/dev/video1" "Sometimes required with PiCam" $Radio2 \
-        "auto" "Not Implemented Yet" $Radio3 \
+        "auto" "Automatically select device name" $Radio3 \
         3>&2 2>&1 1>&3)
 
       if [ $? -eq 0 ]; then
@@ -573,22 +580,22 @@ do_PID_setup()
     set_config_var pidpmt "$PIDPMT" $CONFIGFILE
   fi
   PIDPCR=$(get_config_var pidstart $CONFIGFILE)
-  PIDPCR=$(whiptail --inputbox "PCR PID - Not Implemented Yet" 8 78 $PIDPCR --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
+  PIDPCR=$(whiptail --inputbox "PCR PID - Not Implemented Yet. Will be set same as Video PID" 8 78 $PIDPCR --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
     set_config_var pidstart "$PIDPCR" $CONFIGFILE
   fi
   PIDVIDEO=$(get_config_var pidvideo $CONFIGFILE)
-  PIDVIDEO=$(whiptail --inputbox "Video PID - Not Implemented Yet" 8 78 $PIDVIDEO --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
+  PIDVIDEO=$(whiptail --inputbox "Video PID" 8 78 $PIDVIDEO --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
     set_config_var pidvideo "$PIDVIDEO" $CONFIGFILE
   fi
   PIDAUDIO=$(get_config_var pidaudio $CONFIGFILE)
-  PIDAUDIO=$(whiptail --inputbox "Audio PID - Not Implemented Yet" 8 78 $PIDAUDIO --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
+  PIDAUDIO=$(whiptail --inputbox "Audio PID" 8 78 $PIDAUDIO --title "$StrPIDSetupTitle" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
     set_config_var pidaudio "$PIDAUDIO" $CONFIGFILE
   fi
 
-  whiptail --title "PID Selection Check - Not Implemented - Do not use!" \
+  whiptail --title "PID Selection Check - but not all will be set by software yet!" \
     --msgbox "PMT: "$PIDPMT" PCR: "$PIDPCR" Video: "$PIDVIDEO" Audio: "$PIDAUDIO".  Press any key to continue" 8 78
 }
 
@@ -603,13 +610,42 @@ do_freq_setup()
   do_refresh_numbers
 }
 
+do_caption_setup()
+{
+  CAPTION=$(get_config_var caption $CONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  case "$CAPTION" in
+  on)
+    Radio1=ON
+  ;;
+  off)
+    Radio2=ON
+  ;;
+  *)
+    Radio1=ON
+  ;;
+  esac
+
+  CAPTION=$(whiptail --title "SET CAPTION ON OR OFF (MPEG-2 ONLY)" --radiolist \
+    "Select one" 20 78 8 \
+    "on" "Callsign Caption inserted on transmitted signal" $Radio1 \
+    "off" "No Callsign Caption" $Radio2 \
+    3>&2 2>&1 1>&3)
+
+  if [ $? -eq 0 ]; then                     ## If the selection has changed
+    set_config_var caption "$CAPTION" $CONFIGFILE
+  fi
+}
+
 do_output_setup() {
-menuchoice=$(whiptail --title "$StrOutputTitle" --menu "$StrOutputContext" 16 78 5 \
-        "1 SymbolRate" "$StrOutputSR"  \
-        "2 FEC" "$StrOutputFEC" \
-	"3 Output mode" "$StrOutputMode" \
-	"4 PID" "$StrPIDSetup" \
-	"5 Frequency" "$StrOutputRFFreqContext" \
+menuchoice=$(whiptail --title "$StrOutputTitle" --menu "$StrOutputContext" 16 78 6 \
+  "1 SymbolRate" "$StrOutputSR"  \
+  "2 FEC" "$StrOutputFEC" \
+  "3 Output mode" "$StrOutputMode" \
+  "4 PID" "$StrPIDSetup" \
+  "5 Frequency" "$StrOutputRFFreqContext" \
+  "6 Caption" "Callsign Caption in MPEG-2 on/off" \
 	3>&2 2>&1 1>&3)
 	case "$menuchoice" in
             1\ *) do_symbolrate_setup ;;
@@ -617,6 +653,7 @@ menuchoice=$(whiptail --title "$StrOutputTitle" --menu "$StrOutputContext" 16 78
 	    3\ *) do_output_setup_mode ;;
 	    4\ *) do_PID_setup ;;
 	    5\ *) do_freq_setup ;;
+	    6\ *) do_caption_setup ;;
         esac
 }
 
@@ -891,7 +928,6 @@ do_EasyCap()
 
 do_audio_switch()
 {
-  # whiptail --title "Not implemented yet" --msgbox "Not Implemented yet.  Please press enter to continue" 8 78
   AUDIO=$(get_config_var audio $CONFIGFILE)
   Radio1=OFF
   Radio2=OFF
@@ -925,7 +961,7 @@ do_audio_switch()
     "mic" "Use the USB Audio Dongle Mic Input" $Radio2 \
     "video" "Use the EasyCap Video Dongle Audio Input" $Radio3 \
     "bleeps" "Generate test bleeps" $Radio4 \
-    "no_audio" "Transmit silence or no sound" $Radio5 \
+    "no_audio" "Not Implemented yet" $Radio5 \
     3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then                     ## If the selection has changed

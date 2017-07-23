@@ -1,4 +1,4 @@
-## Updated for version 201701270
+## Updated for version 201707220
 
 ## Usage ########################################
 
@@ -7,7 +7,31 @@
 # The base entries have always been present
 # Subsequent entires are added only if they 
 # are found in the user's old file
-# Base Commands were present prior to 201701020
+#
+# Base Commands present prior to 201701020:
+# modeinput=CAMH264
+# symbolrate=333
+# fec=7
+# freqoutput=1249
+# rfpower=7
+# modeoutput=IQ
+# tsvideofile=/home/pi/rpidatv/video/f4day.ts
+# call=BATC
+# paternfile=/home/pi/rpidatv/video
+# udpinaddr=230.0.0.2
+# pidvideo=256
+# pidpmt=255
+# serviceid=1
+# gpio_i=12
+# gpio_q=13
+# pathmedia=/home/pi/rpidatv/video
+# locator=IO90LU
+# pidstart=255
+# pidaudio=257
+# display=Waveshare
+# menulanguage=en
+# analogcamname=/dev/video0
+# startup=Console
 #
 # 201701020 added:
 # analogcaminput
@@ -50,6 +74,10 @@
 # psr5
 # streamurl
 # streamkey
+#
+# 201707220 added
+#
+# caption
 #
 # This file should be called by the install script
 # if the latest entries are not found in the user's 
@@ -297,5 +325,14 @@ if grep -q explevel4 /home/pi/rpidatvconfig.txt; then
 
   TRANSFER=$(get_config_var streamkey $OLDCONFIGFILE)
   set_config_var streamkey "$TRANSFER" $NEWCONFIGFILE
+
+fi
+
+if grep -q caption /home/pi/rpidatvconfig.txt; then
+  # User's File includes caption
+  # Which was added in 20170720
+
+  TRANSFER=$(get_config_var caption $OLDCONFIGFILE)
+  set_config_var caption "$TRANSFER" $NEWCONFIGFILE
 
 fi
