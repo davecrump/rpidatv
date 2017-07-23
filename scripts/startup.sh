@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+# set -x
+
 # This script is sourced from .bashrc at boot and ssh session start
 # to select the user's selected start-up option.
-# dave crump 20170413
+# dave crump 20170721
 
 ############ Set Environment Variables ###############
 
@@ -116,6 +118,26 @@ do
   sleep 2
   let "COUNT -= 1"
 done
+
+# Check if PiCam connected; if it is, sort out the
+# camera inputs so that PiCam is /dev/video0 and EasyCap is /dev/video1
+
+vcgencmd get_camera | grep 'detected=1' >/dev/null 2>/dev/null
+RESULT="$?"
+if [ "$RESULT" -eq 0 ]; then
+  sudo modprobe -r bcm2835_v4l2 # Unload the Pi Cam driver
+  sudo modprobe -r usbtv        # Unload the EasyCap driver
+  sudo modprobe -r em28xx        # Unload the EasyCap driver
+  sudo modprobe -r stk1160        # Unload the EasyCap driver
+  sudo modprobe -r uvcvideo        # Unload the EasyCap driver
+  # replace usbtv with your EasyCap driver name
+  sudo modprobe bcm2835_v4l2    # Load the Pi Cam driver
+  sudo modprobe usbtv           # Load the EasyCap driver
+  sudo modprobe em28xx        # Load the EasyCap driver
+  sudo modprobe stk1160        # Load the EasyCap driver
+  sudo modprobe uvcvideo        # Load the EasyCap driver
+# replace usbtv with your EasyCap driver name
+fi
 
 # Read the desired start-up behaviour
 MODE_STARTUP=$(get_config_var startup $CONFIGFILE)

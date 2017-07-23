@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 20170712
+# Updated by davecrump 20170722
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -214,8 +214,8 @@ if [ -f /home/pi/.pi-sdn ]; then
 fi
 
 # Restore or update rpidatvconfig.txt for
-# 201701020 201701270 201702100 
-if ! grep -q expports0 /home/pi/rpidatvconfig.txt; then
+# 201701020 201701270 201702100 201707220
+if ! grep -q caption /home/pi/rpidatvconfig.txt; then
   # File needs updating
   printf "Adding new entries to user's rpidatvconfig.txt\n"
   source /home/pi/rpidatv/scripts/copy_config.sh

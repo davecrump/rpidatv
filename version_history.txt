@@ -1,3 +1,13 @@
+201707221
+Updates the version of ffmpeg in use
+Adds MPEG transmission (with sound) and streaming from the EasyCap
+Configures video devices so that EasyCap can always be connected
+Automatically determines video device address
+Implements auto or manual switching of audio source
+Displays viewfinder in CAMMPEG-2 mode every time
+Implements correct PIDs for MPEG-2 modes
+Optional callsign caption in MPEG-2 modes
+
 201707120
 Introduces the Composite Video Output Mode to provide an analog video source
 Sets the RPi Composite Video Output to PAL
