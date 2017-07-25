@@ -1,3 +1,6 @@
+201707222
+Corrects a bug in the audio switching that prevented transmit or streaming
+
 201707221
 Updates the version of ffmpeg in use
 Adds MPEG transmission (with sound) and streaming from the EasyCap

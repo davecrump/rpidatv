@@ -1,7 +1,7 @@
 #! /bin/bash
 # set -x #Uncomment for testing
 
-# Version 201707220
+# Version 201707222
 
 ############# SET GLOBAL VARIABLES ####################
 
@@ -52,7 +52,7 @@ detect_audio()
 
   # Then, depending on the values of  $AUDIO_PREF and $MODE_INPUT it sets
   # AUDIO_CARD_NUMBER (typically 0, 1 or 2)
-  # AUDIO_CHANNELS (1 for mic, 2 for video stereo capture)
+  # AUDIO_CHANNELS (0 for no audio required, 1 for mic, 2 for video stereo capture)
   # AUDIO_SAMPLE (44100 for mic, 48000 for video stereo capture)
 
   # Set initial conditions for later testing
@@ -68,10 +68,9 @@ detect_audio()
   fi
   printf "Video Input is $PIC_INPUT \n"
 
-  # Fist check if any audio card is present
+  # First check if any audio card is present
   arecord -l | grep -q 'card'
   if [ $? != 0 ]; then   ## not present
-    AUDIO_CARD=0
     printf "Audio card not present\n"
   else                   ## card detected
     printf "Audio card present\n"
@@ -92,79 +91,114 @@ detect_audio()
         "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB" \
         | head -c 6 | tail -c 1)"
     fi
-
-    # Now sort out what card parameters are used
-    if [ "$MIC" == "9" ] && [ "$USBTV" == "9" ]; then
-      # No known card detected so take the safe option and go for beeps
+  fi
+  # Check if any cards were detected
+  if [ "$MIC" == "9" ] && [ "$USBTV" == "9" ]; then
+    # No known card detected so take the safe option and go for beeps
+    # unless noaudio selected:
+    if [ "$AUDIO_PREF" == "no_audio" ]; then  # no audio
       AUDIO_CARD=0
-    else
-      # At least one card detected
-      case "$AUDIO_PREF" in
-      auto)
-        if [ "$USBTV" != "9" ] && [ "$PIC_INPUT" == "ANALOG" ]; then
-          AUDIO_CARD=1
+      AUDIO_CHANNELS=0
+      AUDIO_SAMPLE=44100
+    else                                      # bleeps
+      AUDIO_CARD=0
+      AUDIO_CHANNELS=1
+      AUDIO_SAMPLE=44100
+    fi
+  else
+    # At least one card detected, so sort out what card parameters are used
+    case "$AUDIO_PREF" in
+      auto)                                                 # Auto selected
+        if [ "$USBTV" != "9" ] && [ "$MIC" != "9" ]; then   # 2 cards
+          if [ "$PIC_INPUT" == "DIGITAL" ]; then            # using Pi Cam video
+            AUDIO_CARD=1                                    # so use mic audio
+            AUDIO_CARD_NUMBER=$MIC
+            AUDIO_CHANNELS=1
+            AUDIO_SAMPLE=44100
+          else                                              # using EasyCap video
+            AUDIO_CARD=1                                    # so use EasyCap audio
+            AUDIO_CARD_NUMBER=$USBTV
+            AUDIO_CHANNELS=2
+            AUDIO_SAMPLE=48000
+          fi
+        fi
+        if [ "$USBTV" == "9" ] && [ "$MIC" != "9" ]; then   # Mic card only
+            AUDIO_CARD=1                                    # so use mic
+            AUDIO_CARD_NUMBER=$MIC
+            AUDIO_CHANNELS=1
+            AUDIO_SAMPLE=44100
+        fi
+        if [ "$USBTV" != "9" ] && [ "$MIC" == "9" ]; then   # EasyCap card only
+          AUDIO_CARD=1                                      # So use EasyCap
           AUDIO_CARD_NUMBER=$USBTV
           AUDIO_CHANNELS=2
           AUDIO_SAMPLE=48000
-        elif [ "$MIC" != "9" ] && [ "$PIC_INPUT" != "ANALOG" ]; then
-          AUDIO_CARD=1
+        fi
+      ;;
+      mic)                                                  # Mic selected
+        if [ "$MIC" != "9" ]; then                          # Mic card detected
+          AUDIO_CARD=1                                      # so use mic
           AUDIO_CARD_NUMBER=$MIC
           AUDIO_CHANNELS=1
           AUDIO_SAMPLE=44100
-        else
-          AUDIO_CARD=0
-          AUDIO_CHANNELS=1
-        fi
-      ;;
-      mic)
-        if [ "$MIC" != "9" ]; then
-          AUDIO_CARD=1
-          AUDIO_CARD_NUMBER=$MIC
-          AUDIO_CHANNELS=1
-          AUDIO_SAMPLE=44100
-        else
-          AUDIO_CARD=0
-          AUDIO_CHANNELS=1
-        fi
-      ;;
-      video)
-        if [ "$USBTV" != "9" ]; then
-          AUDIO_CARD=1
+        else                                                # No mic card
+          AUDIO_CARD=1                                      # So use EasyCap
           AUDIO_CARD_NUMBER=$USBTV
           AUDIO_CHANNELS=2
           AUDIO_SAMPLE=48000
-        else
-          AUDIO_CARD=0
-          AUDIO_CHANNELS=1
         fi
-       ;;
+      ;;
+      video)                                                # EasyCap selected
+        if [ "$USBTV" != "9" ]; then                        # EasyCap detected
+          AUDIO_CARD=1                                      # So use EasyCap
+          AUDIO_CARD_NUMBER=$USBTV
+          AUDIO_CHANNELS=2
+          AUDIO_SAMPLE=48000
+        else                                                # No EasyCap
+          AUDIO_CARD=1                                      # so use mic
+          AUDIO_CARD_NUMBER=$MIC
+          AUDIO_CHANNELS=1
+          AUDIO_SAMPLE=44100
+        fi
+      ;;
       bleeps)
         AUDIO_CARD=0
         AUDIO_CHANNELS=1
+        AUDIO_SAMPLE=44100
       ;;
-      no_audio) # not implemented yet
+      no_audio)
         AUDIO_CARD=0
         AUDIO_CHANNELS=0
+        AUDIO_SAMPLE=44100
       ;;
-      *)
-        # Unidentified selection (may be from old entry in rpidatvconfig.txt) Use auto:
-        if [ "$USBTV" != "9" ] && [ "$PIC_INPUT" == "ANALOG" ]; then
-          AUDIO_CARD=1
-          AUDIO_CARD_NUMBER=$USBTV
-          AUDIO_CHANNELS=2
-          AUDIO_SAMPLE=48000
-        elif [ "$MIC" != "9" ] && [ "$PIC_INPUT" != "ANALOG" ]; then
-          AUDIO_CARD=1
+      *)                                                    # Unidentified option
+        if [ "$USBTV" != "9" ] && [ "$MIC" != "9" ]; then   # 2 cards
+          if [ "$PIC_INPUT" == "DIGITAL" ]; then            # using Pi Cam video
+            AUDIO_CARD=1                                    # so use mic audio
+            AUDIO_CARD_NUMBER=$MIC
+            AUDIO_CHANNELS=1
+            AUDIO_SAMPLE=44100
+          else                                              # using EasyCap video
+            AUDIO_CARD=1                                    # so use EasyCap audio
+            AUDIO_CARD_NUMBER=$USBTV
+            AUDIO_CHANNELS=2
+            AUDIO_SAMPLE=48000
+          fi
+        fi
+        if [ "$USBTV" == "9" ] && [ "$MIC" != "9" ]; then   # Mic card only
+          AUDIO_CARD=1                                      # so use mic
           AUDIO_CARD_NUMBER=$MIC
           AUDIO_CHANNELS=1
           AUDIO_SAMPLE=44100
-        else
-          AUDIO_CARD=0
-          AUDIO_CHANNELS=1
         fi
-       ;;
-      esac
-    fi
+        if [ "$USBTV" != "9" ] && [ "$MIC" == "9" ]; then   # EasyCap card only
+          AUDIO_CARD=1                                      # So use EasyCap
+          AUDIO_CARD_NUMBER=$USBTV
+          AUDIO_CHANNELS=2
+          AUDIO_SAMPLE=48000
+        fi
+      ;;
+    esac
   fi
 
   printf "AUDIO_CARD = $AUDIO_CARD\n"
@@ -380,8 +414,8 @@ case "$MODE_OUTPUT" in
 esac
 
 OUTPUT_QPSK="videots"
-MODE_DEBUG=quiet
-# MODE_DEBUG=debug
+# MODE_DEBUG=quiet
+ MODE_DEBUG=debug
 
 # ************************ CALCULATE SYMBOL RATES ******************
 
@@ -390,8 +424,12 @@ let BITRATE_TS=SYMBOLRATE*2*188*FECNUM/204/FECDEN
 
 # Calculate the Video Bit Rate for Sound/no sound
 if [ "$MODE_INPUT" == "CAMMPEG-2" ] || [ "$MODE_INPUT" == "ANALOGMPEG-2" ]; then
-  let BITRATE_VIDEO=(BITRATE_TS*75)/100-74000
-else
+  if [ "$AUDIO_CHANNELS" != 0 ]; then                 # Sound active
+    let BITRATE_VIDEO=(BITRATE_TS*75)/100-74000
+  else
+    let BITRATE_VIDEO=(BITRATE_TS*75)/100-10000
+  fi
+else 
   let BITRATE_VIDEO=(BITRATE_TS*75)/100-10000
 fi
 
@@ -540,32 +578,69 @@ fi
     # Now generate the stream
     case "$MODE_OUTPUT" in
       "BATC")
-        $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
-          -f v4l2 -input_format h264 \
-          -i /dev/video0 -thread_queue_size 2048 \
-          -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
-          -i hw:$AUDIO_CARD_NUMBER,0 \
-          -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-          -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
-          -g 25 \
-          -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+        # No code for beeps here
+        if [ "$AUDIO_CARD" == 0 ]; then
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048  \
+            -f v4l2 -input_format h264 \
+            -i /dev/video0 \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -g 25 \
+            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+        else
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
+            -f v4l2 -input_format h264 \
+            -i /dev/video0 -thread_queue_size 2048 \
+            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+            -i hw:$AUDIO_CARD_NUMBER,0 \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
+            -g 25 \
+            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+        fi
       ;;
       "STREAMER")
-        $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
-          -f v4l2 -input_format h264 \
-          -i /dev/video0 -thread_queue_size 2048 \
-          -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
-          -i hw:$AUDIO_CARD_NUMBER,0 \
-          -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-          -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
-          -g 25 \
-          -f flv $STREAM_URL/$STREAM_KEY &
+        # No code for beeps here
+        if [ "$AUDIO_CARD" == 0 ]; then
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
+            -f v4l2 -input_format h264 \
+            -i /dev/video0 \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -g 25 \
+            -f flv $STREAM_URL/$STREAM_KEY &
+        else
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
+            -f v4l2 -input_format h264 \
+            -i /dev/video0 -thread_queue_size 2048 \
+            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+            -i hw:$AUDIO_CARD_NUMBER,0 \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
+            -g 25 \
+            -f flv $STREAM_URL/$STREAM_KEY &
+        fi
       ;;
       *)
+        if [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "0" ]; then
 
-        if [ "$AUDIO_CARD" == 0 ]; then
+          # ******************************* MPEG-2 VIDEO WITH NO AUDIO ************************************
+
+          sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
+            -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512\
+            -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT"\
+            -i /dev/video0 -fflags nobuffer \
+            \
+            $VF $CAPTION -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
+            -f mpegts  -blocksize 1880 \
+            -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
+            -mpegts_service_id $SERVICEID \
+            -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
+            -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
+            -muxrate $BITRATE_TS -y $OUTPUT &
+
+        elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
+
           # ******************************* MPEG-2 VIDEO WITH BEEP ************************************
-      
+
           sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
             -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512\
             -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT"\
@@ -574,7 +649,7 @@ fi
             -f lavfi -ac 1 \
             -i "sine=frequency=500:beep_factor=4:sample_rate=44100:duration=0" \
             \
-            -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
+            $VF $CAPTION -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
             -f mpegts  -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
@@ -583,6 +658,7 @@ fi
             -muxrate $BITRATE_TS -y $OUTPUT &
 
         else
+
           # ******************************* MPEG-2 VIDEO WITH AUDIO ************************************
 
           # PCR PID ($PIDSTART) seems to be fixed as the same as the video PID.  
@@ -729,16 +805,46 @@ fi
     # Now generate the stream
     case "$MODE_OUTPUT" in
       "BATC")
-        $PATHRPI"/ffmpeg" -f v4l2 -i $VID_USB -thread_queue_size 1024 \
-          -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
-          -i hw:$AUDIO_CARD_NUMBER,0 \
-          -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-          -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
-          -vf "format=yuyv422,yadif=0:1:0" -g 25 \
-          -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+
+        if [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "0" ]; then
+          # No audio
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048  \
+            -f v4l2 \
+            -i $VID_USB \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
+            -vf "format=yuyv422,yadif=0:1:0" -g 25 \
+            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+
+        elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
+          # with beeps
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
+            -f v4l2 \
+            -i $VID_USB \
+            -f lavfi -ac 1 \
+            -i "sine=frequency=500:beep_factor=4:sample_rate=44100:duration=0" \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -ar 11025 -ac 1 -ab 64k \
+            -vf "format=yuyv422,yadif=0:1:0" -g 25 \
+            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+
+        else
+          # With audio
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
+            -f v4l2 \
+            -i $VID_USB \
+            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+            -i hw:$AUDIO_CARD_NUMBER,0 \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
+            -vf "format=yuyv422,yadif=0:1:0" -g 25 \
+            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+        fi
       ;;
       "STREAMER")
-        $PATHRPI"/ffmpeg" -f v4l2 -i $VID_USB -thread_queue_size 2048 \
+        # needs "no audio" option
+        $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048\
+          -f v4l2 \
+          -i $VID_USB \
           -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
           -i hw:$AUDIO_CARD_NUMBER,0 \
           -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
@@ -924,7 +1030,7 @@ fi
     v4l2-ctl --overlay=0
 
     # Set up the command for the MPEG-2 Callsign caption
-     if [ "$CAPTIONON" == "on" ]; then
+    if [ "$CAPTIONON" == "on" ]; then
       CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf: \
         text=\'$CALL\': fontcolor=white: fontsize=36: box=1: boxcolor=black@0.5: \
         boxborderw=5: x=(w+w/2+w/8-text_w)/2: y=(h/4-text_h)/2, "
@@ -979,9 +1085,29 @@ fi
     esac
 
     # Now generate the stream
-    if [ "$AUDIO_CARD" == 0 ]; then
+
+    if [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "0" ]; then
+
+      # ******************************* MPEG-2 ANALOG VIDEO WITH NO AUDIO ************************************
+
+      sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
+        -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512 \
+        -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
+        -i $VID_USB -fflags nobuffer \
+        \
+        -c:v mpeg2video -vf "$CAPTION""format=yuva420p, hqdn3d=15" \
+        -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO \
+        -f mpegts  -blocksize 1880 \
+        -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
+        -mpegts_service_id $SERVICEID \
+        -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
+        -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
+        -muxrate $BITRATE_TS -y $OUTPUT &
+
+    elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
+
       # ******************************* MPEG-2 ANALOG VIDEO WITH BEEP ************************************
-      
+
       sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET"\
         -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512\
         -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT"\
