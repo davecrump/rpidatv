@@ -1,7 +1,7 @@
 #! /bin/bash
 # set -x #Uncomment for testing
 
-# Version 201707222
+# Version 201707311
 
 ############# SET GLOBAL VARIABLES ####################
 
@@ -83,12 +83,12 @@ detect_audio()
     fi
     # Check for the presence of a Video dongle with audio
     arecord -l | grep -E -q \
-      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB"
+      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby"
     if [ $? == 0 ]; then   ## Present
       # Look for the video dongle, select the line and take
       # the 6th character.  Max card number = 8 !!
       USBTV="$(arecord -l | grep -E \
-        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB" \
+        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby" \
         | head -c 6 | tail -c 1)"
     fi
   fi
@@ -407,8 +407,17 @@ case "$MODE_OUTPUT" in
   ;;
 
   COMPVID)
+    # Temporarily set the symbol rate to something reasonable
+    SYMBOLRATEK=1000
+    let SYMBOLRATE=SYMBOLRATEK*1000
     FREQUENCY_OUT=0
     OUTPUT="/dev/null"
+    # Get the Mic and on-board sound card numbers
+    MICCARD="$(cat /proc/asound/modules | grep 'usb_audio' | head -c 2 | tail -c 1)"
+    RPICARD="$(cat /proc/asound/modules | grep 'bcm2835' | head -c 2 | tail -c 1)"
+    # Pass the USB mic input directly to the RPi Audio Out
+    arecord -D plughw:"$MICCARD",0 -f cd - | aplay -D plughw:"$RPICARD",0 - &
+
   ;;
 
 esac
@@ -1022,7 +1031,7 @@ fi
     $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT \
       -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
 
-  ;;
+   ;;
   #============================================ ANALOG MPEG-2 INPUT MODE =============================================================
   "ANALOGMPEG-2")
 

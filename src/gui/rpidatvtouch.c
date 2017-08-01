@@ -105,7 +105,7 @@ pthread_t thfft,thbutton;
 
 void Start_Highlights_Menu1();
 void Start_Highlights_Menu2();
-
+void Start_Highlights_Menu3();
 
 /***************************************************************************//**
  * @brief Looks up the value of Param in PathConfigFile and sets value
@@ -188,6 +188,336 @@ void SetConfigParam(char *PathConfigFile,char *Param,char *Value)
     fclose(fp);
     fclose(fw);
   }
+}
+
+
+/***************************************************************************//**
+ * @brief Looks up the current IPV4 address
+ *
+ * @param IPAddress (str) IP Address to be passed as a string
+ *
+ * @return void
+*******************************************************************************/
+
+void GetIPAddr(char IPAddress[256])
+{
+  FILE *fp;
+
+  /* Open the command for reading. */
+  fp = popen("ifconfig | grep -Eo \'inet (addr:)?([0-9]*\\.){3}[0-9]*\' | grep -Eo \'([0-9]*\\.){3}[0-9]*\' | grep -v \'127.0.0.1\'", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(IPAddress, 16, fp) != NULL) {
+    //printf("%s", IPAddress);
+  }
+
+  /* close */
+  pclose(fp);
+}
+
+/***************************************************************************//**
+ * @brief Looks up the current Software Version
+ *
+ * @param SVersion (str) IP Address to be passed as a string
+ *
+ * @return void
+*******************************************************************************/
+
+void GetSWVers(char SVersion[256])
+{
+  FILE *fp;
+
+  /* Open the command for reading. */
+  fp = popen("cat /home/pi/rpidatv/scripts/installed_version.txt", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(SVersion, 16, fp) != NULL)
+  {
+    printf("%s", SVersion);
+  }
+
+  /* close */
+  pclose(fp);
+}
+
+/***************************************************************************//**
+ * @brief Looks up the GPU Temp
+ *
+ * @param GPUTemp (str) GPU Temp to be passed as a string max 20 char
+ *
+ * @return void
+*******************************************************************************/
+
+void GetGPUTemp(char GPUTemp[256])
+{
+  FILE *fp;
+
+  /* Open the command for reading. */
+  fp = popen("/opt/vc/bin/vcgencmd measure_temp", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(GPUTemp, 20, fp) != NULL)
+  {
+    printf("%s", GPUTemp);
+  }
+
+  /* close */
+  pclose(fp);
+}
+
+/***************************************************************************//**
+ * @brief Looks up the CPU Temp
+ *
+ * @param CPUTemp (str) CPU Temp to be passed as a string
+ *
+ * @return void
+*******************************************************************************/
+
+void GetCPUTemp(char CPUTemp[256])
+{
+  FILE *fp;
+
+  /* Open the command for reading. */
+  fp = popen("cat /sys/class/thermal/thermal_zone0/temp", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(CPUTemp, 20, fp) != NULL)
+  {
+    printf("%s", CPUTemp);
+  }
+
+  /* close */
+  pclose(fp);
+}
+
+/***************************************************************************//**
+ * @brief Reads the input source from rpidatvconfig.txt
+ *        and determines coding and video source
+ * @param sets strings: coding, source
+ *
+ * @return void
+*******************************************************************************/
+
+void ReadModeInput(char coding[256], char vsource[256])
+{
+  char ModeInput[256];
+  GetConfigParam(PATH_CONFIG,"modeinput", ModeInput);
+
+  strcpy(coding, "notset");
+  strcpy(vsource, "notset");
+
+  if (strcmp(ModeInput, "CAMH264") == 0) 
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "RPi Camera");
+  } 
+  else if (strcmp(ModeInput, "CAMMPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "RPi Camera");
+  }
+  else if (strcmp(ModeInput, "FILETS") == 0)
+  {
+    strcpy(coding, "Native");
+    strcpy(vsource, "TS File");
+  }
+  else if (strcmp(ModeInput, "PATERNAUDIO") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "Test Card");
+  }
+  else if (strcmp(ModeInput, "CARRIER") == 0)
+  {
+    strcpy(coding, "DC");
+    strcpy(vsource, "Plain Carrier");
+  }
+  else if (strcmp(ModeInput, "TESTMODE") == 0)
+  {
+    strcpy(coding, "Square Wave");
+    strcpy(vsource, "Test");
+  }
+  else if (strcmp(ModeInput, "PATERNAUDIO") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "Test Card");
+  }
+  else if (strcmp(ModeInput, "IPTSIN") == 0)
+  {
+    strcpy(coding, "Native");
+    strcpy(vsource, "IP Transport Stream");
+  }
+  else if (strcmp(ModeInput, "ANALOGCAM") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "Ext Video Input");
+  }
+  else if (strcmp(ModeInput, "VNC") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "VNC");
+  }
+  else if (strcmp(ModeInput, "DESKTOP") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "Screen");
+  }
+  else if (strcmp(ModeInput, "CONTEST") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "Contest Numbers");
+  }
+  else if (strcmp(ModeInput, "ANALOGMPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "Ext Video Input");
+  }
+  else
+  {
+    strcpy(coding, "notset");
+    strcpy(vsource, "notset");
+  }
+}
+
+/***************************************************************************//**
+ * @brief Reads the output mode from rpidatvconfig.txt
+ *        and determines the user-friendkly string for display
+ * @param sets strings: Moutput
+ *
+ * @return void
+*******************************************************************************/
+
+void ReadModeOutput(char Moutput[256])
+{
+  char ModeOutput[256];
+  GetConfigParam(PATH_CONFIG,"modeoutput", ModeOutput);
+
+  strcpy(Moutput, "notset");
+
+  if (strcmp(ModeOutput, "IQ") == 0) 
+  {
+    strcpy(Moutput, "Filter-modulator Board");
+  } 
+  else if (strcmp(ModeOutput, "QPSKRF") == 0) 
+  {
+    strcpy(Moutput, "Ugly mode for testing");
+  } 
+  else if (strcmp(ModeOutput, "BATC") == 0) 
+  {
+    strcpy(Moutput, "BATC Streaming");
+  } 
+  else if (strcmp(ModeOutput, "DIGITHIN") == 0) 
+  {
+    strcpy(Moutput, "DigiThin Board");
+  } 
+  else if (strcmp(ModeOutput, "DTX1") == 0) 
+  {
+    strcpy(Moutput, "DTX-1 Modulator");
+  } 
+  else if (strcmp(ModeOutput, "DATVEXPRESS") == 0) 
+  {
+    strcpy(Moutput, "DATV Express by USB");
+  } 
+  else if (strcmp(ModeOutput, "IP") == 0) 
+  {
+    strcpy(Moutput, "IP Stream");
+  } 
+  else if (strcmp(ModeOutput, "COMPVID") == 0) 
+  {
+    strcpy(Moutput, "Composite Video");
+  } 
+  else
+  {
+    strcpy(Moutput, "notset");
+  }
+}
+
+
+/***************************************************************************//**
+ * @brief Looks up the SD Card Serial Number
+ *
+ * @param SerNo (str) Serial Number to be passed as a string
+ *
+ * @return void
+*******************************************************************************/
+
+void GetSerNo(char SerNo[256])
+{
+  FILE *fp;
+
+  /* Open the command for reading. */
+  fp = popen("cat /sys/block/mmcblk0/device/serial", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(SerNo, 20, fp) != NULL)
+  {
+    printf("%s", SerNo);
+  }
+
+  /* close */
+  pclose(fp);
+}
+
+/***************************************************************************//**
+ * @brief Looks up the Audio Devices
+ *
+ * @param DeviceName1 and DeviceName2 (str) First 40 char of device names
+ *
+ * @return void
+*******************************************************************************/
+
+void GetDevices(char DeviceName1[256], char DeviceName2[256])
+{
+  FILE *fp;
+  char arecord_response_line[256];
+  int card = 1;
+
+  /* Open the command for reading. */
+  fp = popen("arecord -l", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(arecord_response_line, 250, fp) != NULL)
+  {
+    if (arecord_response_line[0] == 'c')
+    {
+      if (card == 2)
+      {
+        strcpy(DeviceName2, arecord_response_line);
+        card = card + 1;
+      }
+      if (card == 1)
+      {
+        strcpy(DeviceName1, arecord_response_line);
+        card = card + 1;
+      }
+    }
+    printf("%s", arecord_response_line);
+  }
+  /* close */
+  pclose(fp);
 }
 
 
@@ -279,6 +609,45 @@ void ReadPresets()
 //    }
 //  strcpy(BackupConfigName,PathConfigFile);
 //  strcat(BackupConfigName,".bak");
+
+/***************************************************************************//**
+ * @brief Checks for the presence on an RTL-SDR
+ *        
+ * @param None
+ *
+ * @return 0 if present, 1 if not present
+*******************************************************************************/
+
+int CheckRTL()
+{
+  char RTLStatus[256];
+  FILE *fp;
+
+  /* Open the command for reading. */
+  fp = popen("/home/pi/rpidatv/scripts/check_rtl.sh", "r");
+  if (fp == NULL)
+  {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+  /* Read the output a line at a time - output it. */
+  while (fgets(RTLStatus, sizeof(RTLStatus)-1, fp) != NULL)
+  {
+  }
+  if (RTLStatus[0] == '0')
+  {
+    printf("RTL Detected\n" );
+    return(0);
+  }
+  else
+  {
+    printf("No RTL Detected\n" );
+    return(1);
+  }
+
+  /* close */
+  pclose(fp);
+}
 
 
 int mymillis()
@@ -560,8 +929,8 @@ void UpdateWindow()
       last=Menu1Buttons+Menu2Buttons;
       break;
     case 3:
-      first=0;
-      last=Menu1Buttons;
+      first=Menu1Buttons+Menu2Buttons;
+      last=Menu1Buttons+Menu2Buttons+Menu3Buttons;
       break;
     case 4:
       first=0;
@@ -788,6 +1157,9 @@ void TransmitStop()
 
   // Turn the Viewfinder off
   system("v4l2-ctl --overlay=0 >/dev/null 2>/dev/null");
+
+  // Stop the audio relay in CompVid mode
+  system("sudo killall arecord >/dev/null 2>/dev/null");
 
   // Then pause and make sure that avc2ts has really been stopped (needed at high SRs)
   usleep(1000);
@@ -1073,8 +1445,7 @@ usleep(5000000); // Time to FFT end reading samples
 
 void ReceiveStart()
 {
-	//system("sudo SDL_VIDEODRIVER=fbcon SDL_FBDEV=/dev/fb0 mplayer -ao /dev/null -vo sdl  /home/pi/rpidatv/video/mire250.ts &");
-	//system(PATH_SCRIPT_LEAN);
+        system("sudo killall hello_video.bin >/dev/null 2>/dev/null");
 	ProcessLeandvb();
 }
 
@@ -1084,7 +1455,158 @@ void ReceiveStop()
   system("sudo killall hello_video.bin >/dev/null 2>/dev/null");
 }
 
-// wait for a screen touch
+
+void wait_touch()
+// Wait for Screen touch, ignore position, but then move on
+// Used to let user acknowledge displayed text
+{
+  int rawX, rawY, rawPressure;
+  printf("wait_touch called\n");
+
+  // Check if screen touched, if not, wait 0.1s and check again
+  while(getTouchSample(&rawX, &rawY, &rawPressure)==0)
+  {
+    usleep(100000);
+  }
+  // Screen has been touched
+  printf("wait_touch exit\n");
+}
+
+void MsgBox(const char *message)
+{
+  init(&wscreen, &hscreen);  // Restart the gui
+  BackgroundRGB(0,0,0,255);  // Black background
+  Fill(255, 255, 255, 1);    // White text
+
+  TextMid(wscreen/2, hscreen/2, message, SerifTypeface, 25);
+
+  VGfloat tw = TextWidth("Touch Screen to Continue", SerifTypeface, 25);
+  Text(wscreen / 2.0 - (tw / 2.0), 20, "Touch Screen to Continue", SerifTypeface, 25);
+  End();
+  printf("MsgBox called and waiting for touch\n");
+}
+
+void InfoScreen()
+{
+  char result[256];
+
+  // Look up and format all the parameters to be displayed
+  char swversion[256] = "Software Version: ";
+  GetSWVers(result);
+  strcat(swversion, result);
+
+  char ipaddress[256] = "IP: ";
+  strcpy(result, "Not connected");
+  GetIPAddr(result);
+  strcat(ipaddress, result);
+
+  char CPUTemp[256];
+  GetCPUTemp(result);
+  sprintf(CPUTemp, "CPU temp=%.1f\'C", atoi(result)/1000.0);
+
+  char GPUTemp[256] = "GPU ";
+  GetGPUTemp(result);
+  strcat(GPUTemp, result);
+
+  char TXParams1[256] = "TX ";
+  GetConfigParam(PATH_CONFIG,"freqoutput",result);
+  strcat(TXParams1, result);
+  strcat(TXParams1, " MHz  SR ");
+  GetConfigParam(PATH_CONFIG,"symbolrate",result);
+  strcat(TXParams1, result);
+  strcat(TXParams1, "  FEC ");
+  GetConfigParam(PATH_CONFIG,"fec",result);
+  strcat(TXParams1, result);
+  strcat(TXParams1, "/");
+  sprintf(result, "%d", atoi(result)+1);
+  strcat(TXParams1, result);
+
+  char TXParams2[256];
+  char vcoding[256];
+  char vsource[256];
+  ReadModeInput(vcoding, vsource);
+  strcpy(TXParams2, vcoding);
+  strcat(TXParams2, " coding from ");
+  strcat(TXParams2, vsource);
+  
+  char TXParams3[256];
+  char ModeOutput[256];
+  ReadModeOutput(ModeOutput);
+  strcpy(TXParams3, "Output to ");
+  strcat(TXParams3, ModeOutput);
+
+  char SerNo[256];
+  char CardSerial[256] = "SD Card Serial: ";
+  GetSerNo(SerNo);
+  strcat(CardSerial, SerNo);
+
+  char DeviceTitle[256] = "Audio Devices:";
+
+  char Device1[256]=" ";
+  char Device2[256]=" ";
+  GetDevices(Device1, Device2);
+
+  // Initialise and calculate the text display
+  init(&wscreen, &hscreen);  // Restart the gui
+  BackgroundRGB(0,0,0,255);  // Black background
+  Fill(255, 255, 255, 1);    // White text
+  Fontinfo font = SerifTypeface;
+  int pointsize = 20;
+  VGfloat txtht = TextHeight(font, pointsize);
+  VGfloat txtdp = TextDepth(font, pointsize);
+  VGfloat linepitch = 1.1 * (txtht + txtdp);
+  VGfloat linenumber = 1.0;
+  VGfloat tw;
+
+  // Display Text
+  tw = TextWidth("BATC Portsdown Information Screen", font, pointsize);
+  Text(wscreen / 2.0 - (tw / 2.0), hscreen - linenumber * linepitch, "BATC Portsdown Information Screen", font, pointsize);
+  linenumber = linenumber + 2.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, swversion, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, ipaddress, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, CPUTemp, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, GPUTemp, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, TXParams1, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, TXParams2, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, TXParams3, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, CardSerial, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, DeviceTitle, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, Device1, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+  Text(wscreen/12.0, hscreen - linenumber * linepitch, Device2, font, pointsize);
+  linenumber = linenumber + 1.0;
+
+    tw = TextWidth("Touch Screen to Continue",  font, pointsize);
+  Text(wscreen / 2.0 - (tw / 2.0), 20, "Touch Screen to Continue",  font, pointsize);
+
+  // Push to screen
+  End();
+
+  printf("Info Screen called and waiting for touch\n");
+  wait_touch();
+}
+
+// wait for a screen touch and act on its position
 void waituntil(int w,int h)
 {
   int rawX, rawY, rawPressure,i;
@@ -1168,8 +1690,10 @@ void waituntil(int w,int h)
               UpdateWindow();
               break;
             }
-            if(i==21)
+            if(i==21) //Receive
             {
+              if(CheckRTL()==0)
+              {
               printf("DISPLAY OFF \n");
               BackgroundRGB(0,0,0,255);
               ReceiveStart();
@@ -1180,6 +1704,14 @@ void waituntil(int w,int h)
               SelectPTT(21,0);
               UpdateWindow();
               IsDisplayOn=1;
+              }
+              else
+              {
+                MsgBox("No RTL-SDR Connected");
+                wait_touch();
+                BackgroundRGB(255,255,255,255);
+                UpdateWindow();
+              }
             }
             if(i==22)
             {
@@ -1232,7 +1764,12 @@ void waituntil(int w,int h)
           }
           if(i==(Menu1Buttons+4)) // Menu 3
           {
-            ; // Menu 4 todo
+              printf("MENU 3 \n");
+              CurrentMenu=3;
+              BackgroundRGB(0,0,0,255);
+
+              Start_Highlights_Menu3();
+              UpdateWindow();
           }
           if((i>=(Menu1Buttons+5))&&(i<=(Menu1Buttons+7))) // Audio Selection
           {
@@ -1276,8 +1813,82 @@ void waituntil(int w,int h)
       }
       break;
     case 3:
-      //first=0;
-      //last=Menu1Buttons;
+      for(i=Menu1Buttons+Menu2Buttons;i<(Menu1Buttons+Menu2Buttons+Menu3Buttons);i++)
+      {
+        if(IsButtonPushed(i,rawX,rawY)==1)
+        // So this number (i) button has been pushed
+        {
+          printf("Button Event %d\n",i);
+
+          if(i==(Menu1Buttons+Menu2Buttons+0)) // Shutdown
+          {
+            IsDisplayOn=0;
+            finish();
+            system("sudo shutdown now");
+          }
+          if(i==(Menu1Buttons+Menu2Buttons+1)) // Reboot
+          {
+            IsDisplayOn=0;
+            finish();
+            system("sudo reboot now");
+          }
+          if(i==(Menu1Buttons+Menu2Buttons+2)) // Display Info
+          {
+            InfoScreen();
+            BackgroundRGB(0,0,0,255);
+            UpdateWindow();
+          }
+          if(i==(Menu1Buttons+Menu2Buttons+3)) // Caption on/off
+          {
+              //SelectCaption(i,1);
+              UpdateWindow();
+          }
+          if(i==(Menu1Buttons+Menu2Buttons+4)) // Menu 3
+          {
+              printf("MENU 3 \n");
+              CurrentMenu=3;
+              BackgroundRGB(0,0,0,255);
+
+              Start_Highlights_Menu3();
+              UpdateWindow();
+          }
+          if((i>=(Menu1Buttons+Menu2Buttons+5))&&(i<=(Menu1Buttons+Menu2Buttons+7))) // Audio Selection
+          {
+            SelectAudio(i,1);
+          }
+          if((i>=(Menu1Buttons+Menu2Buttons+8))&&(i<=(Menu1Buttons+Menu2Buttons+9))) // PAL or NTSC
+          {
+            SelectSTD(i,1);
+          }
+            if((i>=(Menu1Buttons+Menu2Buttons+10))&&(i<=(Menu1Buttons+Menu2Buttons+14))) // Select Output Mode
+          {
+            SelectOP(i,1);
+          }
+          if((i>=(Menu1Buttons+Menu2Buttons+15))&&(i<=(Menu1Buttons+Menu2Buttons+17))) // Select Source 2
+          {
+            SelectSource2(i,1);
+          }
+          if(i==(Menu1Buttons+Menu2Buttons+18)) // Spare
+          {
+            ; // Spare todo
+          }
+          if(i==(Menu1Buttons+Menu2Buttons+19)) // Spare
+          {
+            ; // Spare todo
+          }
+          if(i==(Menu1Buttons+Menu2Buttons+20)) // Back to Menu 1
+          {
+            printf("MENU 1 \n");
+            CurrentMenu=1;
+            BackgroundRGB(255,255,255,255);
+            Start_Highlights_Menu1();
+          }
+	  if(IsDisplayOn==1)
+          {
+            UpdateWindow();
+          }
+        }
+      }
       break;
     case 4:
       //first=0;
@@ -1587,8 +2198,8 @@ void Define_Menu2()
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
-	//AddButtonStatus(button," Menu 3",&Col);
+//	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button," Menu 3",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
 	AddButtonStatus(button," Menu 3",&Col);
 
@@ -1762,7 +2373,7 @@ void Start_Highlights_Menu2()
   {
     SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,Menu1Buttons+13,1);
   }
-  if(strcmp(Value,"IP")==0)
+  if(strcmp(Value,"COMPVID")==0)
   {
     SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,Menu1Buttons+14,1);
   }
@@ -1800,6 +2411,160 @@ void Start_Highlights_Menu2()
   {
     SelectInGroup(Menu1Buttons+3,Menu1Buttons+3,Menu1Buttons+3,0);
   }
+}
+
+void Define_Menu3()
+{
+  Menu3Buttons=21;
+  // Bottom row: Shutdown, Reboot, Info, Menu3, Menu4
+
+	int button=AddButton(0*wbuttonsize+20,0+hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	color_t Col;
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button,"Shutdown",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button,"Shutdown",&Col);
+
+	button=AddButton(1*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button,"Reboot ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button,"Reboot ",&Col);
+
+	button=AddButton(2*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," Info  ",&Col);
+	//AddButtonStatus(button," Info  ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," Info  ",&Col);
+
+	button=AddButton(3*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(4*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	//AddButtonStatus(button," Menu 3",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," Menu 3",&Col);
+
+// 2nd row up: Audio Mic, Audio Auto, Audio EC, PAL In, NTSC In
+
+	button=AddButton(0*wbuttonsize+20,0+hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(1*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(2*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button,"  ",&Col);
+	//AddButtonStatus(button," No VF ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button,"  ",&Col);
+
+	button=AddButton(3*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(4*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+// 3rd row up: Output to: IQ, Ugly, Express, BATC, COMPVID
+
+	button=AddButton(0*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(1*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(2*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(3*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(4*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+// Top row, 3 more sources:
+
+	button=AddButton(0*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(1*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button,"  ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button,"  ",&Col);
+
+	button=AddButton(2*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(3*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+	button=AddButton(4*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
+	Col.r=0;Col.g=0;Col.b=128;
+	AddButtonStatus(button," ",&Col);
+	Col.r=0;Col.g=128;Col.b=0;
+	AddButtonStatus(button," ",&Col);
+
+// Single button to get back to Menu 1
+
+        button=AddButton(4*wbuttonsize+20,hbuttonsize*4+20,wbuttonsize*0.9,hbuttonsize*1.2);
+        Col.r=0;Col.g=0;Col.b=128;
+        AddButtonStatus(button," M1  ",&Col);
+        Col.r=0;Col.g=128;Col.b=0;
+        AddButtonStatus(button," M1  ",&Col);
+}
+
+void Start_Highlights_Menu3()
+// Retrieves stored value for each group of buttons
+// and then sets the correct highlight
+{
+  ;
+  //char Param[255];
+  //char Value[255];
+  //int STD=1;
 }
 
 static void
@@ -1898,6 +2663,9 @@ int main(int argc, char **argv) {
 
   // Define the buttons for Menu 2
   Define_Menu2();
+
+  // Define the buttons for Menu 3
+  Define_Menu3();
 
   // Start the button Menu
   Start(wscreen,hscreen);

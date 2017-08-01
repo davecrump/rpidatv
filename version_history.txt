@@ -1,3 +1,10 @@
+201707311
+Introduces an early version of Menu 3
+Introduces a configuration information screen accessed from Menu 3
+Checks for the presence of an RTL-SDR before switching to receive
+Adds audio switching for the Grabby EasyCap
+Routes the USB Mic input to the RPi Audio output in CompVid mode
+
 201707222
 Corrects a bug in the audio switching that prevented transmit or streaming
 
