@@ -72,6 +72,7 @@
 # psr3
 # psr4
 # psr5
+# batcoutput
 # streamurl
 # streamkey
 #
@@ -319,6 +320,9 @@ if grep -q explevel4 /home/pi/rpidatvconfig.txt; then
 
   TRANSFER=$(get_config_var psr5 $OLDCONFIGFILE)
   set_config_var psr5 "$TRANSFER" $NEWCONFIGFILE
+
+  TRANSFER=$(get_config_var batcoutput $OLDCONFIGFILE)
+  set_config_var batcoutput "$TRANSFER" $NEWCONFIGFILE
 
   TRANSFER=$(get_config_var streamurl $OLDCONFIGFILE)
   set_config_var streamurl "$TRANSFER" $NEWCONFIGFILE

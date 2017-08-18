@@ -1,3 +1,12 @@
+201708150
+Introduces dedicated streaming mode with hardware on/off switch
+Introduces still capture from composite video
+Introduces preview mode for composite video (about 1.1 fps)
+Introduces review of last 5 captured stills
+Relocate MPEG-2 callsign caption to top left of image
+Minor corrections to bit rates
+Add audio detection for Webcam devices
+
 201707311
 Introduces an early version of Menu 3
 Introduces a configuration information screen accessed from Menu 3

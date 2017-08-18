@@ -99,7 +99,7 @@ char TabModeSTD[2][255]={"6","0"};
 char TabModeOP[5][255]={"IQ","QPSKRF","DATVEXPRESS","BATC","COMPVID"};
 int Inversed=0;//Display is inversed (Waveshare=1)
 
-pthread_t thfft,thbutton;
+pthread_t thfft,thbutton,thview;
 
 // Function Prototypes
 
@@ -1606,6 +1606,104 @@ void InfoScreen()
   wait_touch();
 }
 
+void do_snap()
+{
+  IsDisplayOn=0;
+  finish();
+  printf("do_snap\n");
+  system("/home/pi/rpidatv/scripts/snap.sh >/dev/null 2>/dev/null");
+  wait_touch();
+  system("sudo killall fbi >/dev/null 2>/dev/null");  // kill any previous images
+  system("sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png  >/dev/null 2>/dev/null");  // Add logo image
+  init(&wscreen, &hscreen);
+  Start(wscreen,hscreen);
+  BackgroundRGB(0,0,0,255);
+  IsDisplayOn=1;
+  UpdateWindow();
+}
+
+void do_videoview()
+{
+  printf("videoview called\n");
+
+  // Make the display ready
+  IsDisplayOn=0;
+  finish();
+
+  // Create a thread to listen for display touches
+  pthread_create (&thview,NULL, &WaitButtonEvent,NULL);
+
+  // Refresh image until display touched
+  while ( FinishedButton == 0 )
+  {
+    system("/home/pi/rpidatv/scripts/view.sh");
+    usleep(100000);
+  }
+
+  // Screen has been touched
+  printf("videoview exit\n");
+
+  // Tidy up and display touch menu
+  FinishedButton = 0;
+  system("sudo killall fbi >/dev/null 2>/dev/null");  // kill any previous images
+  system("sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png  >/dev/null 2>/dev/null");  // Add logo image
+  init(&wscreen, &hscreen);
+  Start(wscreen,hscreen);
+  BackgroundRGB(0,0,0,255);
+  IsDisplayOn=1;
+  UpdateWindow();
+}
+
+void do_snapcheck()
+{
+  FILE *fp;
+  char SnapIndex[256];
+  int SnapNumber;
+  int Snap;
+  char fbicmd[256];
+
+  // Fetch the Next Snap serial number
+  fp = popen("cat /home/pi/snaps/snap_index.txt", "r");
+  if (fp == NULL) 
+  {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+  /* Read the output a line at a time - output it. */
+  while (fgets(SnapIndex, 20, fp) != NULL)
+  {
+    printf("%s", SnapIndex);
+  }
+  /* close */
+  pclose(fp);
+
+  // Make the display ready
+  IsDisplayOn=0;
+  finish();
+
+  SnapNumber=atoi(SnapIndex);
+
+  // Show the last 5 snaps
+  for( Snap = SnapNumber - 1; Snap > SnapNumber - 6 && Snap >= 0; Snap = Snap - 1 )
+  {
+    sprintf(SnapIndex, "%d", Snap);
+    strcpy(fbicmd, "sudo fbi -T 1 -noverbose -a /home/pi/snaps/snap");
+    strcat(fbicmd, SnapIndex);
+    strcat(fbicmd, ".jpg >/dev/null 2>/dev/null");
+    system(fbicmd);
+    wait_touch();
+  }
+
+  // Tidy up and display touch menu
+  system("sudo killall fbi >/dev/null 2>/dev/null");  // kill any previous images
+  system("sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png  >/dev/null 2>/dev/null");  // Add logo image
+  init(&wscreen, &hscreen);
+  Start(wscreen,hscreen);
+  BackgroundRGB(0,0,0,255);
+  IsDisplayOn=1;
+  UpdateWindow();
+}
+
 // wait for a screen touch and act on its position
 void waituntil(int w,int h)
 {
@@ -1864,9 +1962,17 @@ void waituntil(int w,int h)
           {
             SelectOP(i,1);
           }
-          if((i>=(Menu1Buttons+Menu2Buttons+15))&&(i<=(Menu1Buttons+Menu2Buttons+17))) // Select Source 2
+          if(i==(Menu1Buttons+Menu2Buttons+15)) // Snap
           {
-            SelectSource2(i,1);
+            do_snap();
+          }
+          if(i==(Menu1Buttons+Menu2Buttons+16)) // View
+          {
+            do_videoview();
+          }
+          if(i==(Menu1Buttons+Menu2Buttons+17)) // Check
+          {
+            do_snapcheck();
           }
           if(i==(Menu1Buttons+Menu2Buttons+18)) // Spare
           {
@@ -2416,7 +2522,7 @@ void Start_Highlights_Menu2()
 void Define_Menu3()
 {
   Menu3Buttons=21;
-  // Bottom row: Shutdown, Reboot, Info, Menu3, Menu4
+  // Bottom row: Shutdown, Reboot, Info, Spare, Spare (Menu4?)
 
 	int button=AddButton(0*wbuttonsize+20,0+hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	color_t Col;
@@ -2516,25 +2622,25 @@ void Define_Menu3()
 	Col.r=0;Col.g=128;Col.b=0;
 	AddButtonStatus(button," ",&Col);
 
-// Top row, 3 more sources:
+// Top row, Snap, View and Check
 
 	button=AddButton(0*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button," Snap  ",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button," Snap  ",&Col);
 
 	button=AddButton(1*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"  ",&Col);
+	AddButtonStatus(button," View  ",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"  ",&Col);
+	AddButtonStatus(button," View  ",&Col);
 
 	button=AddButton(2*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button," Check ",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button," Check ",&Col);
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
@@ -2590,7 +2696,7 @@ int main(int argc, char **argv) {
 	int screenXmax, screenXmin;
 	int screenYmax, screenYmin;
 	int ReceiveDirect=0;
-	int i;
+	int i, STD;
         char Param[255];
         char Value[255];
  
@@ -2619,6 +2725,22 @@ int main(int argc, char **argv) {
   system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
   // and wait for it to finish using rpidatvconfig.txt
   usleep(100000);
+
+// Set the Analog Capture Standard
+
+  strcpy(Param,"analogcamstandard");
+  GetConfigParam(PATH_CONFIG,Param,Value);
+  STD=atoi(Value);
+  printf("Value=%s %s\n",Value,"Video Standard");
+  if ( STD == 6 ) //PAL
+  {
+    system("v4l2-ctl -d /dev/video1 --set-standard=6");
+  }
+  else if ( STD == 0 ) //NTSC
+  {
+    system("v4l2-ctl -d /dev/video1 --set-standard=0");
+  }
+
 
 // Determine if ReceiveDirect 2nd argument 
 	if(argc>2)
