@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 20170722
+# Updated by davecrump 20170815
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -250,6 +250,25 @@ fi
 cd /boot
 sudo sed -i 's/^#sdtv_mode=2/sdtv_mode=2/' config.txt
 cd /home/pi
+
+# Compile and install the executable for switched repeater streaming (201708150)
+cd /home/pi/rpidatv/src/rptr
+make
+mv keyedstream /home/pi/rpidatv/bin/
+cd /home/pi
+
+# Check if tmpfs at ~/tmp exists.  If not,
+# amend /etc/fstab to create a tmpfs drive at ~/tmp for multiple images (201708150)
+if [ ! -d /home/pi/tmp ]; then
+  sudo sed -i '4itmpfs           /home/pi/tmp    tmpfs   defaults,noatime,nosuid,size=10m  0  0' /etc/fstab
+fi
+
+# Check if ~/snaps folder exists for captured images.  Create if required
+# and set the snap index number to zero. (201708150)
+if [ ! -d /home/pi/snaps ]; then
+  mkdir /home/pi/snaps
+  echo "0" > /home/pi/snaps/snap_index.txt
+fi
 
 # Update the version number
 rm -rf /home/pi/rpidatv/scripts/installed_version.txt

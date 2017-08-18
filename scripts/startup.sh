@@ -203,6 +203,20 @@ case "$MODE_STARTUP" in
     fi
     return
   ;;
+  Keyed_Stream_boot)
+    # Start the Switched stream with the default GPIO Pins
+    if [ "$SESSION_TYPE" == "boot" ]; then
+      /home/pi/rpidatv/bin/keyedstream 1 7
+    fi
+    return
+  ;;
+  Cont_Stream_boot)
+    # Start a continuous stream
+    if [ "$SESSION_TYPE" == "boot" ]; then
+      /home/pi/rpidatv/bin/keyedstream 0
+    fi
+    return
+  ;;
   *)
     return
   ;;

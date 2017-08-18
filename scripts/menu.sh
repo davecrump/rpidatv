@@ -758,6 +758,8 @@ do_autostart_setup()
   Radio4=OFF
   Radio5=OFF
   Radio6=OFF
+  Radio7=OFF
+  Radio8=OFF
 
   case "$MODE_STARTUP" in
     Prompt)
@@ -778,19 +780,27 @@ do_autostart_setup()
     Button_boot)
       Radio6=ON
     ;;
+    Keyed_Stream_boot)
+      Radio7=ON
+    ;;
+    Cont_Stream_boot)
+      Radio8=ON
+    ;;
     *)
       Radio1=ON
     ;;
   esac
 
   chstartup=$(whiptail --title "$StrAutostartSetupTitle" --radiolist \
-   "$StrAutostartSetupContext" 20 78 6 \
+   "$StrAutostartSetupContext" 20 78 8 \
    "Prompt" "$AutostartSetupPrompt" $Radio1 \
    "Console" "$AutostartSetupConsole" $Radio2 \
    "TX_boot" "$AutostartSetupTX_boot" $Radio3 \
    "Display_boot" "$AutostartSetupDisplay_boot" $Radio4 \
    "TestRig_boot" "Boot-up to Test Rig for F-M Boards" $Radio5 \
    "Button_boot" "$AutostartSetupButton_boot" $Radio6 \
+   "Keyed_Stream_boot" "Boot up to Keyed Repeater Streamer" $Radio7 \
+   "Cont_Stream_boot" "Boot up to Always-on Repeater Streamer" $Radio8 \
    3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
@@ -964,7 +974,7 @@ do_audio_switch()
     "mic" "Use the USB Audio Dongle Mic Input" $Radio2 \
     "video" "Use the EasyCap Video Dongle Audio Input" $Radio3 \
     "bleeps" "Generate test bleeps" $Radio4 \
-    "no_audio" "Not Implemented yet" $Radio5 \
+    "no_audio" "Do not include audio" $Radio5 \
     3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then                     ## If the selection has changed
@@ -1614,6 +1624,16 @@ do_TouchScreen()
   /home/pi/rpidatv/bin/rpidatvgui
 }
 
+do_KStreamer()
+{
+  /home/pi/rpidatv/bin/keyedstream 1 7
+}
+
+do_CStreamer()
+{
+  /home/pi/rpidatv/bin/keyedstream 0
+}
+
 do_TestRig()
 {
   reset
@@ -1636,23 +1656,27 @@ do_DisableButtonSD()
 
 do_shutdown_menu()
 {
-menuchoice=$(whiptail --title "Shutdown Menu" --menu "Select Choice" 16 78 7 \
+menuchoice=$(whiptail --title "Shutdown Menu" --menu "Select Choice" 16 78 9 \
     "1 Shutdown now" "Immediate Shutdown"  \
     "2 Reboot now" "Immediate reboot" \
     "3 Exit to Linux" "Exit menu to Command Prompt" \
     "4 Restore TouchScreen" "Exit to LCD.  Use ctrl-C to return" \
-    "5 Start Test Rig"  "Test rig for pre-sale testing of FM Boards" \
-    "6 Button Enable" "Enable Shutdown Button" \
-    "7 Button Disable" "Disable Shutdown Button" \
+    "5 Start Keyed Streamer" "Start the keyed Repeater Streamer" \
+    "6 Start Constant Streamer" "Start the constant Repeater Streamer" \
+    "7 Start Test Rig"  "Test rig for pre-sale testing of FM Boards" \
+    "8 Button Enable" "Enable Shutdown Button" \
+    "9 Button Disable" "Disable Shutdown Button" \
       3>&2 2>&1 1>&3)
     case "$menuchoice" in
         1\ *) do_Shutdown ;;
         2\ *) do_Reboot ;;
         3\ *) do_Exit ;;
         4\ *) do_TouchScreen ;;
-        5\ *) do_TestRig ;;
-        6\ *) do_EnableButtonSD ;;
-        7\ *) do_DisableButtonSD ;;
+        5\ *) do_KStreamer ;;
+        6\ *) do_CStreamer ;;
+        7\ *) do_TestRig ;;
+        8\ *) do_EnableButtonSD ;;
+        9\ *) do_DisableButtonSD ;;
     esac
 }
 

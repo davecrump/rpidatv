@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump on 20170722
+# Updated by davecrump on 20170815
 
 # Update the package manager
 sudo dpkg --configure -a
@@ -213,6 +213,21 @@ sudo bash -c 'echo -e "\ntimeout 15\n" >> /etc/dhcpcd.conf'
 cd /boot
 sudo sed -i 's/^#sdtv_mode=2/sdtv_mode=2/' config.txt
 cd /home/pi
+
+# Compile and install the executable for switched repeater streaming (201708150)
+cd /home/pi/rpidatv/src/rptr
+make
+mv keyedstream /home/pi/rpidatv/bin/
+cd /home/pi
+
+# Amend /etc/fstab to create a tmpfs drive at ~/tmp for multiple images (201708150)
+sudo sed -i '4itmpfs           /home/pi/tmp    tmpfs   defaults,noatime,nosuid,size=10m  0  0' /etc/fstab
+
+# Create a ~/snaps folder for captured images (201708150)
+mkdir /home/pi/snaps
+
+# Set the image index number to 0 (201708150)
+echo "0" > /home/pi/snaps/snap_index.txt
 
 # Record Version Number
 cd /home/pi/rpidatv/scripts/

@@ -83,12 +83,12 @@ detect_audio()
     fi
     # Check for the presence of a Video dongle with audio
     arecord -l | grep -E -q \
-      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby"
+      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby|Webcam"
     if [ $? == 0 ]; then   ## Present
       # Look for the video dongle, select the line and take
       # the 6th character.  Max card number = 8 !!
       USBTV="$(arecord -l | grep -E \
-        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby" \
+        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby|Webcam" \
         | head -c 6 | tail -c 1)"
     fi
   fi
@@ -500,10 +500,10 @@ case "$MODE_INPUT" in
     # Set up the means to transport the stream out of the unit
     case "$MODE_OUTPUT" in
       "BATC")
-        : # Do nothing
+        : # Do nothing - this option should never be called (see MPEG-2)
       ;;
       "STREAMER")
-        : # Do nothing
+        : # Do nothing - this option should never be called (see MPEG-2)
       ;;
       "IP")
         OUTPUT_FILE=""
@@ -540,7 +540,7 @@ case "$MODE_INPUT" in
 if [ "$CAPTIONON" == "on" ]; then
   CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf:\
 text=$CALL:fontcolor=white:fontsize=36:box=1:boxcolor=black@0.5:boxborderw=5:\
-x=(w+w/2+w/8-text_w)/2:y=(h/4-text_h)/2"
+x=(w/2-w/8-text_w)/2:y=(h/4-text_h)/2"
   VF="-vf "
 else
   CAPTION=""
@@ -592,7 +592,7 @@ fi
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048  \
             -f v4l2 -input_format h264 \
             -i /dev/video0 \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
             -g 25 \
             -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
         else
@@ -602,7 +602,7 @@ fi
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-            -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
+            -ar 22050 -ac $AUDIO_CHANNELS -ab 64k \
             -g 25 \
             -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
         fi
@@ -613,7 +613,7 @@ fi
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
             -f v4l2 -input_format h264 \
             -i /dev/video0 \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
             -g 25 \
             -f flv $STREAM_URL/$STREAM_KEY &
         else
@@ -623,7 +623,7 @@ fi
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-            -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
+            -ar 22050 -ac $AUDIO_CHANNELS -ab 64k \
             -g 25 \
             -f flv $STREAM_URL/$STREAM_KEY &
         fi
@@ -814,8 +814,7 @@ fi
     # Now generate the stream
     case "$MODE_OUTPUT" in
       "BATC")
-
-        if [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "0" ]; then
+        if [ "$AUDIO_CARD" == "0" ]; then
           # No audio
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048  \
             -f v4l2 \
@@ -823,19 +822,6 @@ fi
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
             -vf "format=yuyv422,yadif=0:1:0" -g 25 \
             -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
-
-        elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
-          # with beeps
-          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
-            -f v4l2 \
-            -i $VID_USB \
-            -f lavfi -ac 1 \
-            -i "sine=frequency=500:beep_factor=4:sample_rate=44100:duration=0" \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-            -ar 11025 -ac 1 -ab 64k \
-            -vf "format=yuyv422,yadif=0:1:0" -g 25 \
-            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
-
         else
           # With audio
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
@@ -844,22 +830,32 @@ fi
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-            -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
+            -ar 22050 -ac $AUDIO_CHANNELS -ab 64k \
             -vf "format=yuyv422,yadif=0:1:0" -g 25 \
             -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
         fi
       ;;
       "STREAMER")
-        # needs "no audio" option
-        $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048\
-          -f v4l2 \
-          -i $VID_USB \
-          -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
-          -i hw:$AUDIO_CARD_NUMBER,0 \
-          -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-          -ar 11025 -ac $AUDIO_CHANNELS -ab 64k \
-          -vf yadif=0:1:0 -g 25 \
-          -f flv $STREAM_URL/$STREAM_KEY &
+        if [ "$AUDIO_CARD" == "0" ]; then
+          # No audio
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048\
+            -f v4l2 \
+            -i $VID_USB \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
+            -vf yadif=0:1:0 -g 25 \
+            -f flv $STREAM_URL/$STREAM_KEY &
+       else
+          # With audio
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048\
+            -f v4l2 \
+            -i $VID_USB \
+            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+            -i hw:$AUDIO_CARD_NUMBER,0 \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -ar 22050 -ac $AUDIO_CHANNELS -ab 64k \
+            -vf yadif=0:1:0 -g 25 \
+            -f flv $STREAM_URL/$STREAM_KEY &
+        fi
       ;;
      "COMPVID")
         : # Do nothing.  Mode does not work yet
@@ -1042,7 +1038,7 @@ fi
     if [ "$CAPTIONON" == "on" ]; then
       CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf: \
         text=\'$CALL\': fontcolor=white: fontsize=36: box=1: boxcolor=black@0.5: \
-        boxborderw=5: x=(w+w/2+w/8-text_w)/2: y=(h/4-text_h)/2, "
+        boxborderw=5: x=(w/2-w/8-text_w)/2: y=(h/4-text_h)/2, "
     else
       CAPTION=""    
     fi
