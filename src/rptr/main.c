@@ -17,10 +17,12 @@ struct tm * timeinfo;
 char previous_hour [8] = "00";
 char hour [8];
 char stream_state [8] = "off";
+char ffmpegPID[256];
 
 void Edge_ISR(void);
 void Start_Function(void);
 void Stop_Function(void);
+void GetffmpegPID(char[256]);
 
 int main( int argc, char *argv[] )
 {
@@ -145,15 +147,17 @@ int main( int argc, char *argv[] )
   /* Now wait here for interrupts - forever! */
   /* But stop/start the stream at 0300Z and 1500Z each day */
     
-  /* Spin loop while waiting for ISR */
+  /* Spin loop while waiting for interrupt */
+  /* Check time for 12 hour restart        */
+  /* and check process still running if    */
+  /* required every 10 seconds             */
+
   while(1)
   {
     delay(10000);
     time ( &rawtime );
     timeinfo = gmtime ( &rawtime );
     strftime (hour, 8, "%I", timeinfo);
-//    printf("hours is %s\n", hour);
-//    printf("hours was %s\n", previous_hour);
 
     if (strcmp(previous_hour, "02") == 0 && strcmp(hour, "03") == 0)
     {
@@ -171,6 +175,15 @@ int main( int argc, char *argv[] )
       }
     }
     strcpy(previous_hour, hour);
+    if (strcmp(stream_state, "on") == 0)
+    {
+      GetffmpegPID(ffmpegPID);
+      if (atoi(ffmpegPID) < 1)  // ffmpeg not running when it should be
+      {
+        Start_Function();
+        printf("after crashing in the hour after %s o'clock\n", hour);
+      }
+    }
   }
   return 0;
 }
@@ -224,3 +237,21 @@ void Stop_Function(void)
   strcpy(stream_state, "off");  
   printf("Stopping stream\n");
 }
+
+/* GetffmpegPID returns a parameter that is a character string of the ffmpeg PID */
+/* Parameter is 0 if ffmpeg not running */
+void GetffmpegPID(char ffmpegPID[256])
+{
+  FILE *fp;
+  /* Open the command for reading. */
+  fp = popen("pgrep ffmpeg", "r");
+  strcpy(ffmpegPID,"0");
+  /* Read the output a line at a time - output it. */
+  while (fgets(ffmpegPID, 7, fp) != NULL)
+  {
+    sprintf(ffmpegPID, "%d", atoi(ffmpegPID));
+  }
+  /* close */
+  pclose(fp);
+}
+

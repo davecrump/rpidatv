@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump on 20170815
+# Updated by davecrump on 20171008
 
 # Update the package manager
 sudo dpkg --configure -a
@@ -19,6 +19,7 @@ sudo apt-get -y install apt-transport-https git rpi-update
 sudo apt-get -y install cmake libusb-1.0-0-dev g++ libx11-dev buffer libjpeg-dev indent libfreetype6-dev ttf-dejavu-core bc usbmount fftw3-dev wiringpi libvncserver-dev
 sudo apt-get -y install fbi netcat imagemagick
 sudo apt-get -y install libvdpau-dev libva-dev   # 201706300 for latest ffmpeg build
+sudo apt-get -y install htop  # 201710080 To allow load monitoring by users
 
 # rpi-update to get latest firmware
 # Disabled until rpi-4.9.y kernel issues resolved
@@ -218,6 +219,12 @@ cd /home/pi
 cd /home/pi/rpidatv/src/rptr
 make
 mv keyedstream /home/pi/rpidatv/bin/
+cd /home/pi
+
+# Compile and install the executable for GPIO-switched transmission (201710080)
+cd /home/pi/rpidatv/src/keyedtx
+make
+mv keyedtx /home/pi/rpidatv/bin/
 cd /home/pi
 
 # Amend /etc/fstab to create a tmpfs drive at ~/tmp for multiple images (201708150)

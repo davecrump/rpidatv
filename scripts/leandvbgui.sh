@@ -31,12 +31,15 @@ let SYMBOLRATE=SYMBOLRATEK*1000
 #let FreqHz=FREQ_OUTPUT*1000000
 echo Freq = $FreqHz
 
-#if [ "$SYMBOLRATEK" -lt 250 ]; then
-#SR_RTLSDR=250000
-#else
+if [ "$SYMBOLRATEK" -lt 251 ]; then
+  SR_RTLSDR=300000
+elif [ "$SYMBOLRATEK" -gt 250 ] && [ "$SYMBOLRATEK" -lt 1001 ]; then
+  SR_RTLSDR=1200000
+else
+  SR_RTLSDR=1200000
+fi
 #SR_RTLSDR=1024000
-#fi
-SR_RTLSDR=1024000
+
 sudo killall -9 hello_video.bin
 sudo killall leandvb
 sudo killall ts2es
@@ -44,8 +47,9 @@ mkfifo fifo.264
 mkfifo videots
 
 # Make sure that the screen background is all black
-sudo killall fbi
+sudo killall fbi >/dev/null 2>/dev/null
 sudo fbi -T 1 -noverbose -a $PATHSCRIPT"/images/Blank_Black.png"
+(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
 
 #--fd-pp 3 
 #sudo rtl_sdr -p 20 -g 30 -f $FreqHz -s $SR_RTLSDR - 2>/dev/null | $PATHBIN"leandvb"  --cr $FECNUM"/"$FECDEN --sr $SYMBOLRATE -f $SR_RTLSDR 2>/dev/null |buffer| $PATHBIN"ts2es" -video -stdin fifo.264 &
