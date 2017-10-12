@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Version 201707220
+# Version 201710070
 
 ############ Set Environment Variables ###############
 
@@ -370,6 +370,7 @@ do_output_setup_mode()
   Radio7=OFF
   Radio8=OFF
   Radio9=OFF
+  Radio10=OFF
   case "$MODE_OUTPUT" in
   IQ)
     Radio1=ON
@@ -386,33 +387,34 @@ do_output_setup_mode()
   DIGITHIN)
     Radio5=ON
   ;;
-#  DTX1)
-#    Radio6=ON
-#  ;;
-  DATVEXPRESS)
+  DTX1)
     Radio6=ON
   ;;
-  IP)
+  DATVEXPRESS)
     Radio7=ON
   ;;
-  COMPVID)
+  IP)
     Radio8=ON
   ;;
-  *)
+  COMPVID)
     Radio9=ON
+  ;;
+  *)
+    Radio10=ON
   ;;
   esac
 
   choutput=$(whiptail --title "$StrOutputSetupTitle" --radiolist \
-    "$StrOutputSetupContext" 20 78 9 \
+    "$StrOutputSetupContext" 20 78 10 \
     "IQ" "$StrOutputSetupIQ" $Radio1 \
     "QPSKRF" "$StrOutputSetupRF" $Radio2 \
     "BATC" "$StrOutputSetupBATC" $Radio3 \
     "STREAMER" "Stream to other Streaming Facility" $Radio4 \
     "DIGITHIN" "$StrOutputSetupDigithin" $Radio5 \
-    "DATVEXPRESS" "$StrOutputSetupDATVExpress" $Radio6 \
-    "IP" "$StrOutputSetupIP" $Radio7 \
-    "COMPVID" "Output PAL Comp Video from Raspberry Pi AV Socket" $Radio8 \
+    "DTX1" "$StrOutputSetupDTX1" $Radio6 \
+    "DATVEXPRESS" "$StrOutputSetupDATVExpress" $Radio7 \
+    "IP" "$StrOutputSetupIP" $Radio8 \
+    "COMPVID" "Output PAL Comp Video from Raspberry Pi AV Socket" $Radio9 \
     3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
@@ -471,8 +473,9 @@ do_output_setup_mode()
       FREQ_OUTPUT=$(get_config_var freqoutput $CONFIGFILE)
       sudo ./si570 -f $FREQ_OUTPUT -m off
     ;;
-    #DTX1)
-    #;;
+    DTX1)
+      :
+    ;;
     DATVEXPRESS)
       echo "Starting the DATV Express Server.  Please wait."
       if pgrep -x "express_server" > /dev/null; then
@@ -720,33 +723,71 @@ do_display_off()
 
 do_receive_status()
 {
-	whiptail --title "RECEIVE" --msgbox "$INFO" 8 78
-	sudo killall rpidatvgui >/dev/null 2>/dev/null
-	sudo killall leandvb >/dev/null 2>/dev/null
-#	sudo killall fbi >/dev/null 2>/dev/null
-	sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png
+  whiptail --title "RECEIVE" --msgbox "$INFO" 8 78
+  sudo killall rpidatvgui >/dev/null 2>/dev/null
+  sudo killall leandvb >/dev/null 2>/dev/null
+  sudo killall hello_video.bin >/dev/null 2>/dev/null
+  sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png
 }
 
 do_receive()
 {
-	MODE_OUTPUT=$(get_config_var modeoutput $CONFIGFILE)
-	sudo killall -9 fbcp >/dev/null 2>/dev/null
-	fbcp &
-	case "$MODE_OUTPUT" in
-	BATC)
-	ORGINAL_MODE_INPUT=$(get_config_var modeinput $CONFIGFILE)
-	sleep 0.1
-	set_config_var modeinput "DESKTOP" $CONFIGFILE
-	sleep 0.1
-	/home/pi/rpidatv/bin/rpidatvgui 0 1  >/dev/null 2>/dev/null & 
-	$PATHSCRIPT"/a.sh" >/dev/null 2>/dev/null &
-	do_receive_status
-	set_config_var modeinput "$ORGINAL_MODE_INPUT" $CONFIGFILE
-	;;
-	*)
-	/home/pi/rpidatv/bin/rpidatvgui 0 1  >/dev/null 2>/dev/null & 
-	do_receive_status;;
-	esac
+  if pgrep -x "rtl_tcp" > /dev/null; then
+    # rtl_tcp is running, so kill it, pause and really kill it
+    killall rtl_tcp >/dev/null 2>/dev/null
+    sleep 0.5
+    sudo killall -9 rtl_tcp >/dev/null 2>/dev/null
+  fi
+
+  if ! pgrep -x "fbcp" > /dev/null; then
+    # fbcp is not running, so start it
+    fbcp &
+  fi
+
+  MODE_OUTPUT=$(get_config_var modeoutput $CONFIGFILE)
+  case "$MODE_OUTPUT" in
+  BATC)
+    ORGINAL_MODE_INPUT=$(get_config_var modeinput $CONFIGFILE)
+    sleep 0.1
+    set_config_var modeinput "DESKTOP" $CONFIGFILE
+    sleep 0.1
+    /home/pi/rpidatv/bin/rpidatvgui 0 1  >/dev/null 2>/dev/null & 
+    $PATHSCRIPT"/a.sh" >/dev/null 2>/dev/null &
+    do_receive_status
+    set_config_var modeinput "$ORGINAL_MODE_INPUT" $CONFIGFILE
+  ;;
+  *)
+    /home/pi/rpidatv/bin/rpidatvgui 0 1  >/dev/null 2>/dev/null & 
+    do_receive_status
+  ;;
+  esac
+}
+
+do_start_rtl_tcp()
+{
+  # Look up current wired IP.  If no wired, use wireless
+  CURRENTIP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -1)
+  rtl_tcp -a $CURRENTIP &>/dev/null &
+}
+
+do_stop_rtl_tcp()
+{
+  PROCESS=$(ps | grep rtl_tcp | grep -Eo '([0-9]+){4} ')
+  kill -9 "$PROCESS"  >/dev/null
+}
+
+do_receive_menu()
+{
+  menuchoice=$(whiptail --title "Select Receive Option" --menu "RTL Menu" 20 78 13 \
+    "1 Receive DATV" "Use the RTL to Receive with same settings as transmit"  \
+    "2 Start RTL-TCP" "Start the RTL-TCP Server for use with SDR Sharp"  \
+    "3 Stop RTL-TCP" "Stop the RTL-TCP Server" \
+    3>&2 2>&1 1>&3)
+  case "$menuchoice" in
+    1\ *) do_receive ;;
+    2\ *) do_start_rtl_tcp ;;
+    3\ *) do_stop_rtl_tcp  ;;
+  esac
 }
 
 do_autostart_setup()
@@ -760,6 +801,7 @@ do_autostart_setup()
   Radio6=OFF
   Radio7=OFF
   Radio8=OFF
+  Radio9=OFF
 
   case "$MODE_STARTUP" in
     Prompt)
@@ -786,13 +828,16 @@ do_autostart_setup()
     Cont_Stream_boot)
       Radio8=ON
     ;;
+    Keyed_TX_boot)
+      Radio9=ON
+    ;;
     *)
       Radio1=ON
     ;;
   esac
 
   chstartup=$(whiptail --title "$StrAutostartSetupTitle" --radiolist \
-   "$StrAutostartSetupContext" 20 78 8 \
+   "$StrAutostartSetupContext" 20 78 9 \
    "Prompt" "$AutostartSetupPrompt" $Radio1 \
    "Console" "$AutostartSetupConsole" $Radio2 \
    "TX_boot" "$AutostartSetupTX_boot" $Radio3 \
@@ -801,6 +846,7 @@ do_autostart_setup()
    "Button_boot" "$AutostartSetupButton_boot" $Radio6 \
    "Keyed_Stream_boot" "Boot up to Keyed Repeater Streamer" $Radio7 \
    "Cont_Stream_boot" "Boot up to Always-on Repeater Streamer" $Radio8 \
+   "Keyed_TX_boot" "Boot up to GPIO Keyed Transmitter" $Radio7 \
    3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
@@ -834,6 +880,7 @@ do_display_setup()
   ;;
   *)
     Radio1=ON
+  ;;		
   esac
 
   chdisplay=$(whiptail --title "$StrDisplaySetupTitle" --radiolist \
@@ -1542,7 +1589,6 @@ do_system_setup_2()
     "9 Factory Settings" "Restore Initial Configuration" \
     "10 Back-up Settings" "Save Settings to a USB drive" \
     "11 Load Settings" "Load settings from a USB Drive" \
-    "12 Beta Software" "Choose whether to use experimental software" \
     3>&2 2>&1 1>&3)
   case "$menuchoice" in
     1\ *) do_presets ;;
@@ -1556,9 +1602,12 @@ do_system_setup_2()
     9\ *) do_factory;;
     10\ *) do_back_up;;
     11\ *) do_load_settings;;
-    12\ *) do_beta ;;
   esac
 }
+
+#    Insert these lines back into do_system_setup_2() if required (201710080)
+#    "12 Beta Software" "Choose whether to use experimental software" \
+#    12\ *) do_beta ;;
 
 do_language_setup()
 {
@@ -1624,6 +1673,11 @@ do_TouchScreen()
   /home/pi/rpidatv/bin/rpidatvgui
 }
 
+do_KTransmit()
+{
+  /home/pi/rpidatv/bin/keyedtx 1 7
+}
+
 do_KStreamer()
 {
   /home/pi/rpidatv/bin/keyedstream 1 7
@@ -1656,27 +1710,29 @@ do_DisableButtonSD()
 
 do_shutdown_menu()
 {
-menuchoice=$(whiptail --title "Shutdown Menu" --menu "Select Choice" 16 78 9 \
+menuchoice=$(whiptail --title "Shutdown Menu" --menu "Select Choice" 16 78 10 \
     "1 Shutdown now" "Immediate Shutdown"  \
     "2 Reboot now" "Immediate reboot" \
     "3 Exit to Linux" "Exit menu to Command Prompt" \
     "4 Restore TouchScreen" "Exit to LCD.  Use ctrl-C to return" \
-    "5 Start Keyed Streamer" "Start the keyed Repeater Streamer" \
-    "6 Start Constant Streamer" "Start the constant Repeater Streamer" \
-    "7 Start Test Rig"  "Test rig for pre-sale testing of FM Boards" \
-    "8 Button Enable" "Enable Shutdown Button" \
-    "9 Button Disable" "Disable Shutdown Button" \
+    "5 Start Keyed TX" "Start the GPIO keyed Transmitter" \
+    "6 Start Keyed Streamer" "Start the keyed Repeater Streamer" \
+    "7 Start Constant Streamer" "Start the constant Repeater Streamer" \
+    "8 Start Test Rig"  "Test rig for pre-sale testing of FM Boards" \
+    "9 Button Enable" "Enable Shutdown Button" \
+    "10 Button Disable" "Disable Shutdown Button" \
       3>&2 2>&1 1>&3)
     case "$menuchoice" in
         1\ *) do_Shutdown ;;
         2\ *) do_Reboot ;;
         3\ *) do_Exit ;;
         4\ *) do_TouchScreen ;;
-        5\ *) do_KStreamer ;;
-        6\ *) do_CStreamer ;;
-        7\ *) do_TestRig ;;
-        8\ *) do_EnableButtonSD ;;
-        9\ *) do_DisableButtonSD ;;
+        5\ *) do_KTransmit ;;
+        6\ *) do_KStreamer ;;
+        7\ *) do_CStreamer ;;
+        8\ *) do_TestRig ;;
+        9\ *) do_EnableButtonSD ;;
+        10\ *) do_DisableButtonSD ;;
     esac
 }
 
@@ -1808,7 +1864,7 @@ while [ "$status" -eq 0 ]
             1\ *) do_input_setup   ;;
 	    2\ *) do_output_setup ;;
    	    3\ *) do_station_setup ;;
-	    4\ *) do_receive ;;
+	    4\ *) do_receive_menu ;;
 	    5\ *) do_system_setup ;;
 	    6\ *) do_system_setup_2 ;;
             7\ *) do_language_setup ;;

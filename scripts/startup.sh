@@ -217,6 +217,13 @@ case "$MODE_STARTUP" in
     fi
     return
   ;;
+  Keyed_TX_boot)
+    # Start the Switched transmitter with the default GPIO Pins
+    if [ "$SESSION_TYPE" == "boot" ]; then
+      /home/pi/rpidatv/bin/keyedtx 1 7
+    fi
+    return
+  ;;
   *)
     return
   ;;

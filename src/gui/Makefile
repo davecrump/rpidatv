@@ -38,8 +38,8 @@ library: oglinit.o libshapes.o
 INCLUDEFLAGS2=-lpthread -I/opt/vc/include -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/vcos/pthreads -I..
 LIBFLAGS2=-L/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -lpthread  -ljpeg -lrt -lm -ldl -lfftw3f
 
-rpidatvtouch: rpidatvtouch.c  
-	gcc -Wall $(INCLUDEFLAGS2) -o  rpidatvgui rpidatvtouch.c  libshapes.o oglinit.o $(LIBFLAGS2) 
+rpidatvtouch: rpidatvtouch.c siggen.c 
+	gcc -Wall $(INCLUDEFLAGS2) -o  rpidatvgui rpidatvtouch.c siggen.c libshapes.o oglinit.o $(LIBFLAGS2) 
 
 tcanim: tcanim.c
 	gcc -Wall $(INCLUDEFLAGS2) -o  tcanim tcanim.c  libshapes.o oglinit.o $(LIBFLAGS2)

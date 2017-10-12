@@ -1,3 +1,14 @@
+201710081
+Include RTL-FM functions on Menu 3
+Add RTL-TCP Server
+Adds voltage monitor to Info page
+Re-enable DTX-1 Output for testing
+Experimental support for signal monitoring at 2MS
+Unattended streaming auto restarts after crashes
+Transmission can be initiated and stopped with a GPIO switch
+Makes video Snap and View modes work with no PiCam
+Improves video View mode for Waveshare users
+
 201708150
 Introduces dedicated streaming mode with hardware on/off switch
 Introduces still capture from composite video

@@ -10,11 +10,28 @@
 
 # set -x
 
+############ IDENTIFY USB VIDEO DEVICES #############################
+
+# List the video devices, select the 2 lines for any usb device, then
+# select the line with the device details and delete the leading tab
+
+VID_USB="$(v4l2-ctl --list-devices 2> /dev/null | \
+  sed -n '/usb/,/dev/p' | grep 'dev' | tr -d '\t')"
+
+if [ "$VID_USB" == '' ]; then
+  printf "VID_USB was not found, setting to /dev/video0\n"
+  VID_USB="/dev/video0"
+fi
+
+# printf "The USB device string is $VID_USB\n"
+
+###########################################################################
+
 sudo rm /home/pi/tmp/frame*.jpg >/dev/null 2>/dev/null
 
     /home/pi/rpidatv/bin/ffmpeg -hide_banner -loglevel panic \
       -f v4l2 \
-      -i /dev/video1 -vf "format=yuva420p,yadif=0:1:0" \
+      -i $VID_USB -vf "format=yuva420p,yadif=0:1:0" \
       -vframes 3 \
       /home/pi/tmp/frame-%03d.jpg
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 20170815
+# Updated by davecrump 201710080
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -39,6 +39,9 @@ sudo apt-get -y install imagemagick
 
 # Check that libraries required for new ffmpeg are installed (20170630)
 sudo apt-get -y install libvdpau-dev libva-dev
+
+# Check that htop is installed (201710080)
+sudo apt-get -y install htop
 
 #  Delete the duplicate touchscreen driver if it is still there (201704030)
 cd /boot
@@ -255,6 +258,12 @@ cd /home/pi
 cd /home/pi/rpidatv/src/rptr
 make
 mv keyedstream /home/pi/rpidatv/bin/
+cd /home/pi
+
+# Compile and install the executable for GPIO-switched transmission (201710080)
+cd /home/pi/rpidatv/src/keyedtx
+make
+mv keyedtx /home/pi/rpidatv/bin/
 cd /home/pi
 
 # Check if tmpfs at ~/tmp exists.  If not,
