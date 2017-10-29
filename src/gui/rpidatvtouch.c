@@ -24,7 +24,8 @@
 #include <pthread.h>
 #include <fftw3.h>
 #include <math.h>
-#include "siggen.h"
+
+//
 
 #define KWHT  "\x1B[37m"
 #define KYEL  "\x1B[33m"
@@ -90,7 +91,7 @@ char TabFreq[5][255]={"71","146.5","437","1249","1255"};
 char FreqLabel[5][255]={" 71 MHz ","146.5 MHz","437 MHz ","1249 MHz","1255 MHz"};
 char TabModeAudio[3][255]={"mic","auto","video"};
 char TabModeSTD[2][255]={"6","0"};
-char TabModeOP[5][255]={"IQ","QPSKRF","DATVEXPRESS","BATC","COMPVID"};
+char TabModeOP[10][255]={"IQ","QPSKRF","DATVEXPRESS","BATC","COMPVID"," "," "," "," ","DTX1"};
 int Inversed=0;//Display is inversed (Waveshare=1)
 
 pthread_t thfft,thbutton,thview;
@@ -1157,6 +1158,7 @@ void SelectAudio(int NoButton,int Status)  // Audio Input
 void SelectOP(int NoButton,int Status)  //Output mode
 {
   SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,NoButton,Status);
+  SelectInGroup(Menu1Buttons+19,Menu1Buttons+19,NoButton,Status);
   strcpy(ModeOP,TabModeOP[NoButton-Menu1Buttons-10]);
   printf("************** Set Output Mode = %s\n",ModeOP);
   char Param[]="modeoutput";
@@ -2261,7 +2263,7 @@ void waituntil(int w,int h)
           {
             SelectSTD(i,1);
           }
-            if((i>=(Menu1Buttons+10))&&(i<=(Menu1Buttons+14))) // Select Output Mode
+            if(((i>=(Menu1Buttons+10))&&(i<=(Menu1Buttons+14)))||(i==(Menu1Buttons+19))) // Select Output Mode
           {
             SelectOP(i,1);
           }
@@ -2326,11 +2328,15 @@ void waituntil(int w,int h)
             BackgroundRGB(0,0,0,255);
             UpdateWindow();
           }
-          if(i==(Menu1Buttons+Menu2Buttons+4)) // 
+          if(i==(Menu1Buttons+Menu2Buttons+4)) // Start Sig Gen and Exit
           {
-            siggenmain();
-            BackgroundRGB(0,0,0,255);
-            UpdateWindow();
+            system("(/home/pi/rpidatv/bin/siggen) &");
+             char Commnd[255];
+             sprintf(Commnd,"stty echo");
+             system(Commnd);
+             sprintf(Commnd,"reset");
+             system(Commnd);
+             exit(0);
            }
           if(i==(Menu1Buttons+Menu2Buttons+5)) // 92.9 FM
           {
@@ -2806,9 +2812,9 @@ void Define_Menu2()
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button," DTX-1 ",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button," DTX-1 ",&Col);
 
 // Single button to get back to Menu 1
 
@@ -2887,6 +2893,10 @@ void Start_Highlights_Menu2()
   {
     SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,Menu1Buttons+14,1);
   }
+  if(strcmp(Value,"DTX1")==0)
+  {
+    SelectInGroup(Menu1Buttons+19,Menu1Buttons+19,Menu1Buttons+19,1);
+  }
 
   // Extra Input Modes
 
@@ -2956,9 +2966,9 @@ void Define_Menu3()
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Sig Gen",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Sig Gen",&Col);
 
 // 2nd row up: Audio Mic, Audio Auto, Audio EC, PAL In, NTSC In
 

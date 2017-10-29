@@ -56,6 +56,6 @@ audio=auto
 vfinder=on
 beta=no
 batcoutput=streamname
-streamurl=rtmp://servername.com/folder
+streamurl=rtmp://tbd.batc.org.uk/foldername
 streamkey=keykey
 caption=on

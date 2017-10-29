@@ -3,7 +3,7 @@ LIBFLAGS=-L/opt/vc/lib -lEGL -lGLESv2 -ljpeg
 FONTLIB=/usr/share/fonts/truetype/ttf-dejavu
 FONTFILES=DejaVuSans.inc  DejaVuSansMono.inc DejaVuSerif.inc
 FFT_C = ./hello_fft/mailbox.c ./hello_fft/gpu_fft.c ./hello_fft/gpu_fft_base.c ./hello_fft/gpu_fft_twiddles.c ./hello_fft/gpu_fft_shaders.c
-all:	font2openvg fonts library rpidatvtouch tcanim	
+all:	font2openvg fonts library siggentouch	
 
 libshapes.o:	libshapes.c shapes.h fontinfo.h fonts 
 	gcc -O2 -Wall $(INCLUDEFLAGS) -c libshapes.c
@@ -36,25 +36,13 @@ library: oglinit.o libshapes.o
 	gcc $(LIBFLAGS) -shared -o libshapes.so oglinit.o libshapes.o 
 
 INCLUDEFLAGS2=-lpthread -I/opt/vc/include -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/vcos/pthreads -I..
-LIBFLAGS2=-L/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -lpthread  -ljpeg -lrt -lm -ldl -lfftw3f
+LIBFLAGS2=-L/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -lpthread  -ljpeg -lrt -lm -ldl -lfftw3f -lwiringPi
 
-rpidatvtouch: rpidatvtouch.c 
-	gcc -Wall $(INCLUDEFLAGS2) -o  rpidatvgui rpidatvtouch.c libshapes.o oglinit.o $(LIBFLAGS2) 
-
-tcanim: tcanim.c
-	gcc -Wall $(INCLUDEFLAGS2) -o  tcanim tcanim.c  libshapes.o oglinit.o $(LIBFLAGS2)
+siggentouch: siggentouch.c 
+	gcc -Wall $(INCLUDEFLAGS2) -o  siggen siggentouch.c libshapes.o oglinit.o $(LIBFLAGS2) 
 
 install:
-	install -m 755 -p font2openvg /usr/bin/
-	cp rpidatvgui ../../bin/
-	cp tcanim ../../bin
-	install -m 755 -p libshapes.so /usr/lib/libshapes.so.1.0.0
-	strip --strip-unneeded /usr/lib/libshapes.so.1.0.0
-	ln -f -s /usr/lib/libshapes.so.1.0.0 /usr/lib/libshapes.so
-	ln -f -s /usr/lib/libshapes.so.1.0.0 /usr/lib/libshapes.so.1
-	ln -f -s /usr/lib/libshapes.so.1.0.0 /usr/lib/libshapes.so.1.0
-	install -m 644 -p shapes.h /usr/include/
-	install -m 644 -p fontinfo.h /usr/include/
+	cp siggen ../../bin/
 
 uninstall:
 	rm -f /usr/bin/font2openvg
