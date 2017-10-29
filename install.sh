@@ -236,6 +236,13 @@ mkdir /home/pi/snaps
 # Set the image index number to 0 (201708150)
 echo "0" > /home/pi/snaps/snap_index.txt
 
+# Compile the Signal Generator (201710280)
+cd /home/pi/rpidatv/src/siggen
+make clean
+make
+sudo make install
+cd /home/pi
+
 # Record Version Number
 cd /home/pi/rpidatv/scripts/
 cp latest_version.txt installed_version.txt

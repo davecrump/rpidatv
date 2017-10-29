@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 201710080
+# Updated by davecrump 201710280
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -16,6 +16,11 @@ cp -f -r /home/pi/rpidatv/scripts/installed_version.txt /home/pi/prev_installed_
 
 # Make a safe copy of rpidatvconfig.txt
 cp -f -r /home/pi/rpidatv/scripts/rpidatvconfig.txt /home/pi/rpidatvconfig.txt
+
+# Make a safe copy of siggencal.txt if required
+if [ -f "/home/pi/rpidatv/src/siggen/siggencal.txt" ]; then
+  cp -f -r /home/pi/rpidatv/src/siggen/siggencal.txt /home/pi/siggencal.txt
+fi
 
 # Check if fbi (frame buffer imager) needs to be installed
 if [ ! -f "/usr/bin/fbi" ]; then
@@ -278,6 +283,18 @@ if [ ! -d /home/pi/snaps ]; then
   mkdir /home/pi/snaps
   echo "0" > /home/pi/snaps/snap_index.txt
 fi
+
+# Compile the Signal Generator (201710280)
+cd /home/pi/rpidatv/src/siggen
+make clean
+make
+sudo make install
+cd /home/pi
+
+# Restore the user's original siggencal.txt if required (uncomment after 201710280)
+#if [ -f "/home/pi/siggencal.txt" ]; then
+#  cp -f -r /home/pi/siggencal.txt /home/pi/rpidatv/src/siggen/siggencal.txt
+#fi
 
 # Update the version number
 rm -rf /home/pi/rpidatv/scripts/installed_version.txt
