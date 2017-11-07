@@ -32,6 +32,7 @@
 #define PATH_CONFIG "/home/pi/rpidatv/src/siggen/siggenconfig.txt"
 #define PATH_CONFIG_PORTSDOWN "/home/pi/rpidatv/scripts/rpidatvconfig.txt"
 #define PATH_CAL "/home/pi/rpidatv/src/siggen/siggencal.txt"
+#define PATH_TOUCHCAL "/home/pi/rpidatv/scripts/touchcal.txt"
 
 int fd=0;
 int wscreen, hscreen;
@@ -72,6 +73,11 @@ int FinishedButton=1;     // Used to signal button has been pushed
 
 //GLOBAL PARAMETERS
 
+int  scaledX, scaledY;
+VGfloat CalShiftX = 0;
+VGfloat CalShiftY = 0;
+float CalFactorX = 1.0;
+float CalFactorY = 1.0;
 int64_t DisplayFreq = 437000000;  // Input freq and display freq are the same
 int DisplayLevel = 987;           // calculated for display from (LO) level, atten and freq
 char osctxt[255]="portsdown";     // current source
@@ -79,10 +85,8 @@ int level;                        // current LO level.  Raw data
 int atten;                        // current atten level.  Raw data (0.25 dB steps
 
 
-
 char ref_freq_4351[255] = "25000000";        // read on startup from rpidatvconfig.txt
-
-uint64_t SourceUpperFreq = 13600000000;       // set every time an oscillator is selected
+uint64_t SourceUpperFreq = 13600000000;      // set every time an oscillator is selected
 int SourceLowerFreq = 54000000;              // set every time an oscillator is selected
 
 char ref_freq_5355[255] = "25000000";        // read from siggenconfig.txt on startup
@@ -100,7 +104,7 @@ char OscTag[5][255]={"osc","p1osc","p2osc","p3osc","p4osc"};
 char LevelTag[5][255]={"level","p1level","p2level","p3level","p4level"};
 char AttenTag[5][255]={"atten","p1atten","p2atten","p3atten","p4atten"};
 
-// Values for presets [0] not used. [1] - [4] are presets
+// Values for presets [0] "Save" value used on startup. [1] - [4] are presets
 // May be over-written by values from from siggenconfig.txt:
 
 uint64_t TabFreq[5]={144750000,146500000,437000000,1249000000,1255000000};
@@ -831,17 +835,44 @@ int mymillis()
         return (tv.tv_sec) * 1000 + (tv.tv_usec)/1000;
 }
 
-int IsButtonPushed(int NbButton,int x,int y)
+void ReadTouchCal()
 {
-  int  scaledX, scaledY;
+  char Param[255];
+  char Value[255];
 
-  // scaledx range approx 0 - 700
-  // scaledy range approx 0 - 480
+  // Read CalFactors
+  strcpy(Param, "CalFactorX");
+  GetConfigParam(PATH_TOUCHCAL,Param,Value);
+  CalFactorX = strtof(Value, 0);
+  printf("Starting with CalfactorX = %f\n", CalFactorX);
+  strcpy(Param, "CalFactorY");
+  GetConfigParam(PATH_TOUCHCAL,Param,Value);
+  CalFactorY = strtof(Value, 0);
+  printf("Starting with CalfactorY = %f\n", CalFactorY);
 
-  // Adjust registration of touchscreen for Waveshare
+  // Read CalShifts
+  strcpy(Param, "CalShiftX");
+  GetConfigParam(PATH_TOUCHCAL,Param,Value);
+  CalShiftX = strtof(Value, 0);
+  printf("Starting with CalShiftX = %f\n", CalShiftX);
+  strcpy(Param, "CalShiftY");
+  GetConfigParam(PATH_TOUCHCAL,Param,Value);
+  CalShiftY = strtof(Value, 0);
+  printf("Starting with CalShiftY = %f\n", CalShiftY);
+}
+
+void TransformTouchMap(int x, int y)
+{
+  // This function takes the raw (0 - 4095 on each axis) touch data x and y
+  // and transforms it to approx 0 - wscreen and 0 - hscreen in globals scaledX 
+  // and scaledY prior to final correction by CorrectTouchMap  
+
   int shiftX, shiftY;
   double factorX, factorY;
+  char Param[255];
+  char Value[255];
 
+  // Adjust registration of touchscreen for Waveshare
   shiftX=30; // move touch sensitive position left (-) or right (+).  Screen is 700 wide
   shiftY=-5; // move touch sensitive positions up (-) or down (+).  Screen is 480 high
 
@@ -857,23 +888,53 @@ int IsButtonPushed(int NbButton,int x,int y)
   else //Waveshare (inversed)
   {
     scaledX = shiftX+wscreen-y/(scaleXvalue+factorX);
-    scaledY = shiftY+hscreen-x/(scaleYvalue+factorY);
-//    scaledY = shiftY+x/(scaleYvalue+factorY); Vertical flip for 4 inch screen
+
+    strcpy(Param,"display");  //Check for Waveshare 4 inch
+    GetConfigParam(PATH_CONFIG_PORTSDOWN,Param,Value);
+    if(strcmp(Value,"Waveshare4")!=0)
+    {
+      scaledY = shiftY+hscreen-x/(scaleYvalue+factorY);
+    }
+    else  // Waveshare 4 inch display so flip vertical axis
+    {
+      scaledY = shiftY+x/(scaleYvalue+factorY); // Vertical flip for 4 inch screen
+    }
   }
+}
+
+void CorrectTouchMap()
+{
+  // This function takes the approx touch data and applies the calibration correction
+  // It works directly on the globals scaledX and scaledY based on the constants read
+  // from the ScreenCal.txt file during initialisation
+
+  scaledX = scaledX * CalFactorX;
+  scaledX = scaledX + CalShiftX;
+
+  scaledY = scaledY * CalFactorY;
+  scaledY = scaledY + CalShiftY;
+}
+
+int IsButtonPushed(int NbButton,int x,int y)
+{
+  TransformTouchMap(x,y);  // Sorts out orientation and approx scaling of the touch map
+
+  CorrectTouchMap();       // Calibrates each individual screen
 
   // printf("x=%d y=%d scaledx %d scaledy %d sxv %f syv %f\n",x,y,scaledX,scaledY,scaleXvalue,scaleYvalue);
 
   int margin=1;  // was 20
 
   if((scaledX<=(ButtonArray[NbButton].x+ButtonArray[NbButton].w-margin))&&(scaledX>=ButtonArray[NbButton].x+margin) &&
-    (scaledY<=(ButtonArray[NbButton].y+ButtonArray[NbButton].h-margin))&&(scaledY>=ButtonArray[NbButton].y+margin)
-    /*&&(mymillis()-ButtonArray[NbButton].LastEventTime>TIME_ANTI_BOUNCE)*/)
+    (scaledY<=(ButtonArray[NbButton].y+ButtonArray[NbButton].h-margin))&&(scaledY>=ButtonArray[NbButton].y+margin))
   {
     ButtonArray[NbButton].LastEventTime=mymillis();
     return 1;
   }
   else
+  {
     return 0;
+  }
 }
 
 int AddButton(int x,int y,int w,int h)
@@ -1177,7 +1238,7 @@ void InitOsc()
   strcat(Param, "points");
   GetConfigParam(PATH_CAL,Param,Value);
   CalPoints = atoi(Value);
-  printf("CalPoints= %d \n", CalPoints);
+  //printf("CalPoints= %d \n", CalPoints);
   for ( n = 1; n <= CalPoints; n = n + 1 )
   {
     snprintf(PointNumber, 4, "%d", n);
@@ -1187,14 +1248,14 @@ void InitOsc()
     strcat(Param, PointNumber);
     GetConfigParam(PATH_CAL,Param,Value);
     CalFreq[n] = strtoull(Value, 0, 0);
-    printf("CalFreq= %lld \n", CalFreq[n]);
+    //printf("CalFreq= %lld \n", CalFreq[n]);
 
     strcpy(Param, osctxt);
     strcat(Param, "lev");
     strcat(Param, PointNumber);
     GetConfigParam(PATH_CAL,Param,Value);
     CalLevel[n] = atoi(Value);
-    printf("CalLevel= %d \n", CalLevel[n]);
+    //printf("CalLevel= %d \n", CalLevel[n]);
   }
 
   // Hide unused buttons
@@ -1380,14 +1441,12 @@ void SelectMod(int NoButton,int Status)  // Modulation on or off
 void OscStart()
 {
   //  Look up which oscillator we are using
-
   // Then use an if statement for each alternative
 
   printf("Oscillator Start\n");
   char StartPortsdown[256] = "sudo /home/pi/rpidatv/bin/adf4351 ";
   char transfer[256];
-  //char osc[256]="portsdown";
-  float freqmhz;
+  double freqmhz;
   int adf4351_lev = level; // 0 to 3
 
   if (strcmp(osctxt, "audio")==0)
@@ -1402,7 +1461,8 @@ void OscStart()
 
   if (strcmp(osctxt, "adf4351")==0)
   {
-    freqmhz=DisplayFreq/1000000;
+    freqmhz=(double)DisplayFreq/1000000;
+    printf("Demanded Frequency = %.6f\n", freqmhz);
     snprintf(transfer, 13, "%.6f", freqmhz);
     strcat(StartPortsdown, transfer);
     strcat(StartPortsdown, " ");
@@ -1417,8 +1477,7 @@ void OscStart()
 
   if (strcmp(osctxt, "portsdown")==0)
   {
-    // Add code to select the band to 23cms here
-    freqmhz=DisplayFreq/1000000;
+    freqmhz=(double)DisplayFreq/1000000;
     snprintf(transfer, 13, "%.6f", freqmhz);
     strcat(StartPortsdown, transfer);
     strcat(StartPortsdown, " ");
@@ -1712,6 +1771,7 @@ void waituntil(int w,int h)
           }
           if(i==15) // Exit to Portsdown
           {
+            OscStop();
             printf("Exiting Sig Gen \n");
             ExitSignal=1;
             BackgroundRGB(255,255,255,255);
@@ -1817,6 +1877,7 @@ void waituntil(int w,int h)
           }
           if(i==(Menu1Buttons+32)) // Exit to Portsdown
           {
+            OscStop();
             printf("Exiting Sig Gen \n");
             ExitSignal=1;
             BackgroundRGB(255,255,255,255);
@@ -2231,14 +2292,15 @@ terminate(int dummy)
 int main(int argc, char **argv)
 {
   int NoDeviceEvent=0;
-  saveterm();
-  init(&wscreen, &hscreen);
-  rawterm();
   int screenXmax, screenXmin;
   int screenYmax, screenYmin;
   int i;
   char Param[255];
   char Value[255];
+
+  saveterm();
+  init(&wscreen, &hscreen);
+  rawterm();
 
   // Catch sigaction and call terminate
   for (i = 0; i < 16; i++)
@@ -2249,13 +2311,17 @@ int main(int argc, char **argv)
     sigaction(i, &sa, NULL);
   }
 
-  // Determine if using waveshare or waveshare B screen
-  // Either by first argument or from rpidatvconfig.txt
-  if(argc>1)
-    Inversed=atoi(argv[1]);
+  // Set up wiringPi module
+  if (wiringPiSetup() < 0)
+  {
+    return 0;
+  }
+
+  // Determine if using Waveshare or Waveshare B or Waveshare 4 inch screen
+  // from rpidatvconfig.txt
   strcpy(Param,"display");
   GetConfigParam(PATH_CONFIG_PORTSDOWN,Param,Value);
-  if((strcmp(Value,"Waveshare")==0) || (strcmp(Value,"WaveshareB")==0))
+  if((strcmp(Value,"Waveshare")==0) || (strcmp(Value,"WaveshareB")==0) || (strcmp(Value,"Waveshare4")==0))
   {
     Inversed = 1;
   }
@@ -2264,10 +2330,6 @@ int main(int argc, char **argv)
   strcpy(Param,"adfref");
   GetConfigParam(PATH_CONFIG_PORTSDOWN,Param,Value);
   strcpy(ref_freq_4351,Value);
-
-  // Set the Band Switching to 23cm to take LPFs out of circuit
-  //gpio -g write $band_bit0 1;
-  //gpio -g write $band_bit1 1;
 
   // Check for presence of touchscreen
   for(NoDeviceEvent=0;NoDeviceEvent<5;NoDeviceEvent++)
@@ -2296,15 +2358,12 @@ int main(int argc, char **argv)
   swbuttonsize=(wscreen-25)/12;  // width of small button
   shbuttonsize=hscreen/10;       // height of small button
 
-  // Set up wiringPi module
-  if (wiringPiSetup() < 0)
-  {
-    return 0;
-  }
-
   // Set the Portsdown band to 1255 to bypass the LO filter
   SetBandGPIOs();
   
+  // Read in the touchscreen Calibration
+  ReadTouchCal();
+
   // Read in the presets from the Config file
   ReadPresets();
 
@@ -2331,11 +2390,45 @@ int main(int argc, char **argv)
   UpdateWindow();
   printf("Update Window\n");
 
-  // Go and wait for the screen to be touched
-  waituntil(wscreen,hscreen);
+  // Start the output if called from startup script
+  if(argc>1)
+  {
+    if (strcmp(argv[1], "on") == 0)
+    {
+      //Start it
+      OscStart();
+      SetButtonStatus(13, 1);
+      SetButtonStatus(Menu1Buttons+30, 1);  ShowTitle();
+      ShowLevel(DisplayLevel);
+      ShowFreq(DisplayFreq);
+      UpdateWindow();
+
+      waituntil(wscreen,hscreen);  // and return control to touch
+    }
+    else
+    {
+      waituntil(wscreen,hscreen);
+    }
+  }
+  else
+  {
+    // Go and wait for the screen to be touched
+    waituntil(wscreen,hscreen);
+  }
+
+  // Shutdown the graphics system so that there are no hanging menus
+  finish();
 
   // Program flow only gets here when exit button pushed
   // Start the Portsdown DATV TX and exit
-  system("(/home/pi/rpidatv/bin/rpidatvgui) &");
+  system("(sleep .5 && /home/pi/rpidatv/bin/rpidatvgui) &");
+
+  //Tidy up the terminal
+  char Commnd[255];
+  sprintf(Commnd,"stty echo");
+  system(Commnd);
+  sprintf(Commnd,"reset");
+  system(Commnd);
+
   exit(0);
 }

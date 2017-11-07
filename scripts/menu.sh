@@ -802,6 +802,7 @@ do_autostart_setup()
   Radio7=OFF
   Radio8=OFF
   Radio9=OFF
+  Radio10=OFF
 
   case "$MODE_STARTUP" in
     Prompt)
@@ -831,13 +832,16 @@ do_autostart_setup()
     Keyed_TX_boot)
       Radio9=ON
     ;;
+    SigGen_boot)
+      Radio10=ON
+    ;;
     *)
       Radio1=ON
     ;;
   esac
 
   chstartup=$(whiptail --title "$StrAutostartSetupTitle" --radiolist \
-   "$StrAutostartSetupContext" 20 78 9 \
+   "$StrAutostartSetupContext" 20 78 11 \
    "Prompt" "$AutostartSetupPrompt" $Radio1 \
    "Console" "$AutostartSetupConsole" $Radio2 \
    "TX_boot" "$AutostartSetupTX_boot" $Radio3 \
@@ -846,7 +850,8 @@ do_autostart_setup()
    "Button_boot" "$AutostartSetupButton_boot" $Radio6 \
    "Keyed_Stream_boot" "Boot up to Keyed Repeater Streamer" $Radio7 \
    "Cont_Stream_boot" "Boot up to Always-on Repeater Streamer" $Radio8 \
-   "Keyed_TX_boot" "Boot up to GPIO Keyed Transmitter" $Radio7 \
+   "Keyed_TX_boot" "Boot up to GPIO Keyed Transmitter" $Radio9 \
+   "SigGen_boot" "Boot up with the Sig Gen Output On" $Radio10 \
    3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
@@ -862,6 +867,7 @@ do_display_setup()
   Radio3=OFF
   Radio4=OFF
   Radio5=OFF
+  Radio6=OFF
   case "$MODE_DISPLAY" in
   Tontec35)
     Radio1=ON
@@ -875,8 +881,11 @@ do_display_setup()
   WaveshareB)
     Radio4=ON
   ;;
-  Console)
+  Waveshare4)
     Radio5=ON
+  ;;
+  Console)
+    Radio6=ON
   ;;
   *)
     Radio1=ON
@@ -889,7 +898,8 @@ do_display_setup()
     "HDMITouch" "$DisplaySetupHDMI" $Radio2 \
     "Waveshare" "$DisplaySetupRpiLCD" $Radio3 \
     "WaveshareB" "$DisplaySetupRpiBLCD" $Radio4 \
-    "Console" "$DisplaySetupConsole" $Radio5 \
+    "Waveshare4" "$DisplaySetupRpi4LCD" $Radio5 \
+    "Console" "$DisplaySetupConsole" $Radio6 \
  	 3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then                     ## If the selection has changed
@@ -915,6 +925,7 @@ do_display_setup()
       HDMITouch) INSERTFILE=$PATHCONFIGS"/hdmitouch.txt" ;;
       Waveshare) INSERTFILE=$PATHCONFIGS"/waveshare.txt" ;;
       WaveshareB) INSERTFILE=$PATHCONFIGS"/waveshareb.txt" ;;
+      Waveshare4) INSERTFILE=$PATHCONFIGS"/waveshare.txt" ;;
       Console)   INSERTFILE=$PATHCONFIGS"/console.txt" ;;
     esac
 
@@ -1466,6 +1477,21 @@ do_factory()
   fi
 }
 
+do_touch_factory()
+{
+  TOUCH_FACTORY=""
+  TOUCH_FACTORY=$(whiptail --inputbox "Enter y or n" 8 78 $TOUCH_FACTORY --title "RESET TOUCHSCREEN CALIBRATION?" 3>&1 1>&2 2>&3)
+  if [ $? -eq 0 ]; then
+    if [[ "$TOUCH_FACTORY" == "y" || "$TOUCH_FACTORY" == "Y" ]]; then
+      mv $PATHSCRIPT"/touchcal.txt" $PATHSCRIPT"/touchcal.txt.bak"
+      cp $PATHSCRIPT"/configs/touchcal.txt.factory" $PATHSCRIPT"/touchcal.txt"
+      whiptail --title "Message" --msgbox "Touchscreen calibration reset to zero.  Please press enter to continue" 8 78
+    else
+      whiptail --title "Message" --msgbox "Current Configuration Retained.  Please press enter to continue" 8 78
+    fi
+  fi
+}
+
 do_back_up()
 {
   BACKUP=""
@@ -1587,8 +1613,9 @@ do_system_setup_2()
     "7 Viewfinder" "Disable or Enable Viewfinder on Touchscreen" \
     "8 SD Card Info" "Show SD Card Information"  \
     "9 Factory Settings" "Restore Initial Configuration" \
-    "10 Back-up Settings" "Save Settings to a USB drive" \
-    "11 Load Settings" "Load settings from a USB Drive" \
+    "10 Reset Touch Cal" "Reset Touchscreen Calibration to zero" \
+    "11 Back-up Settings" "Save Settings to a USB drive" \
+    "12 Load Settings" "Load settings from a USB Drive" \
     3>&2 2>&1 1>&3)
   case "$menuchoice" in
     1\ *) do_presets ;;
@@ -1600,8 +1627,9 @@ do_system_setup_2()
     7\ *) do_vfinder ;;
     8\ *) do_SD_info ;;
     9\ *) do_factory;;
-    10\ *) do_back_up;;
-    11\ *) do_load_settings;;
+    10\ *) do_touch_factory;;
+    11\ *) do_back_up;;
+    12\ *) do_load_settings;;
   esac
 }
 
