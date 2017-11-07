@@ -31,6 +31,8 @@
 #define KYEL  "\x1B[33m"
 
 #define PATH_CONFIG "/home/pi/rpidatv/scripts/rpidatvconfig.txt"
+#define PATH_TOUCHCAL "/home/pi/rpidatv/scripts/touchcal.txt"
+
 char ImageFolder[]="/home/pi/rpidatv/image/";
 
 int fd=0;
@@ -79,6 +81,11 @@ char ModeOutput[255];
 char ModeSTD[255];
 char ModeOP[255];
 char Caption[255];
+int  scaledX, scaledY;
+VGfloat CalShiftX = 0;
+VGfloat CalShiftY = 0;
+float CalFactorX = 1.0;
+float CalFactorY = 1.0;
 
 // Values for buttons
 // May be over-written by values from from rpidatvconfig.txt:
@@ -101,6 +108,12 @@ pthread_t thfft,thbutton,thview;
 void Start_Highlights_Menu1();
 void Start_Highlights_Menu2();
 void Start_Highlights_Menu3();
+void MsgBox4(const char *, const char *, const char *, const char *);
+void wait_touch();
+int getTouchSample(int *, int *, int *);
+void TransformTouchMap(int, int);
+
+
 
 /***************************************************************************//**
  * @brief Looks up the value of Param in PathConfigFile and sets value
@@ -751,17 +764,270 @@ int mymillis()
         return (tv.tv_sec) * 1000 + (tv.tv_usec)/1000;
 }
 
-int IsButtonPushed(int NbButton,int x,int y)
+void ReadTouchCal()
 {
-  int  scaledX, scaledY;
+  char Param[255];
+  char Value[255];
 
-  // scaledx range approx 0 - 700
-  // scaledy range approx 0 - 480
+  // Read CalFactors
+  strcpy(Param, "CalFactorX");
+  GetConfigParam(PATH_TOUCHCAL,Param,Value);
+  CalFactorX = strtof(Value, 0);
+  printf("Starting with CalfactorX = %f\n", CalFactorX);
+  strcpy(Param, "CalFactorY");
+  GetConfigParam(PATH_TOUCHCAL,Param,Value);
+  CalFactorY = strtof(Value, 0);
+  printf("Starting with CalfactorY = %f\n", CalFactorY);
 
-  // Adjust registration of touchscreen for Waveshare
+  // Read CalShifts
+  strcpy(Param, "CalShiftX");
+  GetConfigParam(PATH_TOUCHCAL,Param,Value);
+  CalShiftX = strtof(Value, 0);
+  printf("Starting with CalShiftX = %f\n", CalShiftX);
+  strcpy(Param, "CalShiftY");
+  GetConfigParam(PATH_TOUCHCAL,Param,Value);
+  CalShiftY = strtof(Value, 0);
+  printf("Starting with CalShiftY = %f\n", CalShiftY);
+}
+
+void touchcal()
+{
+  VGfloat cross_x;                 // Position of white cross
+  VGfloat cross_y;                 // Position of white cross
+  int n;                           // Loop counter
+  int rawX, rawY, rawPressure;     // Raw touch position
+  int lowerY = 0, higherY = 0;     // Screen referenced touch average
+  int leftX = 0, rightX = 0;       // Screen referenced touch average
+  int touchposX[8];                // Screen referenced uncorrected touch position
+  int touchposY[8];                // Screen referenced uncorrected touch position
+  int correctedX;                  // Screen referenced corrected touch position
+  int correctedY;                  // Screen referenced corrected touch position
+  char Param[255];                 // Parameter name for writing to Calibration File
+  char Value[255];                 // Value for writing to Calibration File
+
+  MsgBox4("TOUCHSCREEN CALIBRATION", "Touch the screen on each cross", "Screen will be recalibrated after 8 touches", "Touch screen to start");
+  wait_touch();
+
+  for (n = 1; n < 9; n = n + 1 )
+  {
+    BackgroundRGB(0,0,0,255);
+    Fill(255, 255, 255, 1); 
+    WindowClear();
+    StrokeWidth(3);
+    Stroke(255, 255, 255, 0.8);    // White lines
+
+    // Draw Frame of 3 points deep around screen inner
+    Line(0,         hscreen, wscreen-1, hscreen);
+    Line(0,         1,       wscreen-1, 1      );
+    Line(0,         1,       0,         hscreen);
+    Line(wscreen-1, 1,       wscreen-1, hscreen);
+
+    // Calculate cross centres for 10% and 90% crosses
+    if ((n == 1) || (n ==5) || (n == 4) || (n == 8))
+    {
+      cross_y = (hscreen * 9) / 10;
+    }
+    else
+    {
+      cross_y = hscreen / 10;
+    }
+    if ((n == 3) || (n ==4) || (n == 7) || (n == 8))
+    {
+      cross_x = (wscreen * 9) / 10;
+    }
+    else
+    {
+      cross_x = wscreen / 10;
+    }
+
+    // Draw cross
+    Line(cross_x-wscreen/20, cross_y, cross_x+wscreen/20, cross_y);
+    Line(cross_x, cross_y-hscreen/20, cross_x, cross_y+hscreen/20);
+
+    //Send to Screen
+    End();
+
+    // Wait here until screen touched
+    while(getTouchSample(&rawX, &rawY, &rawPressure)==0)
+    {
+      usleep(100000);
+    }
+
+    // Transform touch to display coordinate system
+    // Results returned in scaledX and scaledY (globals)
+    TransformTouchMap(rawX, rawY);
+
+    printf("x=%d y=%d scaledX=%d scaledY=%d\n ",rawX,rawY,scaledX,scaledY);
+
+    if ((n == 1) || (n ==5) || (n == 4) || (n == 8))
+    {
+      if (scaledY < hscreen/2)  // gross error
+      {
+        StrokeWidth(0);
+        MsgBox4("Last touch was too far", "from the cross", "Touch Screen to continue", "and then try again");
+        wait_touch();
+        return;
+      }
+      higherY = higherY + scaledY;
+    }
+    else
+    {
+     if (scaledY > hscreen/2)  // gross error
+      {
+        StrokeWidth(0);
+        MsgBox4("Last touch was too far", "from the cross", "Touch Screen to continue", "and then try again");
+        wait_touch();
+        return;
+      }
+      lowerY = lowerY + scaledY;
+    }
+    if ((n == 3) || (n ==4) || (n == 7) || (n == 8))
+    {
+     if (scaledX < wscreen/2)  // gross error
+      {
+        StrokeWidth(0);
+        MsgBox4("Last touch was too far", "from the cross", "Touch Screen to continue", "and then try again");
+        wait_touch();
+        return;
+      }
+      rightX = rightX + scaledX;
+    }
+    else
+    {
+     if (scaledX > wscreen/2)  // gross error
+      {
+        StrokeWidth(0);
+        MsgBox4("Last touch was too far", "from the cross", "Touch Screen to continue", "and then try again");
+        wait_touch();
+        return;
+      }
+      leftX = leftX + scaledX;
+    }
+
+    // Save touch position for display
+    touchposX[n] = scaledX;
+    touchposY[n] = scaledY;
+  }
+    
+  // Average out touches
+  higherY = higherY/4; // higherY is the height of the upper horixontal line
+  lowerY = lowerY/4;   // lowerY is the height of the lower horizontal line
+  rightX = rightX/4;   // rightX is the left-right pos of the right hand vertical line
+  leftX = leftX/4;     // leftX is the left-right pos of the left hand vertical line
+
+  // Now calculate the global calibration factors
+  CalFactorX = (0.8 * wscreen)/(rightX-leftX);
+  CalFactorY = (0.8 * hscreen)/(higherY-lowerY);
+  CalShiftX= wscreen/10 - leftX * CalFactorX;
+  CalShiftY= hscreen/10 - lowerY * CalFactorY;
+
+  // Save them to the calibration file
+
+  // Save CalFactors
+  snprintf(Value, 10, "%.4f", CalFactorX);
+  strcpy(Param, "CalFactorX");
+  SetConfigParam(PATH_TOUCHCAL,Param,Value);
+  snprintf(Value, 10, "%.4f", CalFactorY);
+  strcpy(Param, "CalFactorY");
+  SetConfigParam(PATH_TOUCHCAL,Param,Value);
+
+  // Save CalShifts
+  snprintf(Value, 10, "%.1f", CalShiftX);
+  strcpy(Param, "CalShiftX");
+  SetConfigParam(PATH_TOUCHCAL,Param,Value);
+  snprintf(Value, 10, "%.1f", CalShiftY);
+  strcpy(Param, "CalShiftY");
+  SetConfigParam(PATH_TOUCHCAL,Param,Value);
+
+  //printf("Left = %d, right = %d \n", leftX, rightX);
+  //printf("Lower  = %d, upper = %d \n", lowerY, higherY);
+  //printf("CalFactorX = %lf \n", CalFactorX);
+  //printf("CalFactorY = %lf \n", CalFactorY);
+  //printf("CalShiftX = %lf \n", CalShiftX);
+  //printf("CalShiftY = %lf \n", CalShiftY);
+
+  // Draw crosses in red where the touches were
+  // and in green where the corrected touches are
+  
+  BackgroundRGB(0,0,0,255);
+  Fill(255, 255, 255, 1); 
+  WindowClear();
+  StrokeWidth(3);
+  Stroke(255, 255, 255, 0.8);
+
+  VGfloat th = TextHeight(SansTypeface, 25);
+  TextMid(wscreen/2, hscreen/2+th, "Red crosses are before calibration,", SansTypeface, 25);
+  TextMid(wscreen/2, hscreen/2-th, "Green crosses after calibration", SansTypeface, 25);
+  TextMid(wscreen/2, hscreen/24, "Touch Screen to Continue", SansTypeface, 25);
+
+  // Draw Frame
+  Line(0,         hscreen, wscreen-1, hscreen);
+  Line(0,         1,       wscreen-1, 1      );
+  Line(0,         1,       0,         hscreen);
+  Line(wscreen-1, 1,       wscreen-1, hscreen);
+
+  // Draw the crosses
+  for (n = 1; n < 9; n = n + 1 )
+  {
+    // Calculate cross centres
+    if ((n == 1) || (n == 4) || (n == 5) || (n == 8))
+    {
+      cross_y = (hscreen * 9) / 10;
+    }
+    else
+    {
+      cross_y = hscreen / 10;
+    }
+    if ((n == 3) || (n == 4) || (n == 7) || (n == 8))
+    {
+      cross_x = (wscreen * 9) / 10;
+    }
+    else
+    {
+      cross_x = wscreen / 10;
+    }
+
+    // Draw reference cross in white
+    Stroke(255, 255, 255, 0.8);
+    Line(cross_x-wscreen/20, cross_y, cross_x+wscreen/20, cross_y);
+    Line(cross_x, cross_y-hscreen/20, cross_x, cross_y+hscreen/20);
+
+    // Draw uncorrected touch cross in red
+    Stroke(255, 0, 0, 0.8);
+    Line(touchposX[n]-wscreen/40, touchposY[n]-hscreen/40, touchposX[n]+wscreen/40, touchposY[n]+hscreen/40);
+    Line(touchposX[n]+wscreen/40, touchposY[n]-hscreen/40, touchposX[n]-wscreen/40, touchposY[n]+hscreen/40);
+
+    // Draw corrected touch cross in green
+    correctedX = touchposX[n] * CalFactorX;
+    correctedX = correctedX + CalShiftX;
+    correctedY = touchposY[n] * CalFactorY;
+    correctedY = correctedY + CalShiftY;
+    Stroke(0, 255, 0, 0.8);
+    Line(correctedX-wscreen/40, correctedY-hscreen/40, correctedX+wscreen/40, correctedY+hscreen/40);
+    Line(correctedX+wscreen/40, correctedY-hscreen/40, correctedX-wscreen/40, correctedY+hscreen/40);
+  }
+
+  //Send to Screen
+  End();
+  wait_touch();
+
+  // Set screen back to normal
+  BackgroundRGB(0,0,0,255);
+  StrokeWidth(0);
+}
+
+void TransformTouchMap(int x, int y)
+{
+  // This function takes the raw (0 - 4095 on each axis) touch data x and y
+  // and transforms it to approx 0 - wscreen and 0 - hscreen in globals scaledX 
+  // and scaledY prior to final correction by CorrectTouchMap  
+
   int shiftX, shiftY;
   double factorX, factorY;
+  char Param[255];
+  char Value[255];
 
+  // Adjust registration of touchscreen for Waveshare
   shiftX=30; // move touch sensitive position left (-) or right (+).  Screen is 700 wide
   shiftY=-5; // move touch sensitive positions up (-) or down (+).  Screen is 480 high
 
@@ -777,23 +1043,55 @@ int IsButtonPushed(int NbButton,int x,int y)
   else //Waveshare (inversed)
   {
     scaledX = shiftX+wscreen-y/(scaleXvalue+factorX);
-    scaledY = shiftY+hscreen-x/(scaleYvalue+factorY);
-//    scaledY = shiftY+x/(scaleYvalue+factorY); Vertical flip for 4 inch screen
-  }
 
-  // printf("x=%d y=%d scaledx %d scaledy %d sxv %f syv %f\n",x,y,scaledX,scaledY,scaleXvalue,scaleYvalue);
+    strcpy(Param,"display");  //Check for Waveshare 4 inch
+    GetConfigParam(PATH_CONFIG,Param,Value);
+    if(strcmp(Value,"Waveshare4")!=0)
+    {
+      scaledY = shiftY+hscreen-x/(scaleYvalue+factorY);
+    }
+    else  // Waveshare 4 inch display so flip vertical axis
+    {
+      scaledY = shiftY+x/(scaleYvalue+factorY); // Vertical flip for 4 inch screen
+    }
+  }
+}
+
+void CorrectTouchMap()
+{
+  // This function takes the approx touch data and applies the calibration correction
+  // It works directly on the globals scaledX and scaledY based on the constants read
+  // from the ScreenCal.txt file during initialisation
+
+  scaledX = scaledX * CalFactorX;
+  scaledX = scaledX + CalShiftX;
+
+  scaledY = scaledY * CalFactorY;
+  scaledY = scaledY + CalShiftY;
+}
+
+int IsButtonPushed(int NbButton,int x,int y)
+{
+  //int  scaledX, scaledY;
+
+  TransformTouchMap(x,y);  // Sorts out orientation and approx scaling of the touch map
+
+  CorrectTouchMap();       // Calibrates each individual screen
+
+  //printf("x=%d y=%d scaledx %d scaledy %d sxv %f syv %f Button %d\n",x,y,scaledX,scaledY,scaleXvalue,scaleYvalue, NbButton);
 
   int margin=10;  // was 20
 
   if((scaledX<=(ButtonArray[NbButton].x+ButtonArray[NbButton].w-margin))&&(scaledX>=ButtonArray[NbButton].x+margin) &&
-    (scaledY<=(ButtonArray[NbButton].y+ButtonArray[NbButton].h-margin))&&(scaledY>=ButtonArray[NbButton].y+margin)
-    /*&&(mymillis()-ButtonArray[NbButton].LastEventTime>TIME_ANTI_BOUNCE)*/)
+    (scaledY<=(ButtonArray[NbButton].y+ButtonArray[NbButton].h-margin))&&(scaledY>=ButtonArray[NbButton].y+margin))
   {
     ButtonArray[NbButton].LastEventTime=mymillis();
     return 1;
   }
   else
+  {
     return 0;
+  }
 }
 
 int AddButton(int x,int y,int w,int h)
@@ -1994,7 +2292,7 @@ void do_videoview()
 
     strcpy(Param,"display");
     GetConfigParam(PATH_CONFIG,Param,Value);
-    if(strcmp(Value,"Waveshare")==0)
+    if ((strcmp(Value,"Waveshare")==0) || (strcmp(Value,"Waveshare4")==0))
     // Write directly to the touchscreen framebuffer for Waveshare displays
     {
       USBVidDevice[strcspn(USBVidDevice, "\n")] = 0;  //remove the newline
@@ -2235,11 +2533,9 @@ void waituntil(int w,int h)
             finish();
             system("sudo reboot now");
           }
-          if(i==(Menu1Buttons+2)) // Display Info
+          if(i==(Menu1Buttons+2)) // Spare
           {
-            ; // Display info todo
-            //Text(10, 400, "IP 192.168.xxx.xxx", SansTypeface, 30);
-            //Text(VGfloat x, VGfloat y, const char *s, Fontinfo f, int pointsize)
+            ;
           }
           if(i==(Menu1Buttons+3)) // Caption on/off
           {
@@ -2285,8 +2581,6 @@ void waituntil(int w,int h)
             CurrentMenu=1;
             BackgroundRGB(255,255,255,255);
             Start_Highlights_Menu1();
-            //UpdateWindow();
-            //}
           }
 
 	  if(IsDisplayOn==1)
@@ -2330,14 +2624,15 @@ void waituntil(int w,int h)
           }
           if(i==(Menu1Buttons+Menu2Buttons+4)) // Start Sig Gen and Exit
           {
-            system("(/home/pi/rpidatv/bin/siggen) &");
-             char Commnd[255];
-             sprintf(Commnd,"stty echo");
-             system(Commnd);
-             sprintf(Commnd,"reset");
-             system(Commnd);
-             exit(0);
-           }
+            finish();
+            system("(sleep .5 && /home/pi/rpidatv/bin/siggen) &");
+            char Commnd[255];
+            sprintf(Commnd,"stty echo");
+            system(Commnd);
+            sprintf(Commnd,"reset");
+            system(Commnd);
+            exit(0);
+          }
           if(i==(Menu1Buttons+Menu2Buttons+5)) // 92.9 FM
           {
             rtlradio1();
@@ -2384,9 +2679,10 @@ void waituntil(int w,int h)
           {
             do_snapcheck();
           }
-          if(i==(Menu1Buttons+Menu2Buttons+18)) // Spare
+          if(i==(Menu1Buttons+Menu2Buttons+18)) // Touch Cal
           {
-            ; // Spare todo
+            touchcal();
+            BackgroundRGB(0,0,0,255);
           }
           if(i==(Menu1Buttons+Menu2Buttons+19)) // Spare
           {
@@ -3034,7 +3330,7 @@ void Define_Menu3()
 	Col.r=0;Col.g=128;Col.b=0;
 	AddButtonStatus(button," ",&Col);
 
-// Top row, Snap, View and Check
+// Top row, Snap, View and Check, Cal
 
 	button=AddButton(0*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
@@ -3056,9 +3352,9 @@ void Define_Menu3()
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Cal Tch",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Cal Tch",&Col);
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
@@ -3090,6 +3386,7 @@ terminate(int dummy)
 {
   TransmitStop();
   ReceiveStop();
+  finish();
   printf("Terminate\n");
   char Commnd[255];
   sprintf(Commnd,"stty echo");
@@ -3134,6 +3431,8 @@ int main(int argc, char **argv)
   if(strcmp(Value,"Waveshare")==0)
     Inversed=1;
   if(strcmp(Value,"WaveshareB")==0)
+    Inversed=1;
+  if(strcmp(Value,"Waveshare4")==0)
     Inversed=1;
 
   // Set the Band (and filter) Switching
@@ -3182,14 +3481,17 @@ int main(int argc, char **argv)
 
 // Calculate screen parameters
 	scaleXvalue = ((float)screenXmax-screenXmin) / wscreen;
-	//printf ("X Scale Factor = %f\n", scaleXvalue);
+	printf ("X Scale Factor = %f\n", scaleXvalue);
 	scaleYvalue = ((float)screenYmax-screenYmin) / hscreen;
-	//printf ("Y Scale Factor = %f\n", scaleYvalue);
+	printf ("Y Scale Factor = %f\n", scaleYvalue);
 
   // Define button grid
   // -25 keeps right hand side symmetrical with left hand side
   wbuttonsize=(wscreen-25)/5;
   hbuttonsize=hscreen/6;
+
+  // Read in the touchscreen Calibration
+  ReadTouchCal();
   
   // Read in the presets from the Config file
   ReadPresets();

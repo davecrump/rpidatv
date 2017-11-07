@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 201710280
+# Updated by davecrump 201711030
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -17,9 +17,14 @@ cp -f -r /home/pi/rpidatv/scripts/installed_version.txt /home/pi/prev_installed_
 # Make a safe copy of rpidatvconfig.txt
 cp -f -r /home/pi/rpidatv/scripts/rpidatvconfig.txt /home/pi/rpidatvconfig.txt
 
-# Make a safe copy of siggencal.txt if required
+# Make a safe copy of siggencal.txt if required (201710281)
 if [ -f "/home/pi/rpidatv/src/siggen/siggencal.txt" ]; then
   cp -f -r /home/pi/rpidatv/src/siggen/siggencal.txt /home/pi/siggencal.txt
+fi
+
+# Make a safe copy of touchcal.txt if required (201711030)
+if [ -f "/home/pi/rpidatv/scripts/touchcal.txt" ]; then
+  cp -f -r /home/pi/rpidatv/scripts/touchcal.txt /home/pi/touchcal.txt
 fi
 
 # Check if fbi (frame buffer imager) needs to be installed
@@ -295,6 +300,11 @@ cd /home/pi
 #if [ -f "/home/pi/siggencal.txt" ]; then
 #  cp -f -r /home/pi/siggencal.txt /home/pi/rpidatv/src/siggen/siggencal.txt
 #fi
+
+# Restore the user's original touchcal.txt if required (201711030)
+if [ -f "/home/pi/touchcal.txt" ]; then
+  cp -f -r /home/pi/touchcal.txt /home/pi/rpidatv/scripts/touchcal.txt
+fi
 
 # Update the version number
 rm -rf /home/pi/rpidatv/scripts/installed_version.txt
