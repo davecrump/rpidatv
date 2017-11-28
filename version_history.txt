@@ -1,3 +1,9 @@
+201711270
+Adds CARDMPEG-2 and CAMHDMPEG-2 modes
+Properly scales PiCam MPEG-2 viewfinder for all resolutions
+Fixes "Mode Buttons not diabled during TX" bug
+Fixes "Test mode remains transmitting after deselection" bug
+
 201711030
 Adds Touchscreen Calibration
 Enables Boot to SigGen on

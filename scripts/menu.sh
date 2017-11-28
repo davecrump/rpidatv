@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Version 201710070
+# Version 201711270
 
 ############ Set Environment Variables ###############
 
@@ -8,6 +8,7 @@ PATHSCRIPT=/home/pi/rpidatv/scripts
 PATHRPI=/home/pi/rpidatv/bin
 CONFIGFILE=$PATHSCRIPT"/rpidatvconfig.txt"
 PATHCONFIGS="/home/pi/rpidatv/scripts/configs"  ## Path to config files
+GPIO_PTT=29  ## WiringPi value, not BCM
 
 ############ Function to Write to Config File ###############
 
@@ -198,6 +199,8 @@ do_input_setup()
   Radio10=OFF
   Radio11=OFF
   Radio12=OFF
+  Radio13=OFF
+  Radio14=OFF
   case "$MODE_INPUT" in
   CAMH264)
     Radio1=ON
@@ -235,13 +238,19 @@ do_input_setup()
   ANALOGMPEG-2)
     Radio12=ON
   ;;
+  CARDMPEG-2)
+    Radio13=ON
+  ;;
+  CAMHDMPEG-2)
+    Radio14=ON
+  ;;
   *)
     Radio1=ON
   ;;
   esac
 
   chinput=$(whiptail --title "$StrInputSetupTitle" --radiolist \
-    "$StrInputSetupDescription" 20 78 12 \
+    "$StrInputSetupDescription" 20 78 14 \
     "CAMH264" "$StrInputSetupCAMH264" $Radio1 \
     "CAMMPEG-2" "$StrInputSetupCAMMPEG_2" $Radio2 \
     "FILETS" "$StrInputSetupFILETS" $Radio3\
@@ -253,17 +262,21 @@ do_input_setup()
     "VNC" "$StrInputSetupVNC" $Radio9 \
     "DESKTOP" "$StrInputSetupDESKTOP" $Radio10 \
     "CONTEST" "$StrInputSetupCONTEST" $Radio11  \
-    "ANALOGMPEG-2" "MPEG-2 and sound from Comp Video Input" $Radio12 3>&2 2>&1 1>&3)
+    "ANALOGMPEG-2" "MPEG-2 and sound from Comp Video Input" $Radio12 \
+    "CARDMPEG-2" "MPEG-2 Static Test Card F with Audio" $Radio13 \
+    "CAMHDMPEG-2" "MPEG-2 1280x720 HD Pi Cam with Audio" $Radio14 \
+  3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
     case "$chinput" in
+
     CAMMPEG-2)
       # Make sure that the camera driver is loaded
       lsmod | grep -q 'bcm2835_v4l2'
       if [ $? != 0 ]; then   ## not loaded
         sudo modprobe bcm2835_v4l2
       fi
-  ;;
+    ;;
     FILETS)
       TSVIDEOFILE=$(get_config_var tsvideofile $CONFIGFILE)
       filename=$TSVIDEOFILE
@@ -288,7 +301,6 @@ do_input_setup()
       whiptail --title "$StrInputSetupIPTSINTitle" --msgbox "$StrInputSetupIPTSINName""$CURRENTIP" 8 78
     ;;
     ANALOGCAM)
-
       ANALOGCAMNAME=$(get_config_var analogcamname $CONFIGFILE)
       Radio1=OFF
       Radio2=OFF
@@ -308,14 +320,12 @@ do_input_setup()
           Radio1=ON
         ;;
       esac
-
       newcamname=$(whiptail --title "$StrInputSetupANALOGCAMName" --radiolist \
         "$StrInputSetupANALOGCAMTitle" 20 78 5 \
         "/dev/video0" "Normal with no PiCam" $Radio1 \
         "/dev/video1" "Sometimes required with PiCam" $Radio2 \
         "auto" "Automatically select device name" $Radio3 \
         3>&2 2>&1 1>&3)
-
       if [ $? -eq 0 ]; then
          set_config_var analogcamname "$newcamname" $CONFIGFILE
       fi
@@ -330,6 +340,13 @@ do_input_setup()
     CONTEST)
       do_refresh_numbers
       do_show_numbers
+    ;;
+    CAMHDMPEG-2)
+      # Make sure that the camera driver is loaded
+      lsmod | grep -q 'bcm2835_v4l2'
+      if [ $? != 0 ]; then   ## not loaded
+        sudo modprobe bcm2835_v4l2
+      fi
     ;;
     esac
     set_config_var modeinput "$chinput" $CONFIGFILE
@@ -709,6 +726,10 @@ do_stop_transmit()
 
   # Stop the audio for CompVid mode
   sudo killall arecord >/dev/null 2>/dev/null
+
+  # Make sure that the PTT is releases (required for carrier and test modes)
+  gpio mode $GPIO_PTT out
+  gpio write $GPIO_PTT 0
 }
 
 do_display_on()
