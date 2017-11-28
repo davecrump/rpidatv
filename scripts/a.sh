@@ -1,7 +1,7 @@
 #! /bin/bash
 # set -x #Uncomment for testing
 
-# Version 201707311
+# Version 201711270
 
 ############# SET GLOBAL VARIABLES ####################
 
@@ -285,7 +285,8 @@ detect_video
 ANALOGCAMNAME=$VID_USB
 
 #Adjust the PIDs for non-ffmpeg modes
-if [ "$MODE_INPUT" != "CAMMPEG-2" ] && [ "$MODE_INPUT" != "ANALOGMPEG-2" ]; then
+if [ "$MODE_INPUT" != "CAMMPEG-2" ] && [ "$MODE_INPUT" != "ANALOGMPEG-2" ] \
+  && [ "$MODE_INPUT" != "CAMHDMPEG-2" ] && [ "$MODE_INPUT" != "CARDMPEG-2" ]; then
   let PIDPMT=$PIDVIDEO-1
 fi
 
@@ -432,7 +433,8 @@ OUTPUT_QPSK="videots"
 let BITRATE_TS=SYMBOLRATE*2*188*FECNUM/204/FECDEN
 
 # Calculate the Video Bit Rate for Sound/no sound
-if [ "$MODE_INPUT" == "CAMMPEG-2" ] || [ "$MODE_INPUT" == "ANALOGMPEG-2" ]; then
+if [ "$MODE_INPUT" == "CAMMPEG-2" ] || [ "$MODE_INPUT" == "ANALOGMPEG-2" ] \
+  || [ "$MODE_INPUT" == "CAMHDMPEG-2" ] || [ "$MODE_INPUT" == "CARDPEG-2" ]; then
   if [ "$AUDIO_CHANNELS" != 0 ]; then                 # Sound active
     let BITRATE_VIDEO=(BITRATE_TS*75)/100-74000
   else
@@ -444,25 +446,32 @@ fi
 
 let SYMBOLRATE_K=SYMBOLRATE/1000
 
-# Reduce video resolution at low bit rates
-if [ "$BITRATE_VIDEO" -lt 150000 ]; then
-  VIDEO_WIDTH=160
-  VIDEO_HEIGHT=140
-else
-  if [ "$BITRATE_VIDEO" -lt 300000 ]; then
-    VIDEO_WIDTH=352
-    VIDEO_HEIGHT=288
-  else
-    VIDEO_WIDTH=720
-    VIDEO_HEIGHT=576
-  fi
-fi
-
-# Reduce frame rate at low bit rates
-if [ "$BITRATE_VIDEO" -lt 300000 ]; then
+# Increase video resolution for CAMHDMPEG-2
+if [ "$MODE_INPUT" == "CAMHDMPEG-2" ] && [ "$SYMBOLRATE_K" -gt 999 ]; then
+  VIDEO_WIDTH=1280
+  VIDEO_HEIGHT=720
   VIDEO_FPS=15
 else
-  VIDEO_FPS=25
+  # Reduce video resolution at low bit rates
+  if [ "$BITRATE_VIDEO" -lt 150000 ]; then
+    VIDEO_WIDTH=160
+    VIDEO_HEIGHT=140
+  else
+    if [ "$BITRATE_VIDEO" -lt 300000 ]; then
+      VIDEO_WIDTH=352
+      VIDEO_HEIGHT=288
+    else
+      VIDEO_WIDTH=720
+      VIDEO_HEIGHT=576
+    fi
+  fi
+
+  # Reduce frame rate at low bit rates
+  if [ "$BITRATE_VIDEO" -lt 300000 ]; then
+    VIDEO_FPS=15
+  else
+    VIDEO_FPS=25
+  fi
 fi
 
 # Clean up before starting fifos
@@ -532,7 +541,7 @@ case "$MODE_INPUT" in
   ;;
 
   #============================================ MPEG-2 PI CAM INPUT MODE =============================================================
-  "CAMMPEG-2")
+  "CAMMPEG-2"|"CAMHDMPEG-2")
 
 # Set up the command for the MPEG-2 Callsign caption
 
@@ -548,11 +557,12 @@ else
 fi
 
     # Size the viewfinder and load the Camera driver
-    let OVERLAY_VIDEO_WIDTH=$VIDEO_WIDTH-64
-    let OVERLAY_VIDEO_HEIGHT=$VIDEO_HEIGHT-64
+#    let OVERLAY_VIDEO_WIDTH=$VIDEO_WIDTH-64
+#    let OVERLAY_VIDEO_HEIGHT=$VIDEO_HEIGHT-64
     v4l2-ctl --get-fmt-overlay
     v4l2-ctl --set-fmt-video=width=$VIDEO_WIDTH,height=$VIDEO_HEIGHT,pixelformat=0
-    v4l2-ctl --set-fmt-overlay=left=0,top=0,width=$OVERLAY_VIDEO_WIDTH,height=$OVERLAY_VIDEO_HEIGHT
+#    v4l2-ctl --set-fmt-overlay=left=0,top=0,width=$OVERLAY_VIDEO_WIDTH,height=$OVERLAY_VIDEO_HEIGHT
+    v4l2-ctl --set-fmt-overlay=left=0,top=0,width=656,height=512 # Hardcode for 720x576 framebuffer
     v4l2-ctl -p $VIDEO_FPS
 
     # If sound arrives first, decrease the numeric number to delay it
@@ -1155,10 +1165,171 @@ fi
 
     fi
   ;;
+  #============================================ MPEG-2 STATIC TEST CARD MODE =============================================================
+  "CARDMPEG-2")
+
+# Set up the command for the MPEG-2 Test Card Callsign caption
+
+# Note that spaces are not allowed in the CAPTION string below!
+if [ "$CAPTIONON" == "on" ]; then
+  CAPTION="fps=10,drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf:\
+text=$CALL:fontcolor=white:fontsize=40:box=0:\
+x=(w-text_w)/2:y=(57*h/32-text_h)/2"
+  VF="-vf "
+else
+  CAPTION="fps=10"
+  VF="-vf "    
+fi
+
+  # Turn the viewfinder off
+  v4l2-ctl --overlay=0
+
+    # If sound arrives first, decrease the numeric number to delay it
+    # "-00:00:0.?" works well at SR1000 on IQ mode
+    # "-00:00:0.2" works well at SR2000 on IQ mode
+    ITS_OFFSET="-00:00:0.2"
+
+    # Set up the means to transport the stream out of the unit
+    case "$MODE_OUTPUT" in
+      "BATC")
+        ITS_OFFSET="-00:00:00"
+      ;;
+      "STREAMER")
+        ITS_OFFSET="-00:00:00"
+      ;;
+      "IP")
+        : # Do nothing
+      ;;
+      "DATVEXPRESS")
+        echo "set ptt tx" >> /tmp/expctrl
+        # ffmpeg sends the stream directly to DATVEXPRESS
+      ;;
+      "COMPVID")
+        : # Do nothing
+      ;;
+      *)
+        # For IQ, QPSKRF, DIGITHIN and DTX1 rpidatv generates the IQ (and RF for QPSKRF)
+        sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
+      ;;
+    esac
+
+    # Now generate the stream
+    case "$MODE_OUTPUT" in
+      "BATC")
+        # No code for beeps here
+        if [ "$AUDIO_CARD" == 0 ]; then
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG\
+            -f image2 -loop 1 \
+            -i /home/pi/rpidatv/video/tcf.jpg \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
+            $VF $CAPTION \
+            \
+            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+        else
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
+            -f image2 -loop 1 \
+            -i /home/pi/rpidatv/video/tcf.jpg \
+            \
+            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+            -i hw:$AUDIO_CARD_NUMBER,0 \
+            \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            $VF $CAPTION \
+            \
+            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+        fi
+      ;;
+      "STREAMER")
+        # No code for beeps here
+        if [ "$AUDIO_CARD" == 0 ]; then
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
+            -f image2 -loop 1 \
+            -i /home/pi/rpidatv/video/tcf.jpg \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
+            $VF $CAPTION \
+            \
+            -f flv $STREAM_URL/$STREAM_KEY &
+        else
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
+           -f image2 -loop 1 \
+            -i /home/pi/rpidatv/video/tcf.jpg \
+            \
+            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+            -i hw:$AUDIO_CARD_NUMBER,0 \
+            \
+            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            $VF $CAPTION \
+            \
+            -f flv $STREAM_URL/$STREAM_KEY &
+        fi
+      ;;
+      *)
+        if [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "0" ]; then
+
+          # ******************************* MPEG-2 CARD WITH NO AUDIO ************************************
+
+          sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
+            -f image2 -loop 1 \
+            -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
+            -i /home/pi/rpidatv/video/tcf.jpg \
+            \
+            $VF $CAPTION -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
+            -f mpegts  -blocksize 1880 \
+            -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
+            -mpegts_service_id $SERVICEID \
+            -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
+            -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
+            -muxrate $BITRATE_TS -y $OUTPUT &
+
+        elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
+
+          # ******************************* MPEG-2 CARD WITH BEEP ************************************
+
+          sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
+            -f image2 -loop 1 \
+            -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
+            -i /home/pi/rpidatv/video/tcf.jpg \
+            \
+            -f lavfi -ac 1 \
+            -i "sine=frequency=500:beep_factor=4:sample_rate=44100:duration=0" \
+            \
+            $VF $CAPTION -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
+            -f mpegts  -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
+            -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
+            -mpegts_service_id $SERVICEID \
+            -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
+            -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
+            -muxrate $BITRATE_TS -y $OUTPUT &
+
+        else
+
+          # ******************************* MPEG-2 CARD WITH AUDIO ************************************
+
+          # PCR PID ($PIDSTART) seems to be fixed as the same as the video PID.  
+          # PMT, Vid and Audio PIDs can all be set. 
+
+          sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET"\
+            -f image2 -loop 1 \
+            -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
+            -i /home/pi/rpidatv/video/tcf.jpg \
+            \
+            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+            -i hw:$AUDIO_CARD_NUMBER,0 \
+            \
+            $VF $CAPTION -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO \
+            -f mpegts  -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
+            -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
+            -mpegts_service_id $SERVICEID \
+            -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
+            -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
+            -muxrate $BITRATE_TS -y $OUTPUT &
+        fi
+      ;;
+    esac
+  ;;
+esac
 
 # ============================================ END =============================================================
 
 # flow exits from a.sh leaving ffmpeg or avc2ts and rpidatv running
-# these processes are killed by menu.sh or rpidatvgui on selection of "stop transmit"
-
-esac
+# these processes are killed by menu.sh, rpidatvgui or b.sh on selection of "stop transmit"

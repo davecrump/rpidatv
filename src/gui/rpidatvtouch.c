@@ -24,8 +24,7 @@
 #include <pthread.h>
 #include <fftw3.h>
 #include <math.h>
-
-//
+#include <wiringPi.h>
 
 #define KWHT  "\x1B[37m"
 #define KYEL  "\x1B[33m"
@@ -86,6 +85,7 @@ VGfloat CalShiftX = 0;
 VGfloat CalShiftY = 0;
 float CalFactorX = 1.0;
 float CalFactorY = 1.0;
+int GPIO_PTT = 29;
 
 // Values for buttons
 // May be over-written by values from from rpidatvconfig.txt:
@@ -93,7 +93,7 @@ float CalFactorY = 1.0;
 int TabSR[5]={125,333,1000,2000,4000};
 char SRLabel[5][255]={"SR 125","SR 333","SR1000","SR2000","SR4000"};
 int TabFec[5]={1,2,3,5,7};
-char TabModeInput[8][255]={"CAMMPEG-2","CAMH264","PATERNAUDIO","ANALOGCAM","CARRIER","CONTEST","IPTSIN","ANALOGMPEG-2"};
+char TabModeInput[10][255]={"CAMMPEG-2","CAMH264","PATERNAUDIO","ANALOGCAM","CARRIER","CONTEST","IPTSIN","ANALOGMPEG-2", "CARDMPEG-2", "CAMHDMPEG-2"};
 char TabFreq[5][255]={"71","146.5","437","1249","1255"};
 char FreqLabel[5][255]={" 71 MHz ","146.5 MHz","437 MHz ","1249 MHz","1255 MHz"};
 char TabModeAudio[3][255]={"mic","auto","video"};
@@ -112,8 +112,6 @@ void MsgBox4(const char *, const char *, const char *, const char *);
 void wait_touch();
 int getTouchSample(int *, int *, int *);
 void TransformTouchMap(int, int);
-
-
 
 /***************************************************************************//**
  * @brief Looks up the value of Param in PathConfigFile and sets value
@@ -455,6 +453,16 @@ void ReadModeInput(char coding[256], char vsource[256])
   {
     strcpy(coding, "MPEG-2");
     strcpy(vsource, "Ext Video Input");
+  }
+  else if (strcmp(ModeInput, "CARDMPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "Static Test Card");
+  }
+  else if (strcmp(ModeInput, "CAMHDMPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "RPi Cam HD");
   }
   else
   {
@@ -1391,14 +1399,15 @@ void SelectFec(int NoButton)  // FEC
 void SelectSource(int NoButton,int Status)  //Input mode
 {
   SelectInGroup(15,19,NoButton,Status);
-  SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,NoButton,Status);
+  SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,NoButton,Status);
+  SelectInGroup(Menu1Buttons+2,Menu1Buttons+2,NoButton,Status);
   strcpy(ModeInput,TabModeInput[NoButton-15]);
   printf("************** Set Input Mode = %s\n",ModeInput);
   char Param[]="modeinput";
   SetConfigParam(PATH_CONFIG,Param,ModeInput);
 
-  // Load the Pi Cam driver for CAMMPEG-2 mode
-  if(strcmp(ModeInput,"CAMMPEG-2")==0)
+  // Load the Pi Cam driver for CAMMPEG-2 modes
+  if((strcmp(ModeInput,"CAMMPEG-2")==0)||(strcmp(ModeInput,"CAMHDMPEG-2")==0))
   {
     system("sudo modprobe bcm2835_v4l2");
   }
@@ -1466,11 +1475,28 @@ void SelectOP(int NoButton,int Status)  //Output mode
 void SelectSource2(int NoButton,int Status)  //Input mode
 {
   SelectInGroup(15,19,NoButton,Status);
-  SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,NoButton,Status);
-  strcpy(ModeInput,TabModeInput[NoButton-Menu1Buttons-10]);
+  SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,NoButton,Status);
+  SelectInGroup(Menu1Buttons+2,Menu1Buttons+2,NoButton,Status);
+  if(NoButton==Menu1Buttons+2) //Cam HD
+  {
+    strcpy(ModeInput,TabModeInput[9]);
+  }
+  else
+  {
+    strcpy(ModeInput,TabModeInput[NoButton-Menu1Buttons-10]);
+  }
   printf("************** Menu 2 Set Input Mode = %s\n",ModeInput);
   char Param[]="modeinput";
   SetConfigParam(PATH_CONFIG,Param,ModeInput);
+
+  // Load the Pi Cam driver for CAMMPEG-2 modes
+  if((strcmp(ModeInput,"CAMMPEG-2")==0)||(strcmp(ModeInput,"CAMHDMPEG-2")==0))
+  {
+    system("sudo modprobe bcm2835_v4l2");
+  }
+  // Replace Contest Numbers with BATC Logo
+  system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/BATC_Black.png\" >/dev/null 2>/dev/null");
+  system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
 }
 
 void TransmitStart()
@@ -1479,40 +1505,87 @@ void TransmitStart()
 
   char Param[255];
   char Value[255];
+  char Cmd[255];
   #define PATH_SCRIPT_A "sudo /home/pi/rpidatv/scripts/a.sh >/dev/null 2>/dev/null"
 
-  // Check if camera selected
-  if((strcmp(ModeInput,TabModeInput[0])==0)||(strcmp(ModeInput,TabModeInput[1])==0))
+  strcpy(Param,"modeinput");
+  GetConfigParam(PATH_CONFIG,Param,Value);
+  strcpy(ModeInput,Value);
+
+  // Check if MPEG-2 camera mode selected 
+  if((strcmp(ModeInput,"CAMMPEG-2")==0)||(strcmp(ModeInput,"CAMHDMPEG-2")==0))
   {
+    IsDisplayOn=0;
     // Start the viewfinder if required
     strcpy(Param,"vfinder");
     GetConfigParam(PATH_CONFIG,Param,Value);
     if(strcmp(Value,"on")==0)
     {
-      IsDisplayOn=0;
       finish();
       system("v4l2-ctl --overlay=1 >/dev/null 2>/dev/null");
     }
   }
 
+  // Check if H264 Camera selected
+  if(strcmp(ModeInput,"CAMH264")==0)
+  {
+    IsDisplayOn=0;
+    // Start the viewfinder if required
+    strcpy(Param,"vfinder");
+    GetConfigParam(PATH_CONFIG,Param,Value);
+    if(strcmp(Value,"on")==0)
+    {
+      finish();
+    }
+  }
+
   // Check if CONTEST selected; if so, display desktop
-  strcpy(Param,"modeinput");
-  GetConfigParam(PATH_CONFIG,Param,Value);
-  strcpy(ModeOutput,Value);
-  if(strcmp(Value,"CONTEST")==0)
+  if(strcmp(ModeInput,"CONTEST")==0)
   {
     IsDisplayOn=0;
     finish();
   }
 
   // Check if PATTERN selected; if so, turn off buttons
-  strcpy(Param,"modeinput");
-  GetConfigParam(PATH_CONFIG,Param,Value);
-  strcpy(ModeOutput,Value);
-  if(strcmp(Value,"PATERNAUDIO")==0)
+  if(strcmp(ModeInput,"PATERNAUDIO")==0)
   {
     IsDisplayOn=0;
     finish();
+  }
+
+  // Check if non-display input mode selected.  If so, turn off buttons.
+  if((strcmp(ModeInput,"ANALOGCAM")==0)||(strcmp(ModeInput,"ANALOGMPEG-2")==0)||(strcmp(ModeInput,"CARRIER")==0))
+  {
+    IsDisplayOn=0;
+  }
+
+  // Check if CARDMPEG-2 selected; if so, turn off buttons and display card
+  if(strcmp(ModeInput,"CARDMPEG-2")==0)
+  {
+    IsDisplayOn=0;
+    finish();
+
+    // Check if Caption enabled.  If so draw caption on image and display
+    strcpy(Param,"caption");
+    GetConfigParam(PATH_CONFIG,Param,Value);
+    if(strcmp(Value,"on")==0)
+    {
+      strcpy(Param,"call");
+      GetConfigParam(PATH_CONFIG,Param,Value);
+      system("rm /home/pi/rpidatv/scripts/images/caption.png >/dev/null 2>/dev/null");
+      system("rm /home/pi/rpidatv/video/tcf2.jpg >/dev/null 2>/dev/null");
+      strcpy(Cmd, "convert -size 720x80 xc:transparent -fill white -gravity Center -pointsize 40 -annotate 0 \"");
+      strcat(Cmd, Value);
+      strcat(Cmd, "\" /home/pi/rpidatv/scripts/images/caption.png");
+      system(Cmd);
+      system("convert /home/pi/rpidatv/video/tcf.jpg /home/pi/rpidatv/scripts/images/caption.png -geometry +0+475 -composite /home/pi/rpidatv/video/tcf2.jpg");
+      system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/video/tcf2.jpg\" >/dev/null 2>/dev/null");
+    }
+    else 
+    {
+      system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/video/tcf.jpg\" >/dev/null 2>/dev/null");
+    }
+    system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
   }
 
   // Call a.sh to transmit
@@ -1561,6 +1634,10 @@ void TransmitStop()
 
   // And make sure rpidatv has been stopped (required for brief transmit selections)
   system("sudo killall -9 rpidatv >/dev/null 2>/dev/null");
+
+  // Ensure PTT off.  Required for carrier mode
+  pinMode(GPIO_PTT, OUTPUT);
+  digitalWrite(GPIO_PTT, LOW);
 }
 
 void coordpoint(VGfloat x, VGfloat y, VGfloat size, VGfloat pcolor[4]) {
@@ -1569,7 +1646,7 @@ void coordpoint(VGfloat x, VGfloat y, VGfloat size, VGfloat pcolor[4]) {
   setfill(pcolor);
 }
 
-	fftwf_complex *fftout=NULL;
+fftwf_complex *fftout=NULL;
 #define FFT_SIZE 256
 
 int FinishedButton=0;
@@ -2410,6 +2487,8 @@ void waituntil(int w,int h)
         printf("Display ON\n");
         TransmitStop();
         ReceiveStop();
+        system("sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png  >/dev/null 2>/dev/null");  // Add logo image
+        system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
         init(&wscreen, &hscreen);
         Start(wscreen,hscreen);
         BackgroundRGB(255,255,255,255);
@@ -2563,7 +2642,7 @@ void waituntil(int w,int h)
           {
             SelectOP(i,1);
           }
-          if((i>=(Menu1Buttons+15))&&(i<=(Menu1Buttons+17))) // Select Source 2
+          if(((i>=(Menu1Buttons+15))&&(i<=(Menu1Buttons+18)))||(i==(Menu1Buttons+2))) // Select Source 2
           {
             SelectSource2(i,1);
           }
@@ -2997,10 +3076,9 @@ void Define_Menu2()
 
 	button=AddButton(2*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
-	//AddButtonStatus(button," Info  ",&Col);
+	AddButtonStatus(button,"CAM HD ",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," Info  ",&Col);
+	AddButtonStatus(button,"CAM HD ",&Col);
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
@@ -3102,9 +3180,9 @@ void Define_Menu2()
 
 	button=AddButton(3*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Card MPEG2",&Col);
 	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+	AddButtonStatus(button,"Card MPEG2",&Col);
 
 	button=AddButton(4*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
 	Col.r=0;Col.g=0;Col.b=128;
@@ -3203,15 +3281,23 @@ void Start_Highlights_Menu2()
 
   if(strcmp(Value,"CONTEST")==0)
   {
-    SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,Menu1Buttons+15,1);
+    SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,Menu1Buttons+15,1);
   }
   if(strcmp(Value,"IPTSIN")==0)
   {
-    SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,Menu1Buttons+16,1);
+    SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,Menu1Buttons+16,1);
   }
   if(strcmp(Value,"ANALOGMPEG-2")==0)
   {
-    SelectInGroup(Menu1Buttons+15,Menu1Buttons+17,Menu1Buttons+17,1);
+    SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,Menu1Buttons+17,1);
+  }
+  if(strcmp(Value,"CARDMPEG-2")==0)
+  {
+    SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,Menu1Buttons+18,1);
+  }
+  if(strcmp(Value,"CAMHDMPEG-2")==0)
+  {
+    SelectInGroup(Menu1Buttons+2,Menu1Buttons+2,Menu1Buttons+2,1);
   }
 
   // Caption
@@ -3422,6 +3508,12 @@ int main(int argc, char **argv)
     sigaction(i, &sa, NULL);
   }
 
+  // Set up wiringPi module
+  if (wiringPiSetup() < 0)
+  {
+    return 0;
+  }
+
   // Determine if using waveshare or waveshare B screen
   // Either by first argument or from rpidatvconfig.txt
   if(argc>1)
@@ -3440,7 +3532,7 @@ int main(int argc, char **argv)
   // and wait for it to finish using rpidatvconfig.txt
   usleep(100000);
 
-  // Set the Analog Capture Standard
+  // Set the Analog Capture (input) Standard
   GetUSBVidDev(USBVidDevice);
   if (strlen(USBVidDevice) == 12)  // /dev/video* with a new line
   {
@@ -3479,11 +3571,15 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-// Calculate screen parameters
-	scaleXvalue = ((float)screenXmax-screenXmin) / wscreen;
-	printf ("X Scale Factor = %f\n", scaleXvalue);
-	scaleYvalue = ((float)screenYmax-screenYmin) / hscreen;
-	printf ("Y Scale Factor = %f\n", scaleYvalue);
+  // Replace BATC Logo with IP address with BATC Logo alone
+  system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/BATC_Black.png\" >/dev/null 2>/dev/null");
+  system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
+
+  // Calculate screen parameters
+  scaleXvalue = ((float)screenXmax-screenXmin) / wscreen;
+  printf ("X Scale Factor = %f\n", scaleXvalue);
+  scaleYvalue = ((float)screenYmax-screenYmin) / hscreen;
+  printf ("Y Scale Factor = %f\n", scaleYvalue);
 
   // Define button grid
   // -25 keeps right hand side symmetrical with left hand side
