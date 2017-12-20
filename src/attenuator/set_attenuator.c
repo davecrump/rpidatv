@@ -33,12 +33,17 @@ int main(int argc, char *argv[])
   // Check attenuator type
   else if (strcmp(argv[1], "PE4312") == 0)
   {
-    printf("DEBUG: PE4312 specified\n");
-    return 0;
+    // printf("DEBUG: PE4312 specified\n");
+    int rc = pe4312_set_level(atof(argv[2]));
+    printf("DEBUG: rc = %d\n", rc);
+    return rc;
   }
   else if (strcmp(argv[1], "HMC1119") == 0)
   {
     printf("DEBUG: HMC1119 specified\n"); 
+    // int rc = pe4312_set_level(atof(argv[2]));
+    // printf("DEBUG: rc = %d\n", rc);
+    // return rc;
     return 0;
   }
   else

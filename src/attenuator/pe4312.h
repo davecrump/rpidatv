@@ -91,6 +91,16 @@
 #define ADF4350_MAX_MODULUS			4095
 #define ADF4350_MAX_R_CNT			1023
 
+
+
+
+#define PE4312_MIN_ATTENUATION	     0.0 	// dB
+#define PE4312_MAX_ATTENUATION	    31.5 	// dB
+#define PE4312_DISPLAY_NAME     "PE43x2"
+
+
+
+
 /******************************************************************************/
 /************************ Types Definitions ***********************************/
 /******************************************************************************/
@@ -159,6 +169,10 @@ int32_t adf4350_out_altvoltage0_frequency_resolution(int32_t Hz);
 int64_t adf4350_out_altvoltage0_refin_frequency(int64_t Hz);
 /*! Powers down the PLL.  */
 int32_t adf4350_out_altvoltage0_powerdown(int32_t pwd);
+
+
+int pe4312_set_level(float level);
+
 
 #endif // __PE4312_H__
 

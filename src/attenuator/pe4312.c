@@ -1,5 +1,5 @@
 /***************************************************************************
- *   @file   adf4350.c
+ *   @file   pe4312.c
  *   @brief  
  *   @author 
  *
@@ -529,4 +529,89 @@ int32_t adf4350_out_altvoltage0_powerdown(int32_t pwd)
 	}
 
 	return (st->regs[ADF4350_REG2] & ADF4350_REG2_POWER_DOWN_EN);
+}
+
+
+/***************************************************************************//**
+ * @brief 
+ *
+ * @param 
+ *
+ * @return 
+*******************************************************************************/
+int pe4312_set_level(float level)
+{
+  if (level >= PE4312_MIN_ATTENUATION && level <= PE4312_MAX_ATTENUATION)
+  {
+    printf("DEBUG: setting %s attenuation level to %.2f dB\n", PE4312_DISPLAY_NAME, level);
+
+	// Nominate pins using WiringPi numbers
+
+	// LE   pin 27 wPi 30
+	// CLK  pin 29 wPi 21
+	// Data pin 31 wPi 22
+
+	const uint8_t LE_4351_GPIO = 30;
+	const uint8_t CLK_4351_GPIO = 21;
+	const uint8_t DATA_4351_GPIO = 22;
+
+	// Set all nominated pins to outputs
+
+	pinMode(LE_4351_GPIO, OUTPUT);
+	pinMode(CLK_4351_GPIO, OUTPUT);
+	pinMode(DATA_4351_GPIO, OUTPUT);
+
+	// Set idle conditions
+
+	digitalWrite(LE_4351_GPIO, HIGH);
+	digitalWrite(CLK_4351_GPIO, LOW);
+	digitalWrite(DATA_4351_GPIO, LOW);
+
+	//Select device LE low
+
+	digitalWrite(LE_4351_GPIO, LOW);
+
+	// printf(" ADF4351 Register (one of the five) Updated\n");
+
+	// Initialise loop
+
+	uint8_t i;
+
+	// Send all 32 bits
+
+        // DUMMY CODE
+        uint32_t data = 0;
+
+	for (i = 0; i <32; i++)
+	{
+		// Test left-most bit
+
+		if (data & 0x80000000)
+			digitalWrite(DATA_4351_GPIO, HIGH);
+		else
+			digitalWrite(DATA_4351_GPIO, LOW);
+
+		// Pulse clock
+
+		digitalWrite(CLK_4351_GPIO, HIGH);
+		usleep(10);
+		digitalWrite(CLK_4351_GPIO, LOW);
+		usleep(10);
+		// shift data left so next bit will be leftmost
+
+		data <<= 1;
+	}
+
+	//Set ADF4351 LE high
+
+	digitalWrite(LE_4351_GPIO, HIGH);
+
+
+    return 0;
+  }
+  else
+  {
+    printf("ERROR: level %.2f dB is outside limits for %s attenuator\n", level, PE4312_DISPLAY_NAME);
+    return 1;
+  }
 }
