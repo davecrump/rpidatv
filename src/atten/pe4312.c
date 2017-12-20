@@ -549,7 +549,7 @@ int pe4312_set_level(float level)
 
     // Nominate pins using WiringPi numbers
 
-    const uint8_t LE_4312_GPIO = 30;
+    const uint8_t LE_4312_GPIO = 16;
     const uint8_t CLK_4312_GPIO = 21;
     const uint8_t DATA_4312_GPIO = 22;
 
