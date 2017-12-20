@@ -17,6 +17,7 @@
 #include <linux/spi/spidev.h>
 #include <wiringPi.h>
 #include "pe4312.h"
+#include <math.h>
 
 // The SPI bus parameters
 // Variables as they need to be passed as pointers later on
@@ -543,75 +544,47 @@ int pe4312_set_level(float level)
 {
   if (level >= PE4312_MIN_ATTENUATION && level <= PE4312_MAX_ATTENUATION)
   {
-    printf("DEBUG: setting %s attenuation level to %.2f dB\n", PE4312_DISPLAY_NAME, level);
+    uint8_t integer_level = round(level * 2.0);
+    printf("DEBUG: setting %s attenuation level to %.1f dB\n", PE4312_DISPLAY_NAME, integer_level / 2.0);
 
-	// Nominate pins using WiringPi numbers
+    // Nominate pins using WiringPi numbers
 
-	// LE   pin 27 wPi 30
-	// CLK  pin 29 wPi 21
-	// Data pin 31 wPi 22
+    const uint8_t LE_4312_GPIO = 30;
+    const uint8_t CLK_4312_GPIO = 21;
+    const uint8_t DATA_4312_GPIO = 22;
 
-	const uint8_t LE_4351_GPIO = 30;
-	const uint8_t CLK_4351_GPIO = 21;
-	const uint8_t DATA_4351_GPIO = 22;
+    // Set all nominated pins to outputs
 
-	// Set all nominated pins to outputs
+    pinMode(LE_4312_GPIO, OUTPUT);
+    pinMode(CLK_4312_GPIO, OUTPUT);
+    pinMode(DATA_4312_GPIO, OUTPUT);
 
-	pinMode(LE_4351_GPIO, OUTPUT);
-	pinMode(CLK_4351_GPIO, OUTPUT);
-	pinMode(DATA_4351_GPIO, OUTPUT);
+    // Set idle conditions
 
-	// Set idle conditions
+    digitalWrite(LE_4312_GPIO, LOW);
+    digitalWrite(CLK_4312_GPIO, LOW);
 
-	digitalWrite(LE_4351_GPIO, HIGH);
-	digitalWrite(CLK_4351_GPIO, LOW);
-	digitalWrite(DATA_4351_GPIO, LOW);
+    // Shift out data 
 
-	//Select device LE low
-
-	digitalWrite(LE_4351_GPIO, LOW);
-
-	// printf(" ADF4351 Register (one of the five) Updated\n");
-
-	// Initialise loop
-
-	uint8_t i;
-
-	// Send all 32 bits
-
-        // DUMMY CODE
-        uint32_t data = 0;
-
-	for (i = 0; i <32; i++)
-	{
-		// Test left-most bit
-
-		if (data & 0x80000000)
-			digitalWrite(DATA_4351_GPIO, HIGH);
-		else
-			digitalWrite(DATA_4351_GPIO, LOW);
-
-		// Pulse clock
-
-		digitalWrite(CLK_4351_GPIO, HIGH);
-		usleep(10);
-		digitalWrite(CLK_4351_GPIO, LOW);
-		usleep(10);
-		// shift data left so next bit will be leftmost
-
-		data <<= 1;
-	}
-
-	//Set ADF4351 LE high
-
-	digitalWrite(LE_4351_GPIO, HIGH);
-
-
+    int8_t bit;
+    for (bit = 5; bit >= 0; bit--)
+    {
+      digitalWrite(DATA_4312_GPIO, (integer_level >> bit) & 0x01);
+      digitalWrite(CLK_4312_GPIO, HIGH);
+      usleep(10);
+      digitalWrite(CLK_4312_GPIO, LOW);
+      usleep(10);
+    }
+    digitalWrite(LE_4312_GPIO, HIGH);
+    usleep(10);
+    digitalWrite(LE_4312_GPIO, LOW);
+    usleep(10);
     return 0;
   }
   else
   {
-    printf("ERROR: level %.2f dB is outside limits for %s attenuator\n", level, PE4312_DISPLAY_NAME);
+    printf("ERROR: level %.3f dB is outside limits for %s attenuator\n", level, PE4312_DISPLAY_NAME);
     return 1;
   }
 }
+
