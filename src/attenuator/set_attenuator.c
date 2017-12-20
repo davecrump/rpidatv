@@ -11,26 +11,18 @@
 #include <wiringPi.h>
 #include "pe4312.h"
 
-// uint32_t registers[6] =  {0x4580A8, 0x80080C9, 0x4E42, 0x4B3, 0xBC803C, 0x580005};
-
 
 /******************************************************************************
- * @brief Sets the attenuation level on the external attenuator.
- *
- * @param "PE4312" or "HMC1119", then attenuation in dB (float)
- *
- * @return 1 if attenuation is out of bounds, otherwise return 0
+ * @brief Sets the attenuation level on the external attenuator
+ * @param attenuator-type "PE4312" or "HMC1119"
+ * @param level Attenuation level in dB (float)
+ * @return 1 if invalid attenuator type or level is out of bounds, 0 otherwise
 *******************************************************************************/
 
 int main(int argc, char *argv[])
 {
   // Kick Wiring Pi into life
   if (wiringPiSetup() == -1);
-
-  // set parameter defaults
-  // uint32_t adf4350_requested_frequency = 1255000000;
-  // uint32_t adf4350_requested_ref_freq = 25000000;
-  // uint16_t adf4350_requested_power = 0;
 
   // Check that two parameters have been supplied
   if (argc != 3)
