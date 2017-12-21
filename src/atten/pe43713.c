@@ -59,7 +59,7 @@ int pe43713_set_level(float level)
     // Shift out address
 
 
-    for (bit = 0; bit <= 2; bit++)
+    for (bit = 0; bit <= 7; bit++)
     {
       digitalWrite(DATA_43713_GPIO, (PE43713_ADDRESS >> bit) & 0x01);
       digitalWrite(CLK_43713_GPIO, HIGH);
