@@ -10,6 +10,8 @@
 #include <linux/spi/spidev.h>
 #include <wiringPi.h>
 #include "pe4312.h"
+#include "pe43713.h"
+
 
 
 /******************************************************************************
@@ -40,11 +42,11 @@ int main(int argc, char *argv[])
   }
   else if (strcmp(argv[1], "PE43713") == 0)
   {
-    printf("DEBUG: PE43713 specified\n"); 
-    // int rc = pe43713_set_level(atof(argv[2]));
-    // printf("DEBUG: rc = %d\n", rc);
-    // return rc;
-    return 0;
+    // printf("DEBUG: PE43713 specified\n"); 
+    int rc = pe43713_set_level(atof(argv[2]));
+    printf("DEBUG: rc = %d\n", rc);
+    return rc;
+    // return 0;
   }
   else if (strcmp(argv[1], "HMC1119") == 0)
   {
