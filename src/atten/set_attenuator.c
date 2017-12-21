@@ -11,6 +11,7 @@
 #include <wiringPi.h>
 #include "pe4312.h"
 #include "pe43713.h"
+#include "hmc1119.h"
 
 
 
@@ -50,11 +51,11 @@ int main(int argc, char *argv[])
   }
   else if (strcmp(argv[1], "HMC1119") == 0)
   {
-    printf("DEBUG: HMC1119 specified\n"); 
-    // int rc = hmc1119_set_level(atof(argv[2]));
-    // printf("DEBUG: rc = %d\n", rc);
-    // return rc;
-    return 0;
+    // printf("DEBUG: HMC1119 specified\n"); 
+    int rc = hmc1119_set_level(atof(argv[2]));
+    printf("DEBUG: rc = %d\n", rc);
+    return rc;
+    // return 0;
   }
   else
   {
