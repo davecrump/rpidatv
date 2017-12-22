@@ -1,9 +1,9 @@
-/***************************************************************************
- *   @file   pe43713.c
- *   @brief  
- *   @author 
- *
-********************************************************************************/
+/**************************************************************************//***
+ *  @file    pe43713.c
+ *  @author  Ray M0DHP
+ *  @date    2017-12-22  
+ *  @version 0.1
+*******************************************************************************/
 
 #include <unistd.h>
 #include <stdio.h>
@@ -12,14 +12,14 @@
 #include "pe43713.h"
 
 
-
 /***************************************************************************//**
- * @brief 
+ *  @brief Sets the attenuation level on the PE43713 attenuator
+ *  
+ *  @param level Attenuation level in dB (positive float) e.g. "12.5"
  *
- * @param 
- *
- * @return 
+ *  @return 1 if level is out of bounds, 0 otherwise
 *******************************************************************************/
+
 int pe43713_set_level(float level)
 {
   if (level >= PE43713_MIN_ATTENUATION && level <= PE43713_MAX_ATTENUATION)

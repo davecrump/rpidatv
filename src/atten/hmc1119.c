@@ -1,9 +1,9 @@
-/***************************************************************************
- *   @file   hmc1119.c
- *   @brief  
- *   @author 
- *
-********************************************************************************/
+/**************************************************************************//***
+ *  @file    hmc1119.c
+ *  @author  Ray M0DHP
+ *  @date    2017-12-22  
+ *  @version 0.1
+*******************************************************************************/
 
 #include <unistd.h>
 #include <stdio.h>
@@ -12,14 +12,14 @@
 #include "hmc1119.h"
 
 
-
 /***************************************************************************//**
- * @brief 
+ *  @brief Sets the attenuation level on the HMC1119 attenuator
+ *  
+ *  @param level Attenuation level in dB (positive float) e.g. "12.5"
  *
- * @param 
- *
- * @return 
+ *  @return 1 if level is out of bounds, 0 otherwise
 *******************************************************************************/
+
 int hmc1119_set_level(float level)
 {
   if (level >= HMC1119_MIN_ATTENUATION && level <= HMC1119_MAX_ATTENUATION)
