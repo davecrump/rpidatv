@@ -658,14 +658,44 @@ do_caption_setup()
   fi
 }
 
+do_output_standard()
+{
+  OPSTD=$(get_config_var outputstandard $CONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  case "$OPSTD" in
+  576)
+    Radio1=ON
+  ;;
+  480)
+    Radio2=ON
+  ;;
+  *)
+    Radio1=ON
+  ;;
+  esac
+
+  OPSTD=$(whiptail --title "SET OUTPUT STANDARD" --radiolist \
+    "Select one" 20 78 8 \
+    "576" "DATV 576x720 25 fps, Comp Video PAL" $Radio1 \
+    "480" "DATV 480x720 30 fps, Comp Video NTSC" $Radio2 \
+    3>&2 2>&1 1>&3)
+
+  if [ $? -eq 0 ]; then                     ## If the selection has changed
+    set_config_var outputstandard "$OPSTD" $CONFIGFILE
+  fi
+}
+
+
 do_output_setup() {
-menuchoice=$(whiptail --title "$StrOutputTitle" --menu "$StrOutputContext" 16 78 6 \
+menuchoice=$(whiptail --title "$StrOutputTitle" --menu "$StrOutputContext" 16 78 7 \
   "1 SymbolRate" "$StrOutputSR"  \
   "2 FEC" "$StrOutputFEC" \
   "3 Output mode" "$StrOutputMode" \
   "4 PID" "$StrPIDSetup" \
   "5 Frequency" "$StrOutputRFFreqContext" \
   "6 Caption" "Callsign Caption in MPEG-2 on/off" \
+  "7 Standard" "Output 576PAL or 480NTSC" \
 	3>&2 2>&1 1>&3)
 	case "$menuchoice" in
             1\ *) do_symbolrate_setup ;;
@@ -674,6 +704,7 @@ menuchoice=$(whiptail --title "$StrOutputTitle" --menu "$StrOutputContext" 16 78
 	    4\ *) do_PID_setup ;;
 	    5\ *) do_freq_setup ;;
 	    6\ *) do_caption_setup ;;
+	    7\ *) do_output_standard ;;
         esac
 }
 

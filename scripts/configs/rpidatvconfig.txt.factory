@@ -58,3 +58,4 @@ beta=no
 batcoutput=streamname
 streamurl=rtmp://servername.com/folder
 streamkey=keykey
+outputstandard=576
