@@ -80,6 +80,10 @@
 #
 # caption
 #
+# 201712180 added
+#
+# outputstandard
+#
 # This file should be called by the install script
 # if the latest entries are not found in the user's 
 # rpidatvconfig.txt.
@@ -338,5 +342,14 @@ if grep -q caption /home/pi/rpidatvconfig.txt; then
 
   TRANSFER=$(get_config_var caption $OLDCONFIGFILE)
   set_config_var caption "$TRANSFER" $NEWCONFIGFILE
+
+fi
+
+if grep -q caption /home/pi/rpidatvconfig.txt; then
+  # User's File includes outputstandard
+  # Which was added in 201712180
+
+  TRANSFER=$(get_config_var outputstandard $OLDCONFIGFILE)
+  set_config_var outputstandard "$TRANSFER" $NEWCONFIGFILE
 
 fi

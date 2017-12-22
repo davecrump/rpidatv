@@ -51,23 +51,25 @@ typedef struct {
 
 #define MAX_STATUS 10
 typedef struct {
-	int x,y,w,h;
-	status_t Status[MAX_STATUS];
-	int IndexStatus;
-	int NoStatus;
-	int LastEventTime;
+	int x,y,w,h;                   // Position and size
+	status_t Status[MAX_STATUS];   // Array of text and required colour for each status
+	int IndexStatus;               // The number of valid status definitions.  0 = do not display
+	int NoStatus;                  // This is the active status (colour and text)
 } button_t;
 
-#define MAX_BUTTON 100
+// 	int LastEventTime; Was part of button_t.  No longer used
+
+
+#define MAX_BUTTON 300
 int IndexButtonInArray=0;
 button_t ButtonArray[MAX_BUTTON];
-int IsDisplayOn=0;
 #define TIME_ANTI_BOUNCE 500
 int CurrentMenu=1;
 int Menu1Buttons=0;
 int Menu2Buttons=0;
 int Menu3Buttons=0;
 int Menu4Buttons=0;
+
 
 //GLOBAL PARAMETERS
 
@@ -86,6 +88,8 @@ VGfloat CalShiftY = 0;
 float CalFactorX = 1.0;
 float CalFactorY = 1.0;
 int GPIO_PTT = 29;
+char ScreenState[255] = "NormalMenu";  // NormalMenu SpecialMenu TXwithMenu TXwithImage RXwithImage VideoOut SnapView VideoView Snap SigGen
+char MenuTitle[30][127];
 
 // Values for buttons
 // May be over-written by values from from rpidatvconfig.txt:
@@ -708,22 +712,8 @@ void ReadPresets()
         strcat(FreqLabel[n], " M");
         break;
     }
-  //printf("Read Freqs\n");
-  //printf("Value=%d %s\n",len,"SR");
   }
-
 }
-
-//    strcpy(Param,"vfinder");
-//    GetConfigParam(PATH_CONFIG,Param,Value);
-//    if(strcmp(Value,"on")==0)
-//    {
-//      IsDisplayOn=0;
-//      finish();
-//      system("v4l2-ctl --overlay=1 >/dev/null 2>/dev/null");
-//    }
-//  strcpy(BackupConfigName,PathConfigFile);
-//  strcat(BackupConfigName,".bak");
 
 /***************************************************************************//**
  * @brief Checks for the presence on an RTL-SDR
@@ -767,9 +757,9 @@ int CheckRTL()
 
 int mymillis()
 {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        return (tv.tv_sec) * 1000 + (tv.tv_usec)/1000;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (tv.tv_sec) * 1000 + (tv.tv_usec)/1000;
 }
 
 void ReadTouchCal()
@@ -1093,13 +1083,60 @@ int IsButtonPushed(int NbButton,int x,int y)
   if((scaledX<=(ButtonArray[NbButton].x+ButtonArray[NbButton].w-margin))&&(scaledX>=ButtonArray[NbButton].x+margin) &&
     (scaledY<=(ButtonArray[NbButton].y+ButtonArray[NbButton].h-margin))&&(scaledY>=ButtonArray[NbButton].y+margin))
   {
-    ButtonArray[NbButton].LastEventTime=mymillis();
+    // ButtonArray[NbButton].LastEventTime=mymillis(); No longer used
     return 1;
   }
   else
   {
     return 0;
   }
+}
+
+int IsMenuButtonPushed(int x,int y)
+{
+  int  i, NbButton, cmo;
+  NbButton = -1;
+  cmo = 25 * (CurrentMenu - 1); // Current Menu Button number Offset
+
+  TransformTouchMap(x,y);       // Sorts out orientation and approx scaling of the touch map
+  CorrectTouchMap();            // Calibrates each individual screen
+
+  //printf("x=%d y=%d scaledx %d scaledy %d sxv %f syv %f Button %d\n",x,y,scaledX,scaledY,scaleXvalue,scaleYvalue, NbButton);
+
+  int margin=10;  // was 20
+
+  // For each button in the current Menu, check if it has been pushed.
+  // If it has been pushed, return the button number.  If nothing valid has been pushed return -1
+  // If it has been pushed, do something with the last event time
+
+  for (i = 0; i <=23; i++)
+  {
+    if (ButtonArray[i + cmo].IndexStatus > 0)  // If button has been defined
+    {
+      if  ((scaledX <= (ButtonArray[i + cmo].x + ButtonArray[i + cmo].w - margin))
+        && (scaledX >= ButtonArray[i + cmo].x + margin)
+        && (scaledY <= (ButtonArray[i + cmo].y + ButtonArray[i + cmo].h - margin))
+        && (scaledY >= ButtonArray[i + cmo].y + margin))  // and touched
+      {
+        // ButtonArray[NbButton].LastEventTime=mymillis(); No longer used
+        NbButton = i;          // Set the button number to return
+        break;                 // Break out of loop as button has been found
+      }
+    }
+  }
+  return NbButton;
+}
+
+int InitialiseButtons()
+{
+  // Writes 0 to IndexStatus of each button to signify that it should not
+  // be displayed.  As soon as a status (text and color) is added, IndexStatus > 0
+  int i;
+  for (i = 0; i <= MAX_BUTTON; i = i + 1)
+  {
+    ButtonArray[i].IndexStatus = 0;
+  }
+  return 1;
 }
 
 int AddButton(int x,int y,int w,int h)
@@ -1111,8 +1148,54 @@ int AddButton(int x,int y,int w,int h)
 	NewButton->h=h;
 	NewButton->NoStatus=0;
 	NewButton->IndexStatus=0;
-	NewButton->LastEventTime=mymillis();
+	// NewButton->LastEventTime=mymillis();  No longer used
 	return IndexButtonInArray++;
+}
+
+int CreateButton(int MenuIndex, int ButtonPosition)
+{
+  // Provide Menu number (int 1 - 20), Button Position (0 bottom left, 23 top right)
+  // return button number
+
+  // Calculate button index
+  int ButtonIndex = (MenuIndex - 1) * 25 + ButtonPosition;
+  
+  int x = 0;
+  int y = 0;
+  int w = 0;
+  int h = 0;
+
+  if (ButtonPosition < 20)  // Bottom 4 rows
+  {
+    x = (ButtonPosition % 5) * wbuttonsize + 20;  // % operator gives the remainder of the division
+    y = (ButtonPosition / 5) * hbuttonsize + 20;
+    w = wbuttonsize * 0.9;
+    h = hbuttonsize * 0.9;
+  }
+  else if ((ButtonPosition == 20) || (ButtonPosition == 21))  // TX and RX buttons
+  {
+    x = (ButtonPosition % 5) * wbuttonsize *1.7 + 20;    // % operator gives the remainder of the division
+    y = (ButtonPosition / 5) * hbuttonsize + 20;
+    w = wbuttonsize * 1.2;
+    h = hbuttonsize * 1.2;
+  }
+  else if ((ButtonPosition == 22) || (ButtonPosition == 23)) //Menu Up and Menu down buttons
+  {
+    x = ((ButtonPosition + 1) % 5) * wbuttonsize + 20;  // % operator gives the remainder of the division
+    y = (ButtonPosition / 5) * hbuttonsize + 20;
+    w = wbuttonsize * 0.9;
+    h = hbuttonsize * 1.2;
+  }
+
+  button_t *NewButton=&(ButtonArray[ButtonIndex]);
+  NewButton->x=x;
+  NewButton->y=y;
+  NewButton->w=w;
+  NewButton->h=h;
+  NewButton->NoStatus=0;
+  NewButton->IndexStatus=0;
+
+  return (ButtonIndex);
 }
 
 int AddButtonStatus(int ButtonIndex,char *Text,color_t *Color)
@@ -1125,25 +1208,42 @@ int AddButtonStatus(int ButtonIndex,char *Text,color_t *Color)
 
 void DrawButton(int ButtonIndex)
 {
-	button_t *Button=&(ButtonArray[ButtonIndex]);
+  button_t *Button=&(ButtonArray[ButtonIndex]);
 
-	Fill(Button->Status[Button->NoStatus].Color.r, Button->Status[Button->NoStatus].Color.g, Button->Status[Button->NoStatus].Color.b, 1);
-	 Roundrect(Button->x,Button->y,Button->w,Button->h, Button->w/10, Button->w/10);
-	Fill(255, 255, 255, 1);				   // White text
-	TextMid(Button->x+Button->w/2, Button->y+Button->h/2, Button->Status[Button->NoStatus].Text, SerifTypeface, Button->w/strlen(Button->Status[Button->NoStatus].Text)/*25*/);	
+  Fill(Button->Status[Button->NoStatus].Color.r, Button->Status[Button->NoStatus].Color.g, Button->Status[Button->NoStatus].Color.b, 1);
+  Roundrect(Button->x,Button->y,Button->w,Button->h, Button->w/10, Button->w/10);
+  Fill(255, 255, 255, 1);				   // White text
+
+  char label[256];
+  strcpy(label, Button->Status[Button->NoStatus].Text);
+  char find = '^';                                  // Line separator is ^
+  const char *ptr = strchr(label, find);            // pointer to ^ in string
+  if(ptr)                                           // if ^ found then 2 lines
+  {
+    int index = ptr - label;                        // Position of ^ in string
+    char line1[15];
+    char line2[15];
+    snprintf(line1, index+1, label);                // get text before ^
+    snprintf(line2, strlen(label) - index, label + index + 1);  // and after ^
+    TextMid(Button->x+Button->w/2, Button->y+Button->h*11/16, line1, SerifTypeface, Button->w/strlen(line1));	
+    TextMid(Button->x+Button->w/2, Button->y+Button->h* 3/16, line2, SerifTypeface, Button->w/strlen(line2));	
+  }
+  else                                              // One line only
+  {
+    TextMid(Button->x+Button->w/2, Button->y+Button->h/2, label, SerifTypeface, Button->w/strlen(label));	
+  }
 }
 
 void SetButtonStatus(int ButtonIndex,int Status)
 {
-	button_t *Button=&(ButtonArray[ButtonIndex]);
-	Button->NoStatus=Status;
+  button_t *Button=&(ButtonArray[ButtonIndex]);
+  Button->NoStatus=Status;
 }
 
 int GetButtonStatus(int ButtonIndex)
 {
-	button_t *Button=&(ButtonArray[ButtonIndex]);
-	return	Button->NoStatus;
-
+  button_t *Button=&(ButtonArray[ButtonIndex]);
+  return Button->NoStatus;
 }
 
 void GetNextPicture(char *PictureName)
@@ -1311,62 +1411,85 @@ int getTouchSample(int *rawX, int *rawY, int *rawPressure)
 	return 0;
 }
 
+void ShowTitle()
+{
+  // Initialise and calculate the text display
+  //BackgroundRGB(0,0,0,255);  // Black background
+  if (CurrentMenu == 1)
+  {
+    Fill(0, 0, 0, 1);    // Black text
+  }
+  else
+  {
+    Fill(255, 255, 255, 1);    // White text
+  }
+  Fontinfo font = SansTypeface;
+  int pointsize = 20;
+  VGfloat txtht = TextHeight(font, pointsize);
+  VGfloat txtdp = TextDepth(font, pointsize);
+  VGfloat linepitch = 1.1 * (txtht + txtdp);
+  VGfloat linenumber = 1.0;
+  VGfloat tw;
+
+  // Display Text
+  tw = TextWidth(MenuTitle[CurrentMenu], font, pointsize);
+  Text(wscreen / 2.0 - (tw / 2.0), hscreen - linenumber * linepitch, MenuTitle[CurrentMenu], font, pointsize);
+}
+
 void UpdateWindow()
-// Paint each button on the current Menu
+// Paint each defined button and the title on the current Menu
 {
   int i;
   int first;
   int last;
-
-  // Calculate the Button numbers for the Current Menu
-  switch (CurrentMenu)
+  if (CurrentMenu <= 20)  // Calculate button number for 20 standard 24-button menus
   {
-    case 1:
-      first=0;
-      last=Menu1Buttons;
-      break;
-    case 2:
-      first=Menu1Buttons;
-      last=Menu1Buttons+Menu2Buttons;
-      break;
-    case 3:
-      first=Menu1Buttons+Menu2Buttons;
-      last=Menu1Buttons+Menu2Buttons+Menu3Buttons;
-      break;
-    case 4:
-      first=0;
-      last=Menu1Buttons;
-      break;
-    default:
-      first=0;
-      last=Menu1Buttons;
-      break;
+    first = (CurrentMenu - 1) * 25;
+    last = first + 23;
+  }
+  else                   // Calculate button number for 10 non-standard 50-button menus
+  {
+    first = 500 + (CurrentMenu - 21) * 50;
+    last = first + 49;
   }
 
-  for(i=first;i<last;i++)
-    DrawButton(i);
-  End();
+  if ((first > MAX_BUTTON) || ( last > MAX_BUTTON))  // Gross error check
+  {
+    printf("Button Calulation Error in UpdateWindow \n");
+    first = 0;
+    last = 0;
+  } 
+
+  for(i=first;i<=last;i++)
+  {
+    if (ButtonArray[i].IndexStatus > 0)  // If button needs to be drwan
+    {
+      DrawButton(i);                     // Draw the button
+    }
+  }
+  ShowTitle();
+  End();                      // Write the drawn buttons to the screen
 }
 
 void SelectInGroup(int StartButton,int StopButton,int NoButton,int Status)
 {
-	int i;
-	for(i=StartButton;i<=StopButton;i++)
-	{
-		if(i==NoButton)
-		 	SetButtonStatus(i,Status);
-		else
-			 SetButtonStatus(i,0);
-	}
+  int i;
+  for(i = StartButton ; i <= StopButton ; i++)
+  {
+    if(i == NoButton)
+      SetButtonStatus(i, Status);
+    else
+      SetButtonStatus(i, 0);
+  }
 }
 
 void SelectFreq(int NoButton)  //Frequency
 {
-  SelectInGroup(0,4,NoButton,1);
-  strcpy(freqtxt,TabFreq[NoButton-0]);
-  char Param[]="freqoutput";
+  SelectInGroup(0, 4, NoButton, 1);
+  strcpy(freqtxt, TabFreq[NoButton - 0]);
+  char Param[] = "freqoutput";
   printf("************** Set Frequency = %s\n",freqtxt);
-  SetConfigParam(PATH_CONFIG,Param,freqtxt);
+  SetConfigParam(PATH_CONFIG, Param, freqtxt);
 
   // Set the Band (and filter) Switching
   system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
@@ -1376,31 +1499,31 @@ void SelectFreq(int NoButton)  //Frequency
 
 void SelectSR(int NoButton)  // Symbol Rate
 {
-  SelectInGroup(5,9,NoButton,1);
-  SR=TabSR[NoButton-5];
-  char Param[]="symbolrate";
+  SelectInGroup(5, 9, NoButton, 1);
+  SR = TabSR[NoButton - 5];
+  char Param[] = "symbolrate";
   char Value[255];
-  sprintf(Value,"%d",SR);
+  sprintf(Value, "%d", SR);
   printf("************** Set SR = %s\n",Value);
-  SetConfigParam(PATH_CONFIG,Param,Value);
+  SetConfigParam(PATH_CONFIG, Param, Value);
 }
 
 void SelectFec(int NoButton)  // FEC
 {
-	SelectInGroup(10,14,NoButton,1);
-	fec=TabFec[NoButton-10];
-	char Param[]="fec";
-	char Value[255];
-	sprintf(Value,"%d",fec);
-	printf("************** Set FEC = %s\n",Value);
-	SetConfigParam(PATH_CONFIG,Param,Value);
+  SelectInGroup(10, 14 ,NoButton ,1);
+  fec = TabFec[NoButton - 10];
+  char Param[]="fec";
+  char Value[255];
+  sprintf(Value, "%d", fec);
+  printf("************** Set FEC = %s\n",Value);
+  SetConfigParam(PATH_CONFIG, Param, Value);
 }
 
 void SelectSource(int NoButton,int Status)  //Input mode
 {
-  SelectInGroup(15,19,NoButton,Status);
-  SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,NoButton,Status);
-  SelectInGroup(Menu1Buttons+2,Menu1Buttons+2,NoButton,Status);
+  SelectInGroup(15, 19, NoButton, Status);
+  SelectInGroup(25 + 15, 25 + 18, NoButton, Status);
+  SelectInGroup(25 + 2, 25 + 2, NoButton, Status);
   strcpy(ModeInput,TabModeInput[NoButton-15]);
   printf("************** Set Input Mode = %s\n",ModeInput);
   char Param[]="modeinput";
@@ -1418,72 +1541,89 @@ void SelectSource(int NoButton,int Status)  //Input mode
 
 void SelectPTT(int NoButton,int Status)  // TX/RX
 {
-	SelectInGroup(20,21,NoButton,Status);
+  SelectInGroup(20, 21, NoButton, Status);
 }
 
 void SelectCaption(int NoButton,int Status)  // Caption on or off
 {
   char Param[]="caption";
   char Value[255];
-
-            strcpy(Param,"caption");
-            GetConfigParam(PATH_CONFIG,Param,Value);
-            printf("Value=%s %s\n",Value,"Caption old");
-            if(strcmp(Value,"on")==0)
-            {
-               Status=0;
-               SetConfigParam(PATH_CONFIG,Param,"off");
-            }
-            else
-            {
-              Status=1;
-               SetConfigParam(PATH_CONFIG,Param,"on");
-            }
-	SelectInGroup(Menu1Buttons+3,Menu1Buttons+3,NoButton,Status);
-
+  char Feedback[7];
+  strcpy(Param,"caption");
+  GetConfigParam(PATH_CONFIG, Param, Value);
+  if(strcmp(Value, "on") == 0)
+  {
+    Status=0;
+    SetConfigParam(PATH_CONFIG,Param,"off");
+    strcpy(Feedback, "off");
+  }
+  else
+  {
+    Status=1;
+    SetConfigParam(PATH_CONFIG,Param,"on");
+    strcpy(Feedback, "on");
+  }
+  SelectInGroup(25 + 3, 25 + 3, 25 + NoButton, Status);
+  printf("************** Set Caption %s \n", Feedback);
 }
-
 
 void SelectSTD(int NoButton,int Status)  // PAL or NTSC
 {
-	SelectInGroup(Menu1Buttons+8,Menu1Buttons+9,NoButton,Status);
-	strcpy(ModeSTD,TabModeSTD[NoButton-Menu1Buttons-8]);
-	printf("************** Set Input Standard = %s\n",ModeSTD);
-	char Param[]="analogcamstandard";
-	SetConfigParam(PATH_CONFIG,Param,ModeSTD);
+  char USBVidDevice[255];
+  char Param[255];
+  char SetStandard[255];
+
+  SelectInGroup(25 + 8, 25 + 9, 25 + NoButton, Status);
+  strcpy(ModeSTD, TabModeSTD[NoButton - 8]);
+  printf("************** Set Input Standard = %s\n", ModeSTD);
+  strcpy(Param, "analogcamstandard");
+  SetConfigParam(PATH_CONFIG,Param,ModeSTD);
+
+  // Now Set the Analog Capture (input) Standard
+  GetUSBVidDev(USBVidDevice);
+  if (strlen(USBVidDevice) == 12)  // /dev/video* with a new line
+  {
+    USBVidDevice[strcspn(USBVidDevice, "\n")] = 0;  //remove the newline
+    strcpy(SetStandard, "v4l2-ctl -d ");
+    strcat(SetStandard, USBVidDevice);
+    strcat(SetStandard, " --set-standard=");
+    strcat(SetStandard, ModeSTD);
+    printf(SetStandard);
+    system(SetStandard);
+  }
 }
 
 void SelectAudio(int NoButton,int Status)  // Audio Input
 {
-	SelectInGroup(Menu1Buttons+5,Menu1Buttons+7,NoButton,Status);
-	strcpy(ModeAudio,TabModeAudio[NoButton-Menu1Buttons-5]);
-	printf("************** Set Audio Input = %s\n",ModeAudio);
-	char Param[]="audio";
-	SetConfigParam(PATH_CONFIG,Param,ModeAudio);
+  SelectInGroup(25 + 5, 25 + 7, 25 + NoButton, Status);
+  strcpy(ModeAudio,TabModeAudio[NoButton - 5]);
+  printf("************** Set Audio Input = %s\n",ModeAudio);
+  char Param[]="audio";
+  SetConfigParam(PATH_CONFIG,Param,ModeAudio);
 }
 
 void SelectOP(int NoButton,int Status)  //Output mode
 {
-  SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,NoButton,Status);
-  SelectInGroup(Menu1Buttons+19,Menu1Buttons+19,NoButton,Status);
-  strcpy(ModeOP,TabModeOP[NoButton-Menu1Buttons-10]);
+  SelectInGroup(25 + 10, 25 + 14, 25 + NoButton, Status);
+  SelectInGroup(25 + 19, 25 + 19, 25 + NoButton, Status);
+  strcpy(ModeOP, TabModeOP[NoButton -10]);
   printf("************** Set Output Mode = %s\n",ModeOP);
   char Param[]="modeoutput";
-  SetConfigParam(PATH_CONFIG,Param,ModeOP);
+  SetConfigParam(PATH_CONFIG, Param, ModeOP);
 }
 
 void SelectSource2(int NoButton,int Status)  //Input mode
 {
-  SelectInGroup(15,19,NoButton,Status);
-  SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,NoButton,Status);
-  SelectInGroup(Menu1Buttons+2,Menu1Buttons+2,NoButton,Status);
-  if(NoButton==Menu1Buttons+2) //Cam HD
+  SelectInGroup(15, 19, 25 + NoButton, Status);
+  SelectInGroup(25 + 15, 25 + 18, 25 + NoButton, Status);
+  SelectInGroup(25 + 2, 25 + 2, 25 + NoButton, Status);
+  if(NoButton == 2) //Cam HD
   {
     strcpy(ModeInput,TabModeInput[9]);
   }
   else
   {
-    strcpy(ModeInput,TabModeInput[NoButton-Menu1Buttons-10]);
+    strcpy(ModeInput,TabModeInput[NoButton-10]);
   }
   printf("************** Menu 2 Set Input Mode = %s\n",ModeInput);
   char Param[]="modeinput";
@@ -1494,6 +1634,7 @@ void SelectSource2(int NoButton,int Status)  //Input mode
   {
     system("sudo modprobe bcm2835_v4l2");
   }
+  // Just in case
   // Replace Contest Numbers with BATC Logo
   system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/BATC_Black.png\" >/dev/null 2>/dev/null");
   system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
@@ -1515,55 +1656,44 @@ void TransmitStart()
   // Check if MPEG-2 camera mode selected 
   if((strcmp(ModeInput,"CAMMPEG-2")==0)||(strcmp(ModeInput,"CAMHDMPEG-2")==0))
   {
-    IsDisplayOn=0;
-    // Start the viewfinder if required
-    strcpy(Param,"vfinder");
-    GetConfigParam(PATH_CONFIG,Param,Value);
-    if(strcmp(Value,"on")==0)
-    {
-      finish();
-      system("v4l2-ctl --overlay=1 >/dev/null 2>/dev/null");
-    }
+    // Start the viewfinder
+    finish();
+    system("v4l2-ctl --overlay=1 >/dev/null 2>/dev/null");
+    strcpy(ScreenState, "TXwithImage");
   }
 
   // Check if H264 Camera selected
-  if(strcmp(ModeInput,"CAMH264")==0)
+  if(strcmp(ModeInput,"CAMH264") == 0)
   {
-    IsDisplayOn=0;
-    // Start the viewfinder if required
-    strcpy(Param,"vfinder");
-    GetConfigParam(PATH_CONFIG,Param,Value);
-    if(strcmp(Value,"on")==0)
-    {
-      finish();
-    }
-  }
-
-  // Check if CONTEST selected; if so, display desktop
-  if(strcmp(ModeInput,"CONTEST")==0)
-  {
-    IsDisplayOn=0;
+    // Start the viewfinder 
     finish();
+    strcpy(ScreenState, "TXwithImage");
   }
 
-  // Check if PATTERN selected; if so, turn off buttons
-  if(strcmp(ModeInput,"PATERNAUDIO")==0)
+  // Check if a desktop mode is selected; if so, display desktop
+  if  ((strcmp(ModeInput,"CONTEST") == 0) 
+    || (strcmp(ModeInput,"DESKTOP") == 0)
+    || (strcmp(ModeInput,"PATERNAUDIO") == 0))
   {
-    IsDisplayOn=0;
     finish();
+    strcpy(ScreenState, "TXwithImage");
   }
 
-  // Check if non-display input mode selected.  If so, turn off buttons.
-  if((strcmp(ModeInput,"ANALOGCAM")==0)||(strcmp(ModeInput,"ANALOGMPEG-2")==0)||(strcmp(ModeInput,"CARRIER")==0))
+  // Check if non-display input mode selected.  If so, turn off response to buttons.
+  if ((strcmp(ModeInput,"ANALOGCAM") == 0)
+    ||(strcmp(ModeInput,"ANALOGMPEG-2") == 0)
+    ||(strcmp(ModeInput,"CARRIER") == 0)
+    ||(strcmp(ModeInput,"TESTMODE") == 0)
+    ||(strcmp(ModeInput,"IPTSIN") == 0))
   {
-    IsDisplayOn=0;
+     strcpy(ScreenState, "TXwithMenu");
   }
 
   // Check if CARDMPEG-2 selected; if so, turn off buttons and display card
   if(strcmp(ModeInput,"CARDMPEG-2")==0)
   {
-    IsDisplayOn=0;
     finish();
+    strcpy(ScreenState, "TXwithImage");
 
     // Check if Caption enabled.  If so draw caption on image and display
     strcpy(Param,"caption");
@@ -1573,17 +1703,17 @@ void TransmitStart()
       strcpy(Param,"call");
       GetConfigParam(PATH_CONFIG,Param,Value);
       system("rm /home/pi/rpidatv/scripts/images/caption.png >/dev/null 2>/dev/null");
-      system("rm /home/pi/rpidatv/video/tcf2.jpg >/dev/null 2>/dev/null");
+      system("rm /home/pi/rpidatv/scripts/images/tcf2.jpg >/dev/null 2>/dev/null");
       strcpy(Cmd, "convert -size 720x80 xc:transparent -fill white -gravity Center -pointsize 40 -annotate 0 \"");
       strcat(Cmd, Value);
       strcat(Cmd, "\" /home/pi/rpidatv/scripts/images/caption.png");
       system(Cmd);
-      system("convert /home/pi/rpidatv/video/tcf.jpg /home/pi/rpidatv/scripts/images/caption.png -geometry +0+475 -composite /home/pi/rpidatv/video/tcf2.jpg");
-      system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/video/tcf2.jpg\" >/dev/null 2>/dev/null");
+      system("convert /home/pi/rpidatv/scripts/images/tcf.jpg /home/pi/rpidatv/scripts/images/caption.png -geometry +0+475 -composite /home/pi/rpidatv/scripts/images/tcf2.jpg");
+      system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/tcf2.jpg\" >/dev/null 2>/dev/null");
     }
     else 
     {
-      system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/video/tcf.jpg\" >/dev/null 2>/dev/null");
+      system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/tcf.jpg\" >/dev/null 2>/dev/null");
     }
     system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
   }
@@ -1694,37 +1824,28 @@ void *WaitButtonEvent(void * arg)
 
 void ProcessLeandvb()
 {
-   #define PATH_SCRIPT_LEAN "sudo /home/pi/rpidatv/scripts/leandvbgui.sh 2>&1"
-   char *line=NULL;
-   size_t len = 0;
-    ssize_t read;
+  #define PATH_SCRIPT_LEAN "sudo /home/pi/rpidatv/scripts/leandvbgui.sh 2>&1"
+  char *line=NULL;
+  size_t len = 0;
+  ssize_t read;
+  FILE *fp;
+  VGfloat shapecolor[4];
+  RGBA(255, 255, 128,1, shapecolor);
 
-	// int rawX, rawY, rawPressure; //  not used
-	FILE *fp;
-	// VGfloat px[1000];  // Variable not used
-	// VGfloat py[1000];  // Variable not used
-	VGfloat shapecolor[4];
-	RGBA(255, 255, 128,1, shapecolor);
+  printf("Entering LeandProcess\n");
+  FinishedButton=0;
 
-	printf("Entering LeandProcess\n");
-	FinishedButton=0;
-// Thread FFT
+  // create Thread FFT
+  pthread_create (&thfft,NULL, &DisplayFFT, NULL);
 
-	pthread_create (&thfft,NULL, &DisplayFFT,NULL);
+  // Create Wait Button thread
+  pthread_create (&thbutton,NULL, &WaitButtonEvent, NULL);
 
-//END ThreadFFT
+  fp=popen(PATH_SCRIPT_LEAN, "r");
+  if(fp==NULL) printf("Process error\n");
 
-// Thread FFT
-
-	pthread_create (&thbutton,NULL, &WaitButtonEvent,NULL);
-
-//END ThreadFFT
-
-	fp=popen(PATH_SCRIPT_LEAN, "r");
-	if(fp==NULL) printf("Process error\n");
-
- while (((read = getline(&line, &len, fp)) != -1)&&(FinishedButton==0))
- {
+  while (((read = getline(&line, &len, fp)) != -1)&&(FinishedButton==0))
+  {
 
         char  strTag[20];
 	int NbData;
@@ -1917,24 +2038,21 @@ void ProcessLeandvb()
   system("sudo killall fbi >/dev/null 2>/dev/null");
   system("sudo killall leandvb >/dev/null 2>/dev/null");
   system("sudo killall ts2es >/dev/null 2>/dev/null");
-
-
 }
 
 void ReceiveStart()
 {
-        system("sudo killall hello_video.bin >/dev/null 2>/dev/null");
-	ProcessLeandvb();
+  strcpy(ScreenState, "RXwithImage");
+  system("sudo killall hello_video.bin >/dev/null 2>/dev/null");
+  ProcessLeandvb();
 }
 
 void ReceiveStop()
 {
   system("sudo killall leandvb >/dev/null 2>/dev/null");
   system("sudo killall hello_video.bin >/dev/null 2>/dev/null");
-	printf("Receive Stop\n");
-
+  printf("Receive Stop\n");
 }
-
 
 void wait_touch()
 // Wait for Screen touch, ignore position, but then move on
@@ -2326,7 +2444,6 @@ void do_snap()
   }
   else
   {
-    IsDisplayOn=0;
     finish();
     printf("do_snap\n");
     system("/home/pi/rpidatv/scripts/snap.sh >/dev/null 2>/dev/null");
@@ -2336,7 +2453,6 @@ void do_snap()
     init(&wscreen, &hscreen);
     Start(wscreen,hscreen);
     BackgroundRGB(0,0,0,255);
-    IsDisplayOn=1;
     UpdateWindow();
     system("sudo killall fbi >/dev/null 2>/dev/null");  // kill fbi now
   }
@@ -2361,7 +2477,6 @@ void do_videoview()
   else
   {
     // Make the display ready
-    IsDisplayOn=0;
     finish();
 
     // Create a thread to listen for display touches
@@ -2407,7 +2522,6 @@ void do_videoview()
     init(&wscreen, &hscreen);
     Start(wscreen,hscreen);
     BackgroundRGB(0,0,0,255);
-    IsDisplayOn=1;
     UpdateWindow();
     system("sudo killall fbi >/dev/null 2>/dev/null");  // kill fbi now
   }
@@ -2437,7 +2551,6 @@ void do_snapcheck()
   pclose(fp);
 
   // Make the display ready
-  IsDisplayOn=0;
   finish();
 
   SnapNumber=atoi(SnapIndex);
@@ -2459,337 +2572,429 @@ void do_snapcheck()
   init(&wscreen, &hscreen);
   Start(wscreen,hscreen);
   BackgroundRGB(0,0,0,255);
-  IsDisplayOn=1;
   UpdateWindow();
 }
 
-// wait for a screen touch and act on its position
 void waituntil(int w,int h)
 {
-  int rawX, rawY, rawPressure,i;
+  // Wait for a screen touch and act on its position
 
+  int rawX, rawY, rawPressure, i;
+
+  // printf("Entering WaitUntil\n");
   // Start the main loop for the Touchscreen
-  // Loop forever
   for (;;)
   {
     // Wait here until screen touched
+
     if (getTouchSample(&rawX, &rawY, &rawPressure)==0) continue;
 
     // Screen has been touched
-    printf("x=%d y=%d\n",rawX,rawY);
+    printf("x=%d y=%d\n", rawX, rawY);
 
-    if(IsDisplayOn==0)
+    // React differently depending on context: char ScreenState[255]
+
+      // Menu (normal)                              NormalMenu  (implemented)
+      // Menu (Specials)                            SpecialMenu (not implemented yet)
+      // Transmitting
+        // with image displayed                     TXwithImage (implemented)
+        // with menu displayed but not active       TXwithMenu  (implemented)
+      // Receiving                                  RXwithImage (implemented)
+      // Video Output                               VideoOut    (not implemented yet)
+      // Snap View                                  SnapView    (not implemented yet)
+      // VideoView                                  VideoView   (not implemented yet)
+      // Snap                                       Snap        (not implemented yet)
+      // SigGen?                                    SigGen      (not implemented yet)
+
+     // Sort TXwithImage first:
+    if (strcmp(ScreenState, "TXwithImage") == 0)
     {
-      if(CurrentMenu==1)
-      {
-        // Display not on and Menu 1 (transmitting, receiving or first start)
-        // So tidy up and display the buttons
-        printf("Display ON\n");
-        TransmitStop();
-        ReceiveStop();
-        system("sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png  >/dev/null 2>/dev/null");  // Add logo image
-        system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
-        init(&wscreen, &hscreen);
-        Start(wscreen,hscreen);
-        BackgroundRGB(255,255,255,255);
-        IsDisplayOn=1;
+      TransmitStop();
+      ReceiveStop();
+      system("sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png  >/dev/null 2>/dev/null");  // Add logo image
+      system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
+      init(&wscreen, &hscreen);
+      Start(wscreen, hscreen);
+      BackgroundRGB(255,255,255,255);
+      SelectPTT(20,0);
+      strcpy(ScreenState, "NormalMenu");
+      UpdateWindow();
+      continue;  // All reset, and Menu displayed so go back and wait for next touch
+     }
 
-        SelectPTT(20,0);
-        SelectPTT(21,0);
-        UpdateWindow();
-        continue;
-      }
+    // Now Sort TXwithMenu:
+    if (strcmp(ScreenState, "TXwithMenu") == 0)
+    {
+      TransmitStop();
+      SelectPTT(i,0);
+      strcpy(ScreenState, "NormalMenu");
+
+      UpdateWindow();
+      continue;
     }
 
-    // Check which Menu is currently displayed
-    // and then check each button in turn
-    // and take appropriate action
-    switch (CurrentMenu)
+    // Now deal with return from receiving
+    if (strcmp(ScreenState, "RXwithImage") == 0)
     {
-      case 1:
-      for(i=0;i<Menu1Buttons;i++)
-      {
-        if(IsButtonPushed(i,rawX,rawY)==1)
-        // So this number (i) button has been pushed
-        {
-          printf("Button Event %d\n",i);
-
-          if((i>=0)&&(i<=4)) //Frequency
-          {
-            SelectFreq(i);
-          }
-          if((i>=5)&&(i<=9)) //SR
-          {
-            SelectSR(i);
-          }
-          if((i>=10)&&(i<=14)) //FEC
-          {
-            SelectFec(i);
-          }
-          if((i>=15)&&(i<=19)) //Source
-          {
-            SelectSource(i,1);
-          }
-          if((i>=20)&&(i<=22)) //PTT
-          {
-            printf("Status %d\n",GetButtonStatus(i));
-            if((i==20)&&(GetButtonStatus(i)==0))
-            {
-              usleep(500000);
-              SelectPTT(i,1);
-              UpdateWindow();
-              TransmitStart();
-              break;
-            }
-            if((i==20)&&(GetButtonStatus(i)==1))
-            {
-              TransmitStop();
-              usleep(500000);
-              SelectPTT(i,0);
-              UpdateWindow();
-              break;
-            }
-            if(i==21) //Receive
-            {
-              if(CheckRTL()==0)
-              {
-                printf("DISPLAY OFF \n");
-                BackgroundRGB(0,0,0,255);
-                Start(wscreen,hscreen);
-
-                ReceiveStart();
-                BackgroundRGB(255,255,255,255);
-                IsDisplayOn=1;
-                UpdateWindow();
-                SelectPTT(20,0);
-                SelectPTT(21,0);
-                UpdateWindow();
-                IsDisplayOn=1;
-              }
-              else
-              {
-                MsgBox("No RTL-SDR Connected");
-                wait_touch();
-                BackgroundRGB(255,255,255,255);
-                UpdateWindow();
-              }
-            }
-            if(i==22)
-            {
-              printf("MENU 2 \n");
-              CurrentMenu=2;
-              BackgroundRGB(0,0,0,255);
-
-              Start_Highlights_Menu2();
-              UpdateWindow();
-            }
-          }
-
-	  if(IsDisplayOn==1)
-          {
-            UpdateWindow();
-          }
-        }
-      }
-      break;
-    case 2:
-      for(i=Menu1Buttons;i<(Menu1Buttons+Menu2Buttons);i++)
-      {
-        if(IsButtonPushed(i,rawX,rawY)==1)
-        // So this number (i) button has been pushed
-        {
-          printf("Button Event %d\n",i);
-
-          if(i==(Menu1Buttons+0)) // Shutdown
-          {
-            IsDisplayOn=0;
-            finish();
-            system("sudo shutdown now");
-          }
-          if(i==(Menu1Buttons+1)) // Reboot
-          {
-            IsDisplayOn=0;
-            finish();
-            system("sudo reboot now");
-          }
-          if(i==(Menu1Buttons+2)) // Spare
-          {
-            ;
-          }
-          if(i==(Menu1Buttons+3)) // Caption on/off
-          {
-            SelectCaption(i,1);
-              UpdateWindow();
-          }
-          if(i==(Menu1Buttons+4)) // Menu 3
-          {
-              printf("MENU 3 \n");
-              CurrentMenu=3;
-              BackgroundRGB(0,0,0,255);
-
-              Start_Highlights_Menu3();
-              UpdateWindow();
-          }
-          if((i>=(Menu1Buttons+5))&&(i<=(Menu1Buttons+7))) // Audio Selection
-          {
-            SelectAudio(i,1);
-          }
-          if((i>=(Menu1Buttons+8))&&(i<=(Menu1Buttons+9))) // PAL or NTSC
-          {
-            SelectSTD(i,1);
-          }
-            if(((i>=(Menu1Buttons+10))&&(i<=(Menu1Buttons+14)))||(i==(Menu1Buttons+19))) // Select Output Mode
-          {
-            SelectOP(i,1);
-          }
-          if(((i>=(Menu1Buttons+15))&&(i<=(Menu1Buttons+18)))||(i==(Menu1Buttons+2))) // Select Source 2
-          {
-            SelectSource2(i,1);
-          }
-          if(i==(Menu1Buttons+18)) // Spare
-          {
-            ; // Spare todo
-          }
-          if(i==(Menu1Buttons+19)) // Spare
-          {
-            ; // Spare todo
-          }
-          if(i==(Menu1Buttons+20)) // Back to Menu 1
-          {
-            printf("MENU 1 \n");
-            CurrentMenu=1;
-            BackgroundRGB(255,255,255,255);
-            Start_Highlights_Menu1();
-          }
-
-	  if(IsDisplayOn==1)
-          {
-            UpdateWindow();
-          }
-        }
-      }
-      break;
-    case 3:
-      for(i=Menu1Buttons+Menu2Buttons;i<(Menu1Buttons+Menu2Buttons+Menu3Buttons);i++)
-      {
-        if(IsButtonPushed(i,rawX,rawY)==1)
-        // So this number (i) button has been pushed
-        {
-          printf("Button Event %d\n",i);
-
-          if(i==(Menu1Buttons+Menu2Buttons+0)) // Shutdown
-          {
-            IsDisplayOn=0;
-            finish();
-            system("sudo shutdown now");
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+1)) // Reboot
-          {
-            IsDisplayOn=0;
-            finish();
-            system("sudo reboot now");
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+2)) // Display Info
-          {
-            InfoScreen();
-            BackgroundRGB(0,0,0,255);
-            UpdateWindow();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+3)) // Start RTL-TCP
-          {
-            rtl_tcp();
-            BackgroundRGB(0,0,0,255);
-            UpdateWindow();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+4)) // Start Sig Gen and Exit
-          {
-            finish();
-            system("(sleep .5 && /home/pi/rpidatv/bin/siggen) &");
-            char Commnd[255];
-            sprintf(Commnd,"stty echo");
-            system(Commnd);
-            sprintf(Commnd,"reset");
-            system(Commnd);
-            exit(0);
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+5)) // 92.9 FM
-          {
-            rtlradio1();
-            BackgroundRGB(0,0,0,255);
-            UpdateWindow();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+6)) // 106.0 FM
-          {
-            rtlradio2();
-            BackgroundRGB(0,0,0,255);
-            UpdateWindow();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+7)) // 144.75 NBFM
-          {
-            rtlradio3();
-            BackgroundRGB(0,0,0,255);
-            UpdateWindow();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+8)) // GB3BF
-          {
-            rtlradio4();
-            BackgroundRGB(0,0,0,255);
-            UpdateWindow();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+9)) // 145.8 NBFM
-          {
-            rtlradio5();
-            BackgroundRGB(0,0,0,255);
-            UpdateWindow();
-          }
-            if((i>=(Menu1Buttons+Menu2Buttons+10))&&(i<=(Menu1Buttons+Menu2Buttons+14))) // Spare
-          {
-            UpdateWindow();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+15)) // Snap
-          {
-            do_snap();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+16)) // View
-          {
-            do_videoview();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+17)) // Check
-          {
-            do_snapcheck();
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+18)) // Touch Cal
-          {
-            touchcal();
-            BackgroundRGB(0,0,0,255);
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+19)) // Spare
-          {
-            ; // Spare todo
-          }
-          if(i==(Menu1Buttons+Menu2Buttons+20)) // Back to Menu 1
-          {
-            printf("MENU 1 \n");
-            CurrentMenu=1;
-            BackgroundRGB(255,255,255,255);
-            Start_Highlights_Menu1();
-          }
-	  if(IsDisplayOn==1)
-          {
-            UpdateWindow();
-          }
-        }
-      }
-      break;
-    case 4:
-      //first=0;
-      //last=Menu1Buttons;
-      break;
-    default:
-      //first=0;
-      //last=Menu1Buttons;
-      break;
+      ReceiveStop();
+      system("sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png  >/dev/null 2>/dev/null");  // Add logo image
+      system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
+      init(&wscreen, &hscreen);
+      Start(wscreen, hscreen);
+      BackgroundRGB(255,255,255,255);
+      SelectPTT(21,0);
+      strcpy(ScreenState, "NormalMenu");
+      UpdateWindow();
+      continue;
     }
+
+    // Not transmitting or receiving, so sort NormalMenu
+    if (strcmp(ScreenState, "NormalMenu") == 0)
+    {
+      // For Menu (normal), check which button has been pressed (Returns 0 - 23)
+
+      i = IsMenuButtonPushed(rawX, rawY);
+      if (i == -1)
+      {
+        continue;  //Pressed, but not on a button so wait for the next touch
+      }
+
+      // Now do the reponses for each Menu in turn
+      if (CurrentMenu == 1)  // Main Menu
+      {
+        printf("Button Event %d, Entering Menu 1 Case Statement\n",i);
+        switch (i)
+        {
+        case 0:
+          SelectFreq(i);
+          UpdateWindow();
+          break;
+        case 1:
+          SelectFreq(i);
+          UpdateWindow();
+          break;
+        case 2:
+          SelectFreq(i);
+          UpdateWindow();
+          break;
+        case 3:
+          SelectFreq(i);
+          UpdateWindow();
+          break;
+        case 4:
+          SelectFreq(i);
+          UpdateWindow();
+          break;
+        case 5:
+          SelectSR(i);
+          UpdateWindow();
+          break;
+        case 6:
+          SelectSR(i);
+          UpdateWindow();
+          break;
+        case 7:
+          SelectSR(i);
+          UpdateWindow();
+          break;
+        case 8:
+          SelectSR(i);
+          UpdateWindow();
+          break;
+        case 9:
+          SelectSR(i);
+          UpdateWindow();
+          break;
+        case 10:
+          SelectFec(i);
+          UpdateWindow();
+          break;
+        case 11:
+          SelectFec(i);
+          UpdateWindow();
+          break;
+        case 12:
+          SelectFec(i);
+          UpdateWindow();
+          break;
+        case 13:
+          SelectFec(i);
+          UpdateWindow();
+          break;
+        case 14:
+          SelectFec(i);
+          UpdateWindow();
+          break;
+        case 15:
+          SelectSource(i,1);
+          UpdateWindow();
+          break;
+        case 16:
+          SelectSource(i,1);
+          UpdateWindow();
+          break;
+        case 17:
+          SelectSource(i,1);
+          UpdateWindow();
+          break;
+        case 18:
+          SelectSource(i,1);
+          UpdateWindow();
+          break;
+        case 19:
+          SelectSource(i,1);
+          UpdateWindow();
+          break;
+        case 20:
+          //usleep(500000);
+          SelectPTT(i,1);
+          UpdateWindow();
+          TransmitStart();
+          break;
+        case 21:
+          if(CheckRTL()==0)
+          {
+            BackgroundRGB(0,0,0,255);
+            Start(wscreen,hscreen);
+            ReceiveStart();
+            break;
+          }
+          else
+          {
+            MsgBox("No RTL-SDR Connected");
+            wait_touch();
+            BackgroundRGB(255,255,255,255);
+            UpdateWindow();
+          }
+          break;
+        case 22:
+          ;
+          break;
+        case 23:
+          printf("MENU 2 \n");
+          CurrentMenu=2;
+          BackgroundRGB(0,0,0,255);
+          Start_Highlights_Menu2();
+          UpdateWindow();
+          break;
+        default:
+          printf("Menu 1 Error\n");
+        }
+        continue;  // Completed Menu 1 action, go and wait for touch
+      }
+
+      if (CurrentMenu == 2)  // Menu 2
+      {
+        printf("Button Event %d, Entering Menu 2 Case Statement\n",i);
+        switch (i)
+        {
+        case 0:                               // Shutdown
+          finish();
+          system("sudo shutdown now");
+          break;
+        case 1:                               // Reboot
+          finish();
+          system("sudo reboot now");
+          break;
+        case 2:                               // CamHD MPEG-2 Video Source
+          SelectSource2(i,1);
+          UpdateWindow();
+          break;
+        case 3:                               // Caption on/off
+          SelectCaption(i,1);
+          UpdateWindow();
+          break;
+        case 4:                               // Blank
+          break;
+        case 5:                               // Audio Mic
+          SelectAudio(i,1);
+          UpdateWindow();
+          break;
+        case 6:                               // Audio Auto
+          SelectAudio(i,1);
+          UpdateWindow();
+          break;
+        case 7:                               // Audio EasyCap
+          SelectAudio(i,1);
+          UpdateWindow();
+          break;
+        case 8:                               // PAL Input
+          SelectSTD(i,1);
+          UpdateWindow();
+          break;
+        case 9:                               // NTSC Input
+          SelectSTD(i,1);
+          UpdateWindow();
+          break;
+        case 10:                              // IQ Output
+          SelectOP(i,1);
+          UpdateWindow();
+          break;
+        case 11:                              // Ugly Output
+          SelectOP(i,1);
+          UpdateWindow();
+          break;
+        case 12:                              // DATV Express Output
+          SelectOP(i,1);
+          UpdateWindow();
+          break;
+        case 13:                              // BATC Streamer Output
+          SelectOP(i,1);
+          UpdateWindow();
+          break;
+        case 14:                              // Comp Video Output
+          SelectOP(i,1);
+          UpdateWindow();
+          break;
+        case 15:                              // Contest Card Source
+          SelectSource2(i,1);
+          UpdateWindow();
+          break;
+        case 16:                              // IPTS Source
+          SelectSource2(i,1);
+          UpdateWindow();
+          break;
+        case 17:                              // MPEG-2 Video Source
+          SelectSource2(i,1);
+          UpdateWindow();
+          break;
+        case 18:                              // MPEG-2 Card Source
+          SelectSource2(i,1);
+          UpdateWindow();
+          break;
+        case 19:                              // DTX-1 Output
+          SelectOP(i,1);
+           UpdateWindow();
+         break;
+        case 20:                              // Not shown
+          ;
+          break;
+        case 21:                              // Not shown
+          ;
+          break;
+        case 22:                              // Menu 1
+          printf("MENU 1 \n");
+          CurrentMenu=1;
+          BackgroundRGB(255,255,255,255);
+          Start_Highlights_Menu1();
+          UpdateWindow();
+          break;
+        case 23:                              // Menu 3
+          printf("MENU 3 \n");
+          CurrentMenu=3;
+          BackgroundRGB(0,0,0,255);
+          Start_Highlights_Menu3();
+          UpdateWindow();
+          break;
+        default:
+          printf("Menu 2 Error\n");
+        }
+        continue;   // Completed Menu 2 action, go and wait for touch
+      }
+
+      if (CurrentMenu == 3)  // Menu 3
+      {
+        printf("Button Event %d, Entering Menu 2 Case Statement\n",i);
+        switch (i)
+        {
+        case 0:                               // Blank
+          ;
+          break;
+        case 1:                               // Blank
+          ;
+          break;
+        case 2:                               // Display Info Page
+          InfoScreen();
+          BackgroundRGB(0,0,0,255);
+          UpdateWindow();
+          break;
+        case 3:                               // Start RTL-TCP server
+          rtl_tcp();
+          BackgroundRGB(0,0,0,255);
+          UpdateWindow();
+          break;
+        case 4:                               // Start Sig Gen and Exit
+          finish();
+          system("(sleep .5 && /home/pi/rpidatv/bin/siggen) &");
+          char Commnd[255];
+          sprintf(Commnd,"stty echo");
+          system(Commnd);
+          sprintf(Commnd,"reset");
+          system(Commnd);
+          exit(0);
+        case 5:                              // RTL Radio 1
+          rtlradio1();
+          BackgroundRGB(0,0,0,255);
+          UpdateWindow();
+          break;
+        case 6:                              // RTL Radio 2
+          rtlradio2();
+          BackgroundRGB(0,0,0,255);
+          UpdateWindow();
+          break;
+        case 7:                              // RTL Radio 3
+          rtlradio3();
+          BackgroundRGB(0,0,0,255);
+          UpdateWindow();
+          break;
+        case 8:                              // RTL Radio 4
+          rtlradio4();
+          BackgroundRGB(0,0,0,255);
+          UpdateWindow();
+          break;
+        case 9:                              // RTL Radio 5
+          rtlradio5();
+          BackgroundRGB(0,0,0,255);
+          UpdateWindow();
+          break;
+        case 10:                               // Blank
+          break;
+        case 11:                               // Blank
+          break;
+        case 12:                               // Blank
+          break;
+        case 13:                               // Blank
+          break;
+        case 14:                               // Blank
+          break;
+        case 15:                              // Take Snap from EasyCap Input
+          do_snap();
+          UpdateWindow();
+          break;
+        case 16:                              // View EasyCap Input
+          do_videoview();
+          UpdateWindow();
+          break;
+        case 17:                              // Check Snaps
+          do_snapcheck();
+          UpdateWindow();
+          break;
+        case 18:                              // Calibrate Touch
+          touchcal();
+          BackgroundRGB(0,0,0,255);
+          UpdateWindow();
+          break;
+        case 19:                              // Blank
+         break;
+        case 20:                              // Not shown
+          break;
+        case 21:                              // Not shown
+          break;
+        case 22:                              // Menu 1
+          printf("MENU 1 \n");
+          CurrentMenu=1;
+          BackgroundRGB(255,255,255,255);
+          Start_Highlights_Menu1();
+          UpdateWindow();
+          break;
+        case 23:                              // Not Shown
+          break;
+        default:
+          printf("Menu 3 Error\n");
+        }
+        continue;   // Completed Menu 3 action, go and wait for touch
+      }
+    }   
   }
 }
 
@@ -2799,6 +3004,7 @@ void Start_Highlights_Menu1()
 {
   char Param[255];
   char Value[255];
+  printf("Entering Start_Highlights_Menu1\n");
 
   // Frequency
 
@@ -2902,301 +3108,241 @@ void Start_Highlights_Menu1()
 void Define_Menu1()
 {
   Menu1Buttons=23;
-  // Frequency
+  int button = 0;
+  color_t Green;
+  color_t Blue;
+  color_t Red;
+  strcpy(MenuTitle[1], "BATC Portsdown Transmitter Main Menu"); 
 
-	int button=AddButton(0*wbuttonsize+20,0+hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	color_t Col;
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,FreqLabel[0],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,FreqLabel[0],&Col);
+  Green.r=0; Green.g=128; Green.b=0;
+  Blue.r=0; Blue.g=0; Blue.b=128;
+  Red.r=255; Red.g=0; Red.b=0;
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,FreqLabel[1],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,FreqLabel[1],&Col);
+  // Frequency - Bottom Row, Menu 1
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,FreqLabel[2],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,FreqLabel[2],&Col);
+  button = CreateButton(1, 0);
+  AddButtonStatus(button,FreqLabel[0],&Blue);
+  AddButtonStatus(button,FreqLabel[0],&Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,FreqLabel[3],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,FreqLabel[3],&Col);
+  button = CreateButton(1, 1);
+  AddButtonStatus(button,FreqLabel[1],&Blue);
+  AddButtonStatus(button,FreqLabel[1],&Green);
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,FreqLabel[4],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,FreqLabel[4],&Col);
+  button = CreateButton(1, 2);
+  AddButtonStatus(button,FreqLabel[2],&Blue);
+  AddButtonStatus(button,FreqLabel[2],&Green);
 
-// Symbol Rate
+  button = CreateButton(1, 3);
+  AddButtonStatus(button,FreqLabel[3],&Blue);
+  AddButtonStatus(button,FreqLabel[3],&Green);
 
-	button=AddButton(0*wbuttonsize+20,0+hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,SRLabel[0],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,SRLabel[0],&Col);
+  button = CreateButton(1, 4);
+  AddButtonStatus(button,FreqLabel[4],&Blue);
+  AddButtonStatus(button,FreqLabel[4],&Green);
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,SRLabel[1],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,SRLabel[1],&Col);
+  // Symbol Rate - 2nd Row, Menu 1
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,SRLabel[2],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,SRLabel[2],&Col);
+  button = CreateButton(1, 5);
+  AddButtonStatus(button,SRLabel[0],&Blue);
+  AddButtonStatus(button,SRLabel[0],&Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,SRLabel[3],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,SRLabel[3],&Col);
+  button = CreateButton(1, 6);
+  AddButtonStatus(button,SRLabel[1],&Blue);
+  AddButtonStatus(button,SRLabel[1],&Green);
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,SRLabel[4],&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,SRLabel[4],&Col);
+  button = CreateButton(1, 7);
+  AddButtonStatus(button,SRLabel[2],&Blue);
+  AddButtonStatus(button,SRLabel[2],&Green);
 
-// FEC
+  button = CreateButton(1, 8);
+  AddButtonStatus(button,SRLabel[3],&Blue);
+  AddButtonStatus(button,SRLabel[3],&Green);
 
-	button=AddButton(0*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"FEC 1/2",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"FEC 1/2",&Col);
+  button = CreateButton(1, 9);
+  AddButtonStatus(button,SRLabel[4],&Blue);
+  AddButtonStatus(button,SRLabel[4],&Green);
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"FEC 2/3",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"FEC 2/3",&Col);
+  // FEC - 3rd line up Menu 1
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"FEC 3/4",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"FEC 3/4",&Col);
+  button = CreateButton(1, 10);
+  AddButtonStatus(button,"FEC 1/2",&Blue);
+  AddButtonStatus(button,"FEC 1/2",&Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"FEC 5/6",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"FEC 5/6",&Col);
+  button = CreateButton(1, 11);
+  AddButtonStatus(button,"FEC 2/3",&Blue);
+  AddButtonStatus(button,"FEC 2/3",&Green);
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"FEC 7/8",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"FEC 7/8",&Col);
+  button = CreateButton(1, 12);
+  AddButtonStatus(button,"FEC 3/4",&Blue);
+  AddButtonStatus(button,"FEC 3/4",&Green);
 
-//SOURCE
+  button = CreateButton(1, 13);
+  AddButtonStatus(button,"FEC 5/6",&Blue);
+  AddButtonStatus(button,"FEC 5/6",&Green);
 
-	button=AddButton(0*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"CAM MPEG2",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"CAM MPEG2",&Col);
+  button = CreateButton(1, 14);
+  AddButtonStatus(button,"FEC 7/8",&Blue);
+  AddButtonStatus(button,"FEC 7/8",&Green);
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"CAM H264",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"CAM H264",&Col);
+  //SOURCE - 4th line up Menu 1
 
-	char PictureName[255];
-	//strcpy(PictureName,ImageFolder);
-	GetNextPicture(PictureName);
+  button = CreateButton(1, 15);
+  AddButtonStatus(button,"CAM MPEG2",&Blue);
+  AddButtonStatus(button,"CAM MPEG2",&Green);
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Pattern",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Pattern",&Col);
+  button = CreateButton(1, 16);
+  AddButtonStatus(button,"CAM H264",&Blue);
+  AddButtonStatus(button,"CAM H264",&Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"VID H264",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"VID H264",&Col);
+  button = CreateButton(1, 17);
+  AddButtonStatus(button,"Pattern",&Blue);
+  AddButtonStatus(button,"Pattern",&Green);
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Carrier",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Carrier",&Col);
+  button = CreateButton(1, 18);
+  AddButtonStatus(button,"VID H264",&Blue);
+  AddButtonStatus(button,"VID H264",&Green);
 
-//TRANSMIT RECEIVE MENU2
+  button = CreateButton(1, 19);
+  AddButtonStatus(button,"Carrier",&Blue);
+  AddButtonStatus(button,"Carrier",&Green);
 
-	button=AddButton(0*wbuttonsize+20,hbuttonsize*4+20,wbuttonsize*1.2,hbuttonsize*1.2);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"TX   ",&Col);
-	Col.r=255;Col.g=0;Col.b=0;
-	AddButtonStatus(button,"TX ON",&Col);
+  //TRANSMIT RECEIVE BLANK MENU2 - Top of Menu 1
 
-        button=AddButton(2.7*wbuttonsize+20,hbuttonsize*4+20,wbuttonsize*1.2,hbuttonsize*1.2);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"RX   ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"RX ON",&Col);
+  button = CreateButton(1, 20);
+  AddButtonStatus(button,"TX   ",&Blue);
+  AddButtonStatus(button,"TX ON",&Red);
 
-        button=AddButton(4*wbuttonsize+20,hbuttonsize*4+20,wbuttonsize*0.9,hbuttonsize*1.2);
-        Col.r=0;Col.g=0;Col.b=128;
-        AddButtonStatus(button," M2  ",&Col);
-        Col.r=0;Col.g=128;Col.b=0;
-        AddButtonStatus(button," M2  ",&Col);
+  button = CreateButton(1, 21);
+  AddButtonStatus(button,"RX   ",&Blue);
+  AddButtonStatus(button,"RX ON",&Green);
+
+  // Button 22 not used
+
+  button = CreateButton(1, 23);
+  AddButtonStatus(button," M2  ",&Blue);
+  AddButtonStatus(button," M2  ",&Green);
 }
 
 void Define_Menu2()
 {
-  Menu2Buttons=21;
-  // Bottom row: Shutdown, Reboot, Info, Menu3, Menu4
+  int button;
+  Menu2Buttons=24;
 
-	int button=AddButton(0*wbuttonsize+20,0+hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	color_t Col;
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Shutdown",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Shutdown",&Col);
+  color_t Green;
+  color_t Blue;
+  color_t Black;
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Reboot ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Reboot ",&Col);
+  Green.r=0; Green.g=128; Green.b=0;
+  Blue.r=0; Blue.g=0; Blue.b=128;
+  Black.r=0; Black.g=0; Black.b=0;
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"CAM HD ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"CAM HD ",&Col);
+  strcpy(MenuTitle[2], "BATC Portsdown Transmitter Menu 2"); 
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Caption",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Caption",&Col);
+  // Bottom Row, Menu 2
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-//	AddButtonStatus(button," ",&Col);
-	AddButtonStatus(button," Menu 3",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," Menu 3",&Col);
+  button = CreateButton(2, 0);
+  AddButtonStatus(button, "Shutdown", &Blue);
+  AddButtonStatus(button, "Shutdown", &Green);
 
-// 2nd row up: Audio Mic, Audio Auto, Audio EC, PAL In, NTSC In
+  button = CreateButton(2, 1);
+  AddButtonStatus(button, "Reboot ", &Blue);
+  AddButtonStatus(button, "Reboot ", &Green);
 
-	button=AddButton(0*wbuttonsize+20,0+hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Audio Mic",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Audio Mic",&Col);
+  button = CreateButton(2, 2);
+  AddButtonStatus(button, "CAM HD ", &Blue);
+  AddButtonStatus(button, "CAM HD ", &Green);
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Audio Auto",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Audio Auto",&Col);
+  button = CreateButton(2, 3);
+  AddButtonStatus(button, "Caption", &Blue);
+  AddButtonStatus(button, "Caption", &Green);
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Audio EC ",&Col);
-	//AddButtonStatus(button," No VF ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Audio EC ",&Col);
+  button = CreateButton(2, 4);
+  AddButtonStatus(button, " ", &Blue);
+  //AddButtonStatus(button, " Menu 3", &Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," PAL in",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," PAL in",&Col);
+  // 2nd Row, Menu 2
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"NTSC in",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"NTSC in",&Col);
+  button = CreateButton(2, 5);
+  AddButtonStatus(button, "Audio Mic", &Blue);
+  AddButtonStatus(button, "Audio Mic", &Green);
 
-// 3rd row up: Output to: IQ, Ugly, Express, BATC, COMPVID
+  button = CreateButton(2, 6);
+  AddButtonStatus(button, "Audio Auto", &Blue);
+  AddButtonStatus(button, "Audio Auto", &Green);
 
-	button=AddButton(0*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"  IQ  ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"  IQ  ",&Col);
+  button = CreateButton(2, 7);
+  AddButtonStatus(button, "Audio EC ", &Blue);
+  AddButtonStatus(button, "Audio EC ", &Green);
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," Ugly  ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," Ugly  ",&Col);
+  button = CreateButton(2, 8);
+  AddButtonStatus(button, " PAL in", &Blue);
+  AddButtonStatus(button, " PAL in", &Green);
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Express",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Express",&Col);
+  button = CreateButton(2, 9);
+  AddButtonStatus(button, "NTSC in", &Blue);
+  AddButtonStatus(button, "NTSC in", &Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," BATC ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," BATC ",&Col);
+  // 3rd line up Menu 2
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Vid Out",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Vid Out",&Col);
+  button = CreateButton(2, 10);
+  AddButtonStatus(button, "  IQ  ", &Blue);
+  AddButtonStatus(button, "  IQ  ", &Green);
 
-// Top row, 3 more sources:
+  button = CreateButton(2, 11);
+  AddButtonStatus(button, " Ugly  ", &Blue);
+  AddButtonStatus(button, " Ugly  ", &Green);
 
-	button=AddButton(0*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"CONTEST",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"CONTEST",&Col);
+  button = CreateButton(2, 12);
+  AddButtonStatus(button, "Express", &Blue);
+  AddButtonStatus(button, "Express", &Green);
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," IPTS IN",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," IPTS IN",&Col);
+  button = CreateButton(2, 13);
+  AddButtonStatus(button, " BATC ", &Blue);
+  AddButtonStatus(button, " BATC ", &Green);
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"VID MPEG2",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"VID MPEG2",&Col);
+  button = CreateButton(2, 14);
+  AddButtonStatus(button, "Vid Out", &Blue);
+  AddButtonStatus(button, "Vid Out", &Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Card MPEG2",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Card MPEG2",&Col);
+  //SOURCE - 4th line up Menu 2
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," DTX-1 ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," DTX-1 ",&Col);
+  button = CreateButton(2, 15);
+  AddButtonStatus(button, "CONTEST", &Blue);
+  AddButtonStatus(button, "CONTEST", &Green);
 
-// Single button to get back to Menu 1
+  button = CreateButton(2, 16);
+  AddButtonStatus(button, " IPTS IN", &Blue);
+  AddButtonStatus(button, " IPTS IN", &Green);
 
-        button=AddButton(4*wbuttonsize+20,hbuttonsize*4+20,wbuttonsize*0.9,hbuttonsize*1.2);
-        Col.r=0;Col.g=0;Col.b=128;
-        AddButtonStatus(button," M1  ",&Col);
-        Col.r=0;Col.g=128;Col.b=0;
-        AddButtonStatus(button," M1  ",&Col);
+  button = CreateButton(2, 17);
+  AddButtonStatus(button, "VID MPEG2", &Blue);
+  AddButtonStatus(button, "VID MPEG2", &Green);
+
+  button = CreateButton(2, 18);
+  AddButtonStatus(button, "Card MPEG2", &Blue);
+  AddButtonStatus(button, "Card MPEG2", &Green);
+
+  button = CreateButton(2, 19);
+  AddButtonStatus(button, " DTX-1 ", &Blue);
+  AddButtonStatus(button, " DTX-1 ", &Green);
+
+  // Top of Menu 2
+
+  button = CreateButton(2, 20);
+  AddButtonStatus(button, " ", &Black);
+
+  button = CreateButton(2, 21);
+  AddButtonStatus(button, " ", &Black);
+
+  button = CreateButton(2, 22);
+  AddButtonStatus(button," M1  ",&Blue);
+  AddButtonStatus(button," M1  ",&Green);
+
+  button = CreateButton(2, 23);
+  AddButtonStatus(button," M3  ",&Blue);
+  AddButtonStatus(button," M3  ",&Green);
+  
+  // IndexButtonInArray = 47;
 }
 
 void Start_Highlights_Menu2()
@@ -3215,15 +3361,15 @@ void Start_Highlights_Menu2()
   printf("Value=%s %s\n",Value,"Audio");
   if(strcmp(Value,"mic")==0)
   {
-    SelectInGroup(Menu1Buttons+5,Menu1Buttons+7,Menu1Buttons+5,1);
+    SelectInGroup(25 + 5, 25 + 7, 25 + 5, 1);
   }
-  if(strcmp(Value,"auto")==0)
+  if(strcmp(Value, "auto") == 0)
   {
-    SelectInGroup(Menu1Buttons+5,Menu1Buttons+7,Menu1Buttons+6,1);
+    SelectInGroup(25 + 5, 25 + 7, 25 + 6, 1);
   }
-  if(strcmp(Value,"video")==0)
+  if(strcmp(Value,"video") == 0)
   {
-    SelectInGroup(Menu1Buttons+5,Menu1Buttons+7,Menu1Buttons+7,1);
+    SelectInGroup(25 + 5, 25 + 7, 25 + 7, 1);
   }
 
   // PAL or NTSC
@@ -3234,11 +3380,11 @@ void Start_Highlights_Menu2()
   printf("Value=%s %s\n",Value,"Video Standard");
   if ( STD == 6 ) //PAL
   {
-    SelectInGroup(Menu1Buttons+8,Menu1Buttons+9,Menu1Buttons+8,1);
+    SelectInGroup(25 + 8, 25 + 9, 25 + 8, 1);
   }
   else if ( STD == 0 ) //NTSC
   {
-    SelectInGroup(Menu1Buttons+8,Menu1Buttons+9,Menu1Buttons+9,1);
+    SelectInGroup(25 + 8, 25 + 9, 25 + 9, 1);
   }
 
   // Output Modes
@@ -3249,27 +3395,27 @@ void Start_Highlights_Menu2()
   printf("Value=%s %s\n",Value," Output");
   if(strcmp(Value,"IQ")==0)
   {
-    SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,Menu1Buttons+10,1);
+    SelectInGroup(25 + 10, 25 + 14, 25 + 10, 1);
   }
   if(strcmp(Value,"QPSKRF")==0)
   {
-    SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,Menu1Buttons+11,1);
+    SelectInGroup(25 + 10, 25 + 14, 25 + 11, 1);
   }
   if(strcmp(Value,"DATVEXPRESS")==0)
   {
-    SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,Menu1Buttons+12,1);
+    SelectInGroup(25 + 10, 25 + 14, 25 + 12, 1);
   }
   if(strcmp(Value,"BATC")==0)
   {
-    SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,Menu1Buttons+13,1);
+    SelectInGroup(25 + 10, 25 + 14, 25 + 13, 1);
   }
   if(strcmp(Value,"COMPVID")==0)
   {
-    SelectInGroup(Menu1Buttons+10,Menu1Buttons+14,Menu1Buttons+14,1);
+    SelectInGroup(25 + 10, 25 + 14, 25 + 14, 1);
   }
   if(strcmp(Value,"DTX1")==0)
   {
-    SelectInGroup(Menu1Buttons+19,Menu1Buttons+19,Menu1Buttons+19,1);
+    SelectInGroup(25 + 19, 25 + 19, 25 + 19, 1);
   }
 
   // Extra Input Modes
@@ -3281,23 +3427,23 @@ void Start_Highlights_Menu2()
 
   if(strcmp(Value,"CONTEST")==0)
   {
-    SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,Menu1Buttons+15,1);
+    SelectInGroup(25 + 15, 25 + 18, 25 + 15, 1);
   }
   if(strcmp(Value,"IPTSIN")==0)
   {
-    SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,Menu1Buttons+16,1);
+    SelectInGroup(25 + 15, 25 + 18, 25 + 16, 1);
   }
   if(strcmp(Value,"ANALOGMPEG-2")==0)
   {
-    SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,Menu1Buttons+17,1);
+    SelectInGroup(25 + 15, 25 + 18, 25 + 17, 1);
   }
   if(strcmp(Value,"CARDMPEG-2")==0)
   {
-    SelectInGroup(Menu1Buttons+15,Menu1Buttons+18,Menu1Buttons+18,1);
+    SelectInGroup(25 + 15, 25 + 18, 25 + 18, 1);
   }
   if(strcmp(Value,"CAMHDMPEG-2")==0)
   {
-    SelectInGroup(Menu1Buttons+2,Menu1Buttons+2,Menu1Buttons+2,1);
+    SelectInGroup(25 + 2, 25 + 2, 25 + 22, 1);
   }
 
   // Caption
@@ -3307,154 +3453,132 @@ void Start_Highlights_Menu2()
   printf("Value=%s %s\n",Value,"Caption");
   if(strcmp(Value,"on")==0)
   {
-    SelectInGroup(Menu1Buttons+3,Menu1Buttons+3,Menu1Buttons+3,1);
+    SelectInGroup(25 + 3, 25 + 3, 25 + 3, 1);
   }
   else
   {
-    SelectInGroup(Menu1Buttons+3,Menu1Buttons+3,Menu1Buttons+3,0);
+    SelectInGroup(25 + 3, 25 + 3, 25 + 3, 0);
   }
 }
 
 void Define_Menu3()
 {
+  int button;
   Menu3Buttons=21;
-  // Bottom row: Shutdown, Reboot, Info, rtl-tcp, siggen (Menu4?)
 
-	int button=AddButton(0*wbuttonsize+20,0+hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	color_t Col;
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Shutdown",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Shutdown",&Col);
+  color_t Green;
+  color_t Blue;
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Reboot ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Reboot ",&Col);
+  Green.r=0; Green.g=128; Green.b=0;
+  Blue.r=0; Blue.g=0; Blue.b=128;
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," Info  ",&Col);
-	//AddButtonStatus(button," Info  ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," Info  ",&Col);
+  strcpy(MenuTitle[3], "BATC Portsdown Transmitter Menu 3"); 
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"RTL-TCP",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"RTL-TCP",&Col);
+  // Bottom Row, Menu 3
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*0+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Sig Gen",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Sig Gen",&Col);
+  //button = CreateButton(3, 0);
+  //AddButtonStatus(button, "Shutdown", &Blue);
+  //AddButtonStatus(button, "Shutdown", &Green);
 
-// 2nd row up: Audio Mic, Audio Auto, Audio EC, PAL In, NTSC In
+  //button = CreateButton(3, 1);
+  //AddButtonStatus(button, "Reboot ", &Blue);
+  //AddButtonStatus(button, "Reboot ", &Green);
 
-	button=AddButton(0*wbuttonsize+20,0+hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," 92.9 FM",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," 92.9 FM",&Col);
+  button = CreateButton(3, 2);
+  AddButtonStatus(button, " Info  ", &Blue);
+  AddButtonStatus(button, " Info  ", &Green);
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"106.0 FM",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"106.0 FM",&Col);
+  button = CreateButton(3, 3);
+  AddButtonStatus(button, "RTL-TCP", &Blue);
+  AddButtonStatus(button, "RTL-TCP", &Green);
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"144.75 FM",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"144.75 FM",&Col);
+  button = CreateButton(3, 4);
+  AddButtonStatus(button, "Sig Gen", &Blue);
+  AddButtonStatus(button, "Sig Gen", &Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," GB3BF ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," GB3BF ",&Col);
+  // 2nd Row, Menu 3
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*1+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"145.8 FM ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"145.8 FM ",&Col);
+  button = CreateButton(3, 5);
+  AddButtonStatus(button, " 92.9 FM", &Blue);
+  AddButtonStatus(button, " 92.9 FM", &Green);
 
-// 3rd row up: Output to: IQ, Ugly, Express, BATC, COMPVID
+  button = CreateButton(3, 6);
+  AddButtonStatus(button, "106.0 FM", &Blue);
+  AddButtonStatus(button, "106.0 FM", &Green);
 
-	button=AddButton(0*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+  button = CreateButton(3, 7);
+  AddButtonStatus(button, "144.75 FM", &Blue);
+  AddButtonStatus(button, "144.75 FM", &Green);
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+  button = CreateButton(3, 8);
+  AddButtonStatus(button, " GB3BF ", &Blue);
+  AddButtonStatus(button, " GB3BF ", &Green);
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+  button = CreateButton(3, 9);
+  AddButtonStatus(button, "145.8 FM ", &Blue);
+  AddButtonStatus(button, "145.8 FM ", &Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+  // 3rd line up Menu 3:  Not displayed
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*2+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+  // button = CreateButton(3, 10);
+  // AddButtonStatus(button, "  IQ  ", &Blue);
+  // AddButtonStatus(button, "  IQ  ", &Green);
 
-// Top row, Snap, View and Check, Cal
+  // button = CreateButton(3, 11);
+  // AddButtonStatus(button, " Ugly  ", &Blue);
+  // AddButtonStatus(button, " Ugly  ", &Green);
 
-	button=AddButton(0*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," Snap  ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," Snap  ",&Col);
+  // button = CreateButton(3, 12);
+  // AddButtonStatus(button, "Express", &Blue);
+  // AddButtonStatus(button, "Express", &Green);
 
-	button=AddButton(1*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," View  ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," View  ",&Col);
+  // button = CreateButton(3, 13);
+  // AddButtonStatus(button, " BATC ", &Blue);
+  // AddButtonStatus(button, " BATC ", &Green);
 
-	button=AddButton(2*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," Check ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," Check ",&Col);
+  // button = CreateButton(3, 14);
+  // AddButtonStatus(button, "Vid Out", &Blue);
+  // AddButtonStatus(button, "Vid Out", &Green);
 
-	button=AddButton(3*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button,"Cal Tch",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button,"Cal Tch",&Col);
+  //SOURCE - 4th line up Menu 3: Snap, View and Check, Cal
 
-	button=AddButton(4*wbuttonsize+20,hbuttonsize*3+20,wbuttonsize*0.9,hbuttonsize*0.9);
-	Col.r=0;Col.g=0;Col.b=128;
-	AddButtonStatus(button," ",&Col);
-	Col.r=0;Col.g=128;Col.b=0;
-	AddButtonStatus(button," ",&Col);
+  button = CreateButton(3, 15);
+  AddButtonStatus(button, " Snap  ", &Blue);
+  AddButtonStatus(button, " Snap  ", &Green);
 
-// Single button to get back to Menu 1
+  button = CreateButton(3, 16);
+  AddButtonStatus(button, " View  ", &Blue);
+  AddButtonStatus(button, " View  ", &Green);
 
-        button=AddButton(4*wbuttonsize+20,hbuttonsize*4+20,wbuttonsize*0.9,hbuttonsize*1.2);
-        Col.r=0;Col.g=0;Col.b=128;
-        AddButtonStatus(button," M1  ",&Col);
-        Col.r=0;Col.g=128;Col.b=0;
-        AddButtonStatus(button," M1  ",&Col);
+  button = CreateButton(3, 17);
+  AddButtonStatus(button, " Check ", &Blue);
+  AddButtonStatus(button, " Check ", &Green);
+
+  button = CreateButton(3, 18);
+  AddButtonStatus(button, "Calibrate^  Touch  ", &Blue);
+  //AddButtonStatus(button, "Card MPEG2", &Green);
+
+  //button = CreateButton(3, 19);
+  //AddButtonStatus(button, " DTX-1 ", &Blue);
+  //AddButtonStatus(button, " DTX-1 ", &Green);
+
+  // Top of Menu 3
+
+  //button = CreateButton(3, 20);
+  //AddButtonStatus(button, " ", &Black);
+
+  //button = CreateButton(3, 21);
+  //AddButtonStatus(button, " ", &Black);
+
+  button = CreateButton(3, 22);
+  AddButtonStatus(button," M1  ",&Blue);
+  //AddButtonStatus(button," M1  ",&Green);
+
+  //button = CreateButton(3, 23);
+  //AddButtonStatus(button," M3  ",&Blue);
+  //AddButtonStatus(button," M3  ",&Green);
+  
+  IndexButtonInArray = 68;
 }
 
 void Start_Highlights_Menu3()
@@ -3589,10 +3713,15 @@ int main(int argc, char **argv)
   // Read in the touchscreen Calibration
   ReadTouchCal();
   
+  printf("Read in the presets from the Config file \n");
   // Read in the presets from the Config file
   ReadPresets();
 
+  // Initialise all the button Status Indexes to 0
+  InitialiseButtons();
+
   // Define the buttons for Menu 1
+  printf("Entering Define Menu 1 \n");
   Define_Menu1();
 
   // Define the buttons for Menu 2
@@ -3603,11 +3732,10 @@ int main(int argc, char **argv)
 
   // Start the button Menu
   Start(wscreen,hscreen);
-  IsDisplayOn=1;
 
   // Determine button highlights
   Start_Highlights_Menu1();
-
+  printf("Entering Update Window\n");  
   UpdateWindow();
   printf("Update Window\n");
 

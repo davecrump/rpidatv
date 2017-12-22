@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 201711030
+# Updated by davecrump 201712180
 
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
@@ -228,6 +228,7 @@ fi
 
 # Restore or update rpidatvconfig.txt for
 # 201701020 201701270 201702100 201707220
+# Note the optional addion of outputformat in 201712180
 if ! grep -q caption /home/pi/rpidatvconfig.txt; then
   # File needs updating
   printf "Adding new entries to user's rpidatvconfig.txt\n"

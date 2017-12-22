@@ -59,3 +59,4 @@ batcoutput=streamname
 streamurl=rtmp://tbd.batc.org.uk/foldername
 streamkey=keykey
 caption=on
+outputstandard=576

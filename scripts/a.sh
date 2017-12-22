@@ -1,7 +1,7 @@
 #! /bin/bash
 # set -x #Uncomment for testing
 
-# Version 201711270
+# Version 201712181
 
 ############# SET GLOBAL VARIABLES ####################
 
@@ -271,6 +271,8 @@ VNCADDR=$(get_config_var vncaddr $CONFIGFILE)
 
 AUDIO_PREF=$(get_config_var audio $CONFIGFILE)
 CAPTIONON=$(get_config_var caption $CONFIGFILE)
+OPSTD=$(get_config_var outputstandard $CONFIGFILE)
+LOCATOR=$(get_config_var locator $CONFIGFILE)
 
 OUTPUT_IP=""
 
@@ -289,6 +291,16 @@ if [ "$MODE_INPUT" != "CAMMPEG-2" ] && [ "$MODE_INPUT" != "ANALOGMPEG-2" ] \
   && [ "$MODE_INPUT" != "CAMHDMPEG-2" ] && [ "$MODE_INPUT" != "CARDMPEG-2" ]; then
   let PIDPMT=$PIDVIDEO-1
 fi
+########### Set 480p Output Format if compatible and required ###############
+
+let IMAGE_HEIGHT=576
+
+if [ "$MODE_INPUT" == "CAMMPEG-2" ] || [ "$MODE_INPUT" == "ANALOGMPEG-2" ]; then
+  # Set IMAGE_HEIGHT
+  if [ "$OPSTD" == "480" ]; then
+    let IMAGE_HEIGHT=480
+  fi
+fi 
 
 ######################### Pre-processing for each Output Mode ###############
 
@@ -368,7 +380,7 @@ case "$MODE_OUTPUT" in
       sleep 5
     fi
     # Set output for ffmpeg (avc2ts uses netcat to pipe output from videots)
-    OUTPUT="udp://127.0.0.1:1314?pkt_size=1316&buffer_size=1316"
+     OUTPUT="udp://127.0.0.1:1314?pkt_size=1316&buffer_size=1316"
     FREQUENCY_OUT=0  # Not used in this mode?
     # Calculate output freq in Hz using floating point
     FREQ_OUTPUTHZ=`echo - | awk '{print '$FREQ_OUTPUT' * 1000000}'`
@@ -462,7 +474,7 @@ else
       VIDEO_HEIGHT=288
     else
       VIDEO_WIDTH=720
-      VIDEO_HEIGHT=576
+      VIDEO_HEIGHT=$IMAGE_HEIGHT
     fi
   fi
 
@@ -470,7 +482,12 @@ else
   if [ "$BITRATE_VIDEO" -lt 300000 ]; then
     VIDEO_FPS=15
   else
-    VIDEO_FPS=25
+    # Switch to 30 fps if required
+    if [ "$IMAGE_HEIGHT" == "480" ]; then
+      VIDEO_FPS=30
+    else
+      VIDEO_FPS=25
+    fi
   fi
 fi
 
@@ -544,24 +561,38 @@ case "$MODE_INPUT" in
   "CAMMPEG-2"|"CAMHDMPEG-2")
 
 # Set up the command for the MPEG-2 Callsign caption
-
 # Note that spaces are not allowed in the CAPTION string below!
-if [ "$CAPTIONON" == "on" ]; then
-  CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf:\
+
+# Put caption at the bottom of the screen with locator for US users
+if [ "$IMAGE_HEIGHT" == "480" ]; then
+  if [ "$CAPTIONON" == "on" ]; then
+    CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf:\
+text=$CALL-$LOCATOR:fontcolor=white:fontsize=36:box=1:boxcolor=black@0.5:boxborderw=5:\
+x=(w/2-(text_w/2)):y=(h-text_h-40)"
+    VF="-vf "
+  else
+    CAPTION=""
+    VF=""    
+  fi
+else
+  if [ "$CAPTIONON" == "on" ]; then
+    CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf:\
 text=$CALL:fontcolor=white:fontsize=36:box=1:boxcolor=black@0.5:boxborderw=5:\
 x=(w/2-w/8-text_w)/2:y=(h/4-text_h)/2"
-  VF="-vf "
-else
-  CAPTION=""
-  VF=""    
+    VF="-vf "
+  else
+    CAPTION=""
+    VF=""    
+  fi
 fi
 
     # Size the viewfinder and load the Camera driver
-#    let OVERLAY_VIDEO_WIDTH=$VIDEO_WIDTH-64
-#    let OVERLAY_VIDEO_HEIGHT=$VIDEO_HEIGHT-64
-    v4l2-ctl --get-fmt-overlay
-    v4l2-ctl --set-fmt-video=width=$VIDEO_WIDTH,height=$VIDEO_HEIGHT,pixelformat=0
-#    v4l2-ctl --set-fmt-overlay=left=0,top=0,width=$OVERLAY_VIDEO_WIDTH,height=$OVERLAY_VIDEO_HEIGHT
+    # let OVERLAY_VIDEO_WIDTH=$VIDEO_WIDTH-64
+    # let OVERLAY_VIDEO_HEIGHT=$VIDEO_HEIGHT-64
+
+    # v4l2-ctl --set-fmt-video=width=$VIDEO_WIDTH,height=$VIDEO_HEIGHT,pixelformat=0
+
+    # v4l2-ctl --set-fmt-overlay=left=0,top=0,width=736,height=416 # Hardcode for 800x480 framebuffer
     v4l2-ctl --set-fmt-overlay=left=0,top=0,width=656,height=512 # Hardcode for 720x576 framebuffer
     v4l2-ctl -p $VIDEO_FPS
 
@@ -923,7 +954,8 @@ fi
         sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC &
       ;;
       "DATVEXPRESS")
-        nice -n -30 nc -u -4 127.0.0.1 1314 < videots &
+        echo "set ptt tx" >> /tmp/expctrl
+        sudo nice -n -30 nc -u -4 127.0.0.1 1314 < videots &
       ;;
       "COMPVID")
         : # Do nothing.  Mode does not work yet
@@ -1045,12 +1077,24 @@ fi
     v4l2-ctl --overlay=0
 
     # Set up the command for the MPEG-2 Callsign caption
-    if [ "$CAPTIONON" == "on" ]; then
-      CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf: \
-        text=\'$CALL\': fontcolor=white: fontsize=36: box=1: boxcolor=black@0.5: \
-        boxborderw=5: x=(w/2-w/8-text_w)/2: y=(h/4-text_h)/2, "
+    # Put caption at the bottom of the screen with locator for US users
+    if [ "$IMAGE_HEIGHT" == "480" ]; then
+      if [ "$CAPTIONON" == "on" ]; then
+        CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf: \
+          text=\'$CALL-$LOCATOR\': fontcolor=white: fontsize=36: box=1: boxcolor=black@0.5: \
+          boxborderw=5:
+        x=(w/2-(text_w/2)): y=(h-text_h-40), "
+      else
+        CAPTION=""
+      fi
     else
-      CAPTION=""    
+      if [ "$CAPTIONON" == "on" ]; then
+        CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf: \
+          text=\'$CALL\': fontcolor=white: fontsize=36: box=1: boxcolor=black@0.5: \
+          boxborderw=5: x=(w/2-w/8-text_w)/2: y=(h/4-text_h)/2, "
+      else
+        CAPTION=""    
+      fi
     fi
 
     # Set the EasyCap input and PAL/NTSC standard
@@ -1220,7 +1264,7 @@ fi
         if [ "$AUDIO_CARD" == 0 ]; then
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG\
             -f image2 -loop 1 \
-            -i /home/pi/rpidatv/video/tcf.jpg \
+            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
             $VF $CAPTION \
             \
@@ -1228,7 +1272,7 @@ fi
         else
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
             -f image2 -loop 1 \
-            -i /home/pi/rpidatv/video/tcf.jpg \
+            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
             \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
@@ -1244,7 +1288,7 @@ fi
         if [ "$AUDIO_CARD" == 0 ]; then
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
             -f image2 -loop 1 \
-            -i /home/pi/rpidatv/video/tcf.jpg \
+            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
             $VF $CAPTION \
             \
@@ -1252,7 +1296,7 @@ fi
         else
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
            -f image2 -loop 1 \
-            -i /home/pi/rpidatv/video/tcf.jpg \
+            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
             \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
@@ -1271,7 +1315,7 @@ fi
           sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
             -f image2 -loop 1 \
             -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
-            -i /home/pi/rpidatv/video/tcf.jpg \
+            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
             \
             $VF $CAPTION -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
             -f mpegts  -blocksize 1880 \
@@ -1288,7 +1332,7 @@ fi
           sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
             -f image2 -loop 1 \
             -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
-            -i /home/pi/rpidatv/video/tcf.jpg \
+            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
             \
             -f lavfi -ac 1 \
             -i "sine=frequency=500:beep_factor=4:sample_rate=44100:duration=0" \
@@ -1311,7 +1355,7 @@ fi
           sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET"\
             -f image2 -loop 1 \
             -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
-            -i /home/pi/rpidatv/video/tcf.jpg \
+            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
             \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
