@@ -920,6 +920,7 @@ do_display_setup()
   Radio4=OFF
   Radio5=OFF
   Radio6=OFF
+  Radio7=OFF
   case "$MODE_DISPLAY" in
   Tontec35)
     Radio1=ON
@@ -939,6 +940,9 @@ do_display_setup()
   Console)
     Radio6=ON
   ;;
+  Element14_7)
+    Radio7=ON
+  ;;
   *)
     Radio1=ON
   ;;		
@@ -952,6 +956,7 @@ do_display_setup()
     "WaveshareB" "$DisplaySetupRpiBLCD" $Radio4 \
     "Waveshare4" "$DisplaySetupRpi4LCD" $Radio5 \
     "Console" "$DisplaySetupConsole" $Radio6 \
+    "Element14_7" "Element 14 RPi 7 inch Display" $Radio7 \
  	 3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then                     ## If the selection has changed
@@ -973,12 +978,13 @@ do_display_setup()
     fi
 
     case "$chdisplay" in              ## Select the correct driver text
-      Tontec35)  INSERTFILE=$PATHCONFIGS"/tontec35.txt" ;; ## Message to be added
+      Tontec35)  INSERTFILE=$PATHCONFIGS"/tontec35.txt" ;;
       HDMITouch) INSERTFILE=$PATHCONFIGS"/hdmitouch.txt" ;;
       Waveshare) INSERTFILE=$PATHCONFIGS"/waveshare.txt" ;;
       WaveshareB) INSERTFILE=$PATHCONFIGS"/waveshareb.txt" ;;
       Waveshare4) INSERTFILE=$PATHCONFIGS"/waveshare.txt" ;;
       Console)   INSERTFILE=$PATHCONFIGS"/console.txt" ;;
+      Element14_7)  INSERTFILE=$PATHCONFIGS"/tontec35.txt" ;;
     esac
 
     ## Replace whatever is between the markers with the driver text
@@ -987,6 +993,18 @@ do_display_setup()
 
     sudo cp "$TRANSFILE" "$CHANGEFILE"          ## Copy from the transfer file
     rm $TRANSFILE                               ## Delete the transfer file
+
+    ## Set the correct touchscreen map for FreqShow
+    sudo rm /etc/pointercal                     ## Delete the old file
+    case "$chdisplay" in                        ## Insert the new file
+      Tontec35)  sudo cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_pointercal /etc/pointercal ;;
+      HDMITouch) sudo cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_pointercal /etc/pointercal ;;
+      Waveshare) sudo cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_pointercal /etc/pointercal ;;
+      WaveshareB) sudo cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_pointercal /etc/pointercal ;;
+      Waveshare4) sudo cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare4_pointercal /etc/pointercal ;;
+      Console)   sudo cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_pointercal /etc/pointercal ;;
+      Element14_7)  sudo cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_pointercal /etc/pointercal ;;
+    esac
 
     set_config_var display "$chdisplay" $CONFIGFILE
   fi
@@ -1750,7 +1768,7 @@ do_TouchScreen()
   reset
   sudo killall fbcp >/dev/null 2>/dev/null
   fbcp &
-  /home/pi/rpidatv/bin/rpidatvgui
+  /home/pi/rpidatv/scripts/scheduler.sh
 }
 
 do_KTransmit()

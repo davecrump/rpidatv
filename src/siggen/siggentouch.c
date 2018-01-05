@@ -880,7 +880,7 @@ void TransformTouchMap(int x, int y)
   factorY=-0.3;  // expand or contract vertical button space.  Screen is 8.53125 high
 
   // Switch axes for normal and waveshare displays
-  if(Inversed==0) //TonTec
+  if(Inversed==0) // Tontec35 or Element14_7
   {
     scaledX = x/scaleXvalue;
     scaledY = hscreen-y/scaleYvalue;
@@ -2421,7 +2421,7 @@ int main(int argc, char **argv)
 
   // Program flow only gets here when exit button pushed
   // Start the Portsdown DATV TX and exit
-  system("(sleep .5 && /home/pi/rpidatv/bin/rpidatvgui) &");
+  //system("(sleep .5 && /home/pi/rpidatv/bin/rpidatvgui) &");
 
   //Tidy up the terminal
   char Commnd[255];
@@ -2430,5 +2430,6 @@ int main(int argc, char **argv)
   sprintf(Commnd,"reset");
   system(Commnd);
 
-  exit(0);
+  // Exit with code 129, so that the scheduler restarts rpidatvgui
+  exit(129);
 }
