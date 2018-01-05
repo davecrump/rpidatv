@@ -7,7 +7,6 @@ modeoutput=QPSKRF
 tsvideofile=/home/pi/rpidatv/video/imz-10.jpg
 call=BATC
 paternfile=/home/pi/rpidatv/video
-udpinaddr=230.0.0.2
 pidvideo=256
 pidpmt=255
 serviceid=1

@@ -273,6 +273,7 @@ AUDIO_PREF=$(get_config_var audio $CONFIGFILE)
 CAPTIONON=$(get_config_var caption $CONFIGFILE)
 OPSTD=$(get_config_var outputstandard $CONFIGFILE)
 LOCATOR=$(get_config_var locator $CONFIGFILE)
+DISPLAY=$(get_config_var display $CONFIGFILE)
 
 OUTPUT_IP=""
 
@@ -415,8 +416,10 @@ case "$MODE_OUTPUT" in
 
   IP)
     FREQUENCY_OUT=0
+    # Set Output parameters for H264 (avc2ts) modes:
     OUTPUT_IP="-n"$UDPOUTADDR":10000"
-    #GAIN=0
+    # Set Output parameters for MPEG-2 (ffmpeg) modes:
+    OUTPUT="udp://"$UDPOUTADDR":10000?pkt_size=1316&buffer_size=1316" # Try this
   ;;
 
   COMPVID)
@@ -586,14 +589,12 @@ x=(w/2-w/8-text_w)/2:y=(h/4-text_h)/2"
   fi
 fi
 
-    # Size the viewfinder and load the Camera driver
-    # let OVERLAY_VIDEO_WIDTH=$VIDEO_WIDTH-64
-    # let OVERLAY_VIDEO_HEIGHT=$VIDEO_HEIGHT-64
-
-    # v4l2-ctl --set-fmt-video=width=$VIDEO_WIDTH,height=$VIDEO_HEIGHT,pixelformat=0
-
-    # v4l2-ctl --set-fmt-overlay=left=0,top=0,width=736,height=416 # Hardcode for 800x480 framebuffer
-    v4l2-ctl --set-fmt-overlay=left=0,top=0,width=656,height=512 # Hardcode for 720x576 framebuffer
+    # Size the viewfinder
+    if [ "$DISPLAY" == "Element14_7" ]; then
+      v4l2-ctl --set-fmt-overlay=left=0,top=0,width=736,height=416 # For 800x480 framebuffer
+    else
+      v4l2-ctl --set-fmt-overlay=left=0,top=0,width=656,height=512 # For 720x576 framebuffer
+    fi
     v4l2-ctl -p $VIDEO_FPS
 
     # If sound arrives first, decrease the numeric number to delay it

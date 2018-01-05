@@ -166,8 +166,8 @@ set_config_var call "$TRANSFER" $NEWCONFIGFILE
 TRANSFER=$(get_config_var paternfile $OLDCONFIGFILE)
 set_config_var paternfile "$TRANSFER" $NEWCONFIGFILE
 
-TRANSFER=$(get_config_var udpinaddr $OLDCONFIGFILE)
-set_config_var udpinaddr "$TRANSFER" $NEWCONFIGFILE
+# TRANSFER=$(get_config_var udpinaddr $OLDCONFIGFILE)  No longer used
+# set_config_var udpinaddr "$TRANSFER" $NEWCONFIGFILE
 
 TRANSFER=$(get_config_var pidvideo $OLDCONFIGFILE)
 set_config_var pidvideo "$TRANSFER" $NEWCONFIGFILE

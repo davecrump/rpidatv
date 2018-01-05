@@ -153,6 +153,25 @@ if [ "$RESULT" -eq 0 ]; then
 # replace usbtv with your EasyCap driver name
 fi
 
+# Map the touchscreen event to /dev/input/touchscreen
+
+sudo rm /dev/input/touchscreen >/dev/null 2>/dev/null
+cat /proc/bus/input/devices | grep 'H: Handlers=mouse0 event0' >/dev/null 2>/dev/null
+RESULT="$?"
+if [ "$RESULT" -eq 0 ]; then
+  sudo ln /dev/input/event0 /dev/input/touchscreen
+fi
+cat /proc/bus/input/devices | grep 'H: Handlers=mouse0 event1' >/dev/null 2>/dev/null
+RESULT="$?"
+if [ "$RESULT" -eq 0 ]; then
+  sudo ln /dev/input/event1 /dev/input/touchscreen
+fi
+cat /proc/bus/input/devices | grep 'H: Handlers=mouse0 event2' >/dev/null 2>/dev/null
+RESULT="$?"
+if [ "$RESULT" -eq 0 ]; then
+  sudo ln /dev/input/event2 /dev/input/touchscreen
+fi
+
 # Read the desired start-up behaviour
 MODE_STARTUP=$(get_config_var startup $CONFIGFILE)
 
@@ -201,8 +220,8 @@ case "$MODE_STARTUP" in
         sleep 5                # Give it time to start
       fi
     fi
-    # Start the Touchscreen
-    /home/pi/rpidatv/bin/rpidatvgui
+    # Start the Touchscreen Scheduler
+    source /home/pi/rpidatv/scripts/scheduler.sh
     return
   ;;
   TestRig_boot)

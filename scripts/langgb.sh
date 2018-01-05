@@ -46,10 +46,9 @@ StrOutputSetupBATC="Stream to BATC.TV"
 StrOutputSetupDigithin="Use Digithin Modulator Card"
 StrOutputSetupDTX1="Use DTX1 TS Extender Card"
 StrOutputSetupDATVExpress="Use DATV Express connected by USB"
-
-StrOutputSetupIP="Transmit on IP network"
-StrOutputSetupIPTSOUTName="IP address: 230.0.0.1 for example"
-StrOutputSetupIPTSOUTTitle="Output network setup"
+StrOutputSetupIP="Transmit UDP Transport Stream across IP network"
+StrOutputSetupIPTSOUTName="Destination IP address: 192.168.2.110 for example"
+StrOutputSetupIPTSOUTTitle="Destination IP setup"
 
 StrOutputRFFreqContext="Output frequency(MHZ)"
 StrOutputRFFreqTitle="RF Frequency"

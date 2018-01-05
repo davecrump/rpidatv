@@ -1,14 +1,29 @@
-//
-// shapedemo: testbed for OpenVG APIs
-// Anthony Starks (ajstarks@gmail.com)
+// rpidatvtouch.c
+/*
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+  shapedemo: testbed for OpenVG APIs
+  by Anthony Starks (ajstarks@gmail.com)
+
+  Initial code by Evariste F5OEO
+  Rewitten by Dave, G8GKQ
+*/
 //
 #include <linux/input.h>
 #include <string.h>
-
 #include "touch.h"
-
 #include <signal.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -59,17 +74,11 @@ typedef struct {
 
 // 	int LastEventTime; Was part of button_t.  No longer used
 
-
 #define MAX_BUTTON 300
 int IndexButtonInArray=0;
 button_t ButtonArray[MAX_BUTTON];
 #define TIME_ANTI_BOUNCE 500
 int CurrentMenu=1;
-int Menu1Buttons=0;
-int Menu2Buttons=0;
-int Menu3Buttons=0;
-int Menu4Buttons=0;
-
 
 //GLOBAL PARAMETERS
 
@@ -1033,7 +1042,7 @@ void TransformTouchMap(int x, int y)
   factorY=-0.3;  // expand or contract vertical button space.  Screen is 8.53125 high
 
   // Switch axes for normal and waveshare displays
-  if(Inversed==0) //TonTec
+  if(Inversed==0) // Tontec35 or Element14_7
   {
     scaledX = x/scaleXvalue;
     scaledY = hscreen-y/scaleYvalue;
@@ -2575,6 +2584,20 @@ void do_snapcheck()
   UpdateWindow();
 }
 
+static void cleanexit(int exit_code)
+{
+  TransmitStop();
+  ReceiveStop();
+  finish();
+  printf("Clean Exit Code %d\n", exit_code);
+  char Commnd[255];
+  sprintf(Commnd,"stty echo");
+  system(Commnd);
+  sprintf(Commnd,"reset");
+  system(Commnd);
+  exit(exit_code);
+}
+
 void waituntil(int w,int h)
 {
   // Wait for a screen touch and act on its position
@@ -2897,11 +2920,21 @@ void waituntil(int w,int h)
         printf("Button Event %d, Entering Menu 2 Case Statement\n",i);
         switch (i)
         {
-        case 0:                               // Blank
-          ;
+        case 0:                               // Exit to Linux (debug only)
+          // cleanexit(128);
           break;
-        case 1:                               // Blank
-          ;
+        case 1:                               // Select FreqShow
+          if(CheckRTL()==0)
+          {
+            cleanexit(131);
+          }
+          else
+          {
+            MsgBox("No RTL-SDR Connected");
+            wait_touch();
+          }
+          BackgroundRGB(0,0,0,255);
+          UpdateWindow();
           break;
         case 2:                               // Display Info Page
           InfoScreen();
@@ -2914,6 +2947,9 @@ void waituntil(int w,int h)
           UpdateWindow();
           break;
         case 4:                               // Start Sig Gen and Exit
+          cleanexit(130);
+          break;
+          /*
           finish();
           system("(sleep .5 && /home/pi/rpidatv/bin/siggen) &");
           char Commnd[255];
@@ -2922,6 +2958,7 @@ void waituntil(int w,int h)
           sprintf(Commnd,"reset");
           system(Commnd);
           exit(0);
+          */
         case 5:                              // RTL Radio 1
           rtlradio1();
           BackgroundRGB(0,0,0,255);
@@ -3107,7 +3144,6 @@ void Start_Highlights_Menu1()
 
 void Define_Menu1()
 {
-  Menu1Buttons=23;
   int button = 0;
   color_t Green;
   color_t Blue;
@@ -3226,8 +3262,6 @@ void Define_Menu1()
 void Define_Menu2()
 {
   int button;
-  Menu2Buttons=24;
-
   color_t Green;
   color_t Blue;
   color_t Black;
@@ -3256,8 +3290,8 @@ void Define_Menu2()
   AddButtonStatus(button, "Caption", &Blue);
   AddButtonStatus(button, "Caption", &Green);
 
-  button = CreateButton(2, 4);
-  AddButtonStatus(button, " ", &Blue);
+  //button = CreateButton(2, 4);
+  //AddButtonStatus(button, " ", &Blue);
   //AddButtonStatus(button, " Menu 3", &Green);
 
   // 2nd Row, Menu 2
@@ -3443,7 +3477,7 @@ void Start_Highlights_Menu2()
   }
   if(strcmp(Value,"CAMHDMPEG-2")==0)
   {
-    SelectInGroup(25 + 2, 25 + 2, 25 + 22, 1);
+    SelectInGroup(25 + 2, 25 + 2, 25 + 2, 1);
   }
 
   // Caption
@@ -3464,8 +3498,6 @@ void Start_Highlights_Menu2()
 void Define_Menu3()
 {
   int button;
-  Menu3Buttons=21;
-
   color_t Green;
   color_t Blue;
 
@@ -3476,13 +3508,11 @@ void Define_Menu3()
 
   // Bottom Row, Menu 3
 
-  //button = CreateButton(3, 0);
-  //AddButtonStatus(button, "Shutdown", &Blue);
-  //AddButtonStatus(button, "Shutdown", &Green);
+  // button = CreateButton(3, 0);
+  // AddButtonStatus(button, "  Clean ^  Exit  ", &Blue);
 
-  //button = CreateButton(3, 1);
-  //AddButtonStatus(button, "Reboot ", &Blue);
-  //AddButtonStatus(button, "Reboot ", &Green);
+  button = CreateButton(3, 1);
+  AddButtonStatus(button, "FreqShow^Spectrum", &Blue);
 
   button = CreateButton(3, 2);
   AddButtonStatus(button, " Info  ", &Blue);
@@ -3578,7 +3608,7 @@ void Define_Menu3()
   //AddButtonStatus(button," M3  ",&Blue);
   //AddButtonStatus(button," M3  ",&Green);
   
-  IndexButtonInArray = 68;
+//  IndexButtonInArray = 68;
 }
 
 void Start_Highlights_Menu3()

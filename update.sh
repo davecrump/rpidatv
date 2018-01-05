@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 201712180
-
+# Updated by davecrump 201801011
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
 # rpidatv, rpidatvgui avc2ts and adf4351
@@ -297,14 +296,44 @@ make
 sudo make install
 cd /home/pi
 
-# Restore the user's original siggencal.txt if required (uncomment after 201710280)
-#if [ -f "/home/pi/siggencal.txt" ]; then
-#  cp -f -r /home/pi/siggencal.txt /home/pi/rpidatv/src/siggen/siggencal.txt
-#fi
+# Restore the user's original siggencal.txt if required (uncommented after 201710280)
+if [ -f "/home/pi/siggencal.txt" ]; then
+  cp -f -r /home/pi/siggencal.txt /home/pi/rpidatv/src/siggen/siggencal.txt
+fi
 
 # Restore the user's original touchcal.txt if required (201711030)
 if [ -f "/home/pi/touchcal.txt" ]; then
   cp -f -r /home/pi/touchcal.txt /home/pi/rpidatv/scripts/touchcal.txt
+fi
+
+# Either install FreqShow, or downgrade sdl so that it works (20180101)
+if [ -f "/home/pi/FreqShow/LICENSE" ]; then
+  # Freqshow has already been installed, so downgrade the sdl version
+  sudo dpkg -i /home/pi/rpidatv/scripts/configs/freqshow/libsdl1.2debian_1.2.15-5_armhf.deb
+  # Delete the old FreqShow version
+  rm -fr /home/pi/FreqShow/
+  # Download FreqShow
+  git clone https://github.com/adafruit/FreqShow.git
+  # Change the settings for our environment
+  rm /home/pi/FreqShow/freqshow.py
+  cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_freqshow.py /home/pi/FreqShow/freqshow.py
+  rm /home/pi/FreqShow/model.py
+  cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_146_model.py /home/pi/FreqShow/model.py
+else
+  # Start the install from scratch
+  sudo apt-get -y install python-pip pandoc python-numpy pandoc python-pygame gdebi-core
+  sudo pip install pyrtlsdr
+  # Load the old (1.2.15-5) version of sdl.  Later versions do not work
+  sudo gdebi --non-interactive /home/pi/rpidatv/scripts/configs/freqshow/libsdl1.2debian_1.2.15-5_armhf.deb
+  # Load touchscreen configuration
+  sudo cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_pointercal /etc/pointercal
+  # Download FreqShow
+  git clone https://github.com/adafruit/FreqShow.git
+  # Change the settings for our environment
+  rm /home/pi/FreqShow/freqshow.py
+  cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_freqshow.py /home/pi/FreqShow/freqshow.py
+  rm /home/pi/FreqShow/model.py
+  cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_146_model.py /home/pi/FreqShow/model.py
 fi
 
 # Update the version number

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump on 20171008
+# Updated by davecrump on 20180101
 
 # Update the package manager
 sudo dpkg --configure -a
@@ -20,10 +20,9 @@ sudo apt-get -y install cmake libusb-1.0-0-dev g++ libx11-dev buffer libjpeg-dev
 sudo apt-get -y install fbi netcat imagemagick
 sudo apt-get -y install libvdpau-dev libva-dev   # 201706300 for latest ffmpeg build
 sudo apt-get -y install htop  # 201710080 To allow load monitoring by users
+sudo apt-get -y install python-pip pandoc python-numpy pandoc python-pygame gdebi-core # 20180101 FreqShow
 
-# rpi-update to get latest firmware
-# Disabled until rpi-4.9.y kernel issues resolved
-# sudo rpi-update
+sudo pip install pyrtlsdr  #20180101 FreqShow
 
 cd /home/pi
 
@@ -242,6 +241,19 @@ make clean
 make
 sudo make install
 cd /home/pi
+
+# Install FreqShow (see https://learn.adafruit.com/freq-show-raspberry-pi-rtl-sdr-scanner/overview)
+# First load the old (1.2.15-5) version of sdl.  Later versions do not work (20180101)
+sudo gdebi --non-interactive /home/pi/rpidatv/scripts/configs/freqshow/libsdl1.2debian_1.2.15-5_armhf.deb
+# Load touchscreen configuration
+sudo cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_pointercal /etc/pointercal
+# Download FreqShow
+git clone https://github.com/adafruit/FreqShow.git
+# Change the settings for our environment
+rm /home/pi/FreqShow/freqshow.py
+cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_freqshow.py /home/pi/FreqShow/freqshow.py
+rm /home/pi/FreqShow/model.py
+cp /home/pi/rpidatv/scripts/configs/freqshow/waveshare_146_model.py /home/pi/FreqShow/model.py
 
 # Record Version Number
 cd /home/pi/rpidatv/scripts/
