@@ -52,9 +52,6 @@ sudo apt-get -y install libvdpau-dev libva-dev
 # Check that htop is installed (201710080)
 sudo apt-get -y install htop
 
-# Check that Python is installed for FreqShow
-sudo apt-get -y install python-pip pandoc python-numpy pandoc python-pygame gdebi-core
-
 #  Delete the duplicate touchscreen driver if it is still there (201704030)
 cd /boot
 sudo sed -i '/dtoverlay=ads7846/d' config.txt
