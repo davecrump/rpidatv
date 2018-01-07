@@ -1110,6 +1110,44 @@ do_audio_switch()
   fi
 }
 
+do_attenuator()
+{
+  ATTEN=$(get_config_var attenuator $CONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  Radio3=OFF
+  Radio4=OFF
+  case "$ATTEN" in
+  NONE)
+    Radio1=ON
+  ;;
+  PE4312)
+    Radio2=ON
+  ;;
+  PE43713)
+    Radio3=ON
+  ;;
+  HMC1119)
+    Radio4=ON
+  ;;
+  *)
+    Radio1=ON
+  ;;
+  esac
+
+  ATTEN=$(whiptail --title "SELECT OUTPUT ATTENUATOR TYPE" --radiolist \
+    "Select one" 20 78 4 \
+    "NONE" "No Output Attenuator in Circuit" $Radio1 \
+    "PE4312" "PE4302 or PE4312 Attenuator in Use" $Radio2 \
+    "PE43713" "PE43703 or PE43713 Attenuator in Use" $Radio3 \
+    "HMC1119" "HMC1119 Attenuator in Use" $Radio4 \
+    3>&2 2>&1 1>&3)
+
+  if [ $? -eq 0 ]; then                     ## If the selection has changed
+    set_config_var attenuator "$ATTEN" $CONFIGFILE
+  fi
+}
+
 do_Update()
 {
 reset
@@ -1647,7 +1685,7 @@ do_beta()
 
 do_system_setup()
 {
-menuchoice=$(whiptail --title "$StrSystemTitle" --menu "$StrSystemContext" 16 78 9 \
+menuchoice=$(whiptail --title "$StrSystemTitle" --menu "$StrSystemContext" 16 78 10 \
     "1 Autostart" "$StrAutostartMenu"  \
     "2 Display" "$StrDisplayMenu" \
     "3 Show IP" "$StrIPMenu" \
@@ -1656,7 +1694,8 @@ menuchoice=$(whiptail --title "$StrSystemTitle" --menu "$StrSystemContext" 16 78
     "6 Enable DigiThin" "Not Implemented Yet" \
     "7 Set-up EasyCap" "Set input socket and PAL/NTSC"  \
     "8 Audio Input" "Select USB Dongle or EasyCap"  \
-    "9 Update" "Check for Updated rpidatv Software"  \
+    "9 Attenuator" "Select Output Attenuator Type"  \
+    "10 Update" "Check for Updated rpidatv Software"  \
     3>&2 2>&1 1>&3)
     case "$menuchoice" in
         1\ *) do_autostart_setup ;;
@@ -1667,7 +1706,8 @@ menuchoice=$(whiptail --title "$StrSystemTitle" --menu "$StrSystemContext" 16 78
         6\ *) do_Enable_DigiThin ;;
         7\ *) do_EasyCap ;;
         8\ *) do_audio_switch;;
-        9\ *) do_Update ;;
+        9\ *) do_attenuator;;
+        10\ *) do_Update ;;
      esac
 }
 

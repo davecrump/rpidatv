@@ -33,6 +33,7 @@
 #define PATH_CONFIG_PORTSDOWN "/home/pi/rpidatv/scripts/rpidatvconfig.txt"
 #define PATH_CAL "/home/pi/rpidatv/src/siggen/siggencal.txt"
 #define PATH_TOUCHCAL "/home/pi/rpidatv/scripts/touchcal.txt"
+#define PATH_ATTEN "/home/pi/rpidatv/bin/set_attenuator "
 
 int fd=0;
 int wscreen, hscreen;
@@ -81,8 +82,8 @@ float CalFactorY = 1.0;
 int64_t DisplayFreq = 437000000;  // Input freq and display freq are the same
 int DisplayLevel = 987;           // calculated for display from (LO) level, atten and freq
 char osctxt[255]="portsdown";     // current source
-int level;                        // current LO level.  Raw data
-int atten;                        // current atten level.  Raw data (0.25 dB steps
+int level;                        // current LO level.  Raw data 0-3 for ADF, 0 - 50 for Exp
+float atten = 31.5;               // current atten level.  Raw data (0 - 31.75) 0.25 dB steps
 
 
 char ref_freq_4351[255] = "25000000";        // read on startup from rpidatvconfig.txt
@@ -95,7 +96,7 @@ int OutputStatus = 0;                        // 0 = off, 1 = on
 int PresetStoreTrigger = 0;                  // 0 = normal, 1 = next press should be preset
 int ModOn = 0;                               // 0 =  modulation off, 1 = modulation on
 int AttenIn = 0;                             // 0 = No attenuator, 1 = attenuator in circuit
-char AttenType[256] = "PE43703";             // or PE4302
+char AttenType[256] = "PE43703";             // or PE4302 (0.5 dB steps) or HMC1119 (0.25dB) or NONE
 
 // Titles for presets in file
 // [0] is the start-up condition. [1] - [4 ] are the presets
@@ -322,9 +323,10 @@ void ReadPresets()
   strcpy (ref_freq_5355, Value);
 
   // Read Attenuator Type
-  strcpy(Param, "attentype");
-  GetConfigParam(PATH_CAL,Param,Value);
-  strcpy (AttenType, Value);
+  //strcpy(Param, "attentype");
+  //GetConfigParam(PATH_CAL,Param,Value);
+  //strcpy (AttenType, Value);
+  // Now read from rpidatvconfig.txt
 }
 
 void ShowFreq(uint64_t DisplayFreq)
@@ -516,7 +518,7 @@ void ShowTitle()
   VGfloat tw;
 
   // Display Text
-  tw = TextWidth("BATC Portsdown Information Screen", font, pointsize);
+  tw = TextWidth("BATC Portsdown Signal Generator", font, pointsize);
   Text(wscreen / 2.0 - (tw / 2.0), hscreen - linenumber * linepitch, "BATC Portsdown Signal Generator", font, pointsize);
 }
 
@@ -677,8 +679,9 @@ void CalcOPLevel()
   int PointAbove = 0;
   int n = 0;
   float proportion;
+  float MinAtten;
 
-  // Calculate output level from Osc based on Cal and frequency
+  // Calculate output level from Osc based on Cal and frequency *********************
 
   while ((PointAbove == 0) && (n <= 100))
   {
@@ -702,7 +705,7 @@ void CalcOPLevel()
     DisplayLevel = CalLevel[PointBelow] + (CalLevel[PointAbove] - CalLevel[PointBelow]) * proportion;
   }
 
-// Now correct for set oscillator level
+  // Now correct for set oscillator level ******************************************
 
   if (strcmp(osctxt, "audio")==0)
   {
@@ -735,24 +738,39 @@ void CalcOPLevel()
     DisplayLevel=0;
   }
 
+  // Now apply attenuation *********************************************************************
   if (AttenIn == 1)
   {
-    if (strcmp(AttenType, "PE4302")==0)
+    if (strcmp(AttenType, "PE4312")==0)
     {
-      DisplayLevel=DisplayLevel-5*atten;
+      MinAtten = 1.8;
+      DisplayLevel=round((float)DisplayLevel-10*atten-10*MinAtten);
     }
-    if (strcmp(AttenType, "PE43703")==0)
+    if (strcmp(AttenType, "PE43713")==0)
     {
-      DisplayLevel=DisplayLevel-5*atten/2;
+      MinAtten = 1.8;
+      DisplayLevel=round((float)DisplayLevel-10*atten-10*MinAtten);
+    }
+    if (strcmp(AttenType, "HMC1119")==0)
+    {
+      MinAtten = 1.8;
+      DisplayLevel=round((float)DisplayLevel-10*atten-10*MinAtten);
     }
   }
   printf("DisplayLevel = %d \n", DisplayLevel);
 }
 
-void SetAtten()
+void SetAtten(float AttenValue)
 {
-  // This function will send the attenuator command to the attenuator
-  ;
+  // This sets the attenuator to AttenValue
+  char AttenCmd[255];
+  char AttenSet[255];
+  snprintf(AttenSet, 7, " %.2f", AttenValue);
+  strcpy(AttenCmd, PATH_ATTEN);
+  strcat(AttenCmd, AttenType);
+  strcat(AttenCmd, AttenSet);
+  printf("%s\n", AttenCmd);
+  system(AttenCmd);  
 }
 
 void AdjustLevel(int Button)
@@ -801,9 +819,64 @@ void AdjustLevel(int Button)
     }
     else
     {
-      ;  // code for attenuator here
+      if (strcmp(osctxt, "portsdown")==0)  // portsdown attenuator behaviour here
+      {
+        if (Button == (Menu1Buttons + 0))  // decrement level by 10 dB
+        {
+          atten = atten + 10.0;
+        }
+        if (Button == (Menu1Buttons + 1))  // decrement level by 1 dB
+        {
+          atten = atten + 1.0;
+        }
+        if (Button == (Menu1Buttons + 2))  // decrement level by .25 or .5 dB
+        {
+          if (strcmp(AttenType, "PE4312") ==0) // 0.5 dB steps
+          {
+            atten = atten + 0.5;
+          }
+          else                                // 0.25 dB steps
+          {
+            atten = atten + 0.25;
+          }
+        }
+        if (Button == (Menu1Buttons + 5))  // increment level by 10 dB
+        {
+          atten = atten - 10.0;
+        }
+        if (Button == (Menu1Buttons + 6))  // increment level by 1 dB
+        {
+          atten = atten - 1.0;
+        }
+        if (Button == (Menu1Buttons + 7))  // increment level by .25 or .5 dB
+        {
+          if (strcmp(AttenType, "PE4312") ==0) // 0.5 dB steps
+          {
+            atten = atten - 0.5;
+          }
+          else                                // 0.25 dB steps
+          {
+            atten = atten - 0.25;
+          }
+        }
+        // Now check bounds
+        if (atten <= 0)                      // Attenuation cannot be less than 0
+        {
+          atten = 0;
+        }
+        if ((strcmp(AttenType, "PE4312") ==0) && (atten >= 31.5)) // max 31.5 dB
+        {
+          atten = 31.5;
+        }
+        if (atten >= 31.75) // max 31.75 dB for other attenuators
+        {
+          atten = 31.75;
+        }
+        SetAtten(atten);
+      }
     }
   }
+  printf("Attenuator %.2f\n", atten);
 }
 
 void SetBandGPIOs()
@@ -1369,8 +1442,6 @@ void SelectOsc(int NoButton)  // Select Oscillator Source
   ShowFreq(DisplayFreq);
 
   UpdateWindow();
-
-
 }
 
 void SavePreset(int PresetNo)
@@ -1392,7 +1463,7 @@ void SavePreset(int PresetNo)
   strcpy(Param, LevelTag[PresetNo]);
   SetConfigParam(PATH_CONFIG ,Param, Value);
 
-  snprintf(Value, 5, "%d", atten);
+  snprintf(Value, 6, "%.2f", atten);
   strcpy(TabAtten[PresetNo], Value);
   strcpy(Param, AttenTag[PresetNo]);
   SetConfigParam(PATH_CONFIG ,Param, Value);
@@ -1403,39 +1474,15 @@ void RecallPreset(int PresetNo)
   DisplayFreq = TabFreq[PresetNo];
   strcpy(osctxt, TabOscOption[PresetNo]);
   level=atoi(TabLevel[PresetNo]);
-  atten=atoi(TabAtten[PresetNo]);
+  atten=atof(TabAtten[PresetNo]);
 
   InitOsc();
-}
-
-void SelectAtten(int NoButton,int Status)  // Attenuator on or off
-{
-/*  char Param[]="caption";
-  char Value[255];
-
-            strcpy(Param,"caption");
-            GetConfigParam(PATH_CONFIG,Param,Value);
-            printf("Value=%s %s\n",Value,"Caption old");
-            if(strcmp(Value,"on")==0)
-            {
-               Status=0;
-               SetConfigParam(PATH_CONFIG,Param,"off");
-            }
-            else
-            {
-              Status=1;
-               SetConfigParam(PATH_CONFIG,Param,"on");
-            } 
-*/
-	SelectInGroup(10,10,NoButton,Status);
-
 }
 
 void SelectMod(int NoButton,int Status)  // Modulation on or off
 {
   SelectInGroup(11,11,NoButton,Status);
   SelectInGroup(Menu1Buttons+5,Menu1Buttons+5,NoButton,Status);
-
 }
 
 void OscStart()
@@ -1497,7 +1544,6 @@ void OscStart()
   {
     printf("\nStarting ADF5355 output\n");
   }
-
 
   SetButtonStatus(13,1);
   SetButtonStatus(47,1);
@@ -1639,8 +1685,8 @@ void MsgBox4(const char *message1, const char *message2, const char *message3, c
   printf("MsgBox4 called and waiting for touch\n");
 }
 
-// wait for a screen touch and act on its position
 void waituntil(int w,int h)
+// wait for a screen touch and act on its position
 {
   int rawX, rawY, rawPressure, i, ExitSignal ;
   ExitSignal=0; 
@@ -1713,21 +1759,28 @@ void waituntil(int w,int h)
           }
           if(i==10) // Attenuator in/out
           {
-            MsgBox("Attenuator not implemented yet");
-            wait_touch();
-            /* if (AttenIn == 0)
+            if (strcmp(osctxt, "portsdown")==0)
             {
-              AttenIn=1;
-              SetAtten();
-              SetButtonStatus(10,1);
+               if (AttenIn == 0)
+              {
+                AttenIn=1;
+                SetAtten(atten);
+                SetButtonStatus(10,1);
+              }
+              else
+              {
+                AttenIn=0;
+                SetAtten(31.5);        // Set max attenuation for safety
+                SetButtonStatus(10,0);
+              }
+              CalcOPLevel();
+              InitOsc();
             }
             else
             {
-              AttenIn=0;
-              SetButtonStatus(10,0);
+              MsgBox("Attenuator not implemented for this output");
+              wait_touch();
             }
-            CalcOPLevel();
-            */
           }
           if(i==11) // Modulation on/off
           {
@@ -1932,6 +1985,14 @@ void Start_Highlights_Menu1()
   if(strcmp(Value,TabOsc[9])==0)
   {
     SelectInGroup(0,4,9,1);
+  }
+  if(AttenIn == 1)
+  {
+    SetButtonStatus(10,1);
+  }
+  else
+  {
+    SetButtonStatus(10,0);
   }
 }
 
@@ -2326,10 +2387,15 @@ int main(int argc, char **argv)
     Inversed = 1;
   }
 
-  //Look up ADF4351 Ref Freq from Portsdown Config
-  strcpy(Param,"adfref");
-  GetConfigParam(PATH_CONFIG_PORTSDOWN,Param,Value);
-  strcpy(ref_freq_4351,Value);
+  // Look up ADF4351 Ref Freq from Portsdown Config
+  strcpy(Param, "adfref");
+  GetConfigParam(PATH_CONFIG_PORTSDOWN, Param, Value);
+  strcpy(ref_freq_4351, Value);
+
+  // Look up attenuator type from Portsdown Config
+  strcpy(Param, "attenuator");
+  GetConfigParam(PATH_CONFIG_PORTSDOWN, Param, Value);
+  strcpy(AttenType, Value);
 
   // Check for presence of touchscreen
   for(NoDeviceEvent=0;NoDeviceEvent<5;NoDeviceEvent++)
@@ -2372,6 +2438,10 @@ int main(int argc, char **argv)
 
   // Define the buttons for Menu 2
   Define_Menu2();
+
+  // Initialise the attenuator
+  if ((strcmp(osctxt, "portsdown")==0) && (strcmp(AttenType, "NONE")!=0))
+  AttenIn = 1;
 
   // Start the button Menu
   Start(wscreen,hscreen);

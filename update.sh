@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 201801011
+# Updated by davecrump 201801060
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
 # rpidatv, rpidatvgui avc2ts and adf4351
@@ -294,6 +294,12 @@ cd /home/pi/rpidatv/src/siggen
 make clean
 make
 sudo make install
+cd /home/pi
+
+# Compile the Attenuator Driver (201801060)
+cd /home/pi/rpidatv/src/atten
+make
+cp /home/pi/rpidatv/src/atten/set_attenuator /home/pi/rpidatv/bin/set_attenuator
 cd /home/pi
 
 # Restore the user's original siggencal.txt if required (uncommented after 201710280)
