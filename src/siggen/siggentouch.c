@@ -886,6 +886,7 @@ void CalcOPLevel()
     DisplayLevel = CalLevel[PointBelow] + (CalLevel[PointAbove] - CalLevel[PointBelow]) * proportion;
   }
       printf("Initial Display Level = %d\n", DisplayLevel);
+
   // Now correct for set oscillator level ******************************************
 
   if (strcmp(osctxt, "audio")==0)
@@ -1105,6 +1106,7 @@ void AdjustLevel(int Button)
       }
     }
   }
+  printf("Attenuator %.2f\n", atten);
 }
 
 void SetBandGPIOs()
@@ -2220,6 +2222,7 @@ void waituntil(int w,int h)
               else
               {
                 AttenIn=0;
+
                 SetAtten(0);        // Set min attenuation
                 MsgBox4("If you had an Attenuator in-circuit", "you need to take it out of circuit."
                   , "as it has a minimum attenuation of 2 dB", "and displayed output will be incorrect");
