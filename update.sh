@@ -302,10 +302,10 @@ make
 cp /home/pi/rpidatv/src/atten/set_attenuator /home/pi/rpidatv/bin/set_attenuator
 cd /home/pi
 
-# Restore the user's original siggencal.txt if required (uncommented after 201710280)
-if [ -f "/home/pi/siggencal.txt" ]; then
-  cp -f -r /home/pi/siggencal.txt /home/pi/rpidatv/src/siggen/siggencal.txt
-fi
+# Restore the user's original siggencal.txt if required (re-commented after 201801062)
+#if [ -f "/home/pi/siggencal.txt" ]; then
+#  cp -f -r /home/pi/siggencal.txt /home/pi/rpidatv/src/siggen/siggencal.txt
+#fi
 
 # Restore the user's original touchcal.txt if required (201711030)
 if [ -f "/home/pi/touchcal.txt" ]; then
