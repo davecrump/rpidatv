@@ -873,7 +873,7 @@ void CalcOPLevel()
       PointBelow = n - 1;
     }
   }
-  printf("PointAbove = %d \n", PointAbove);
+  // printf("PointAbove = %d \n", PointAbove);
 
   if (DisplayFreq == CalFreq[n])
   {
@@ -882,10 +882,10 @@ void CalcOPLevel()
   else
   {
     proportion = (float)(DisplayFreq - CalFreq[PointBelow])/(CalFreq[PointAbove]- CalFreq[PointBelow]);
-  printf("proportion = %f \n", proportion);
+    //printf("proportion = %f \n", proportion);
     DisplayLevel = CalLevel[PointBelow] + (CalLevel[PointAbove] - CalLevel[PointBelow]) * proportion;
   }
-      printf("Initial Display Level = %d\n", DisplayLevel);
+  // printf("Initial Display Level = %d\n", DisplayLevel);
   // Now correct for set oscillator level ******************************************
 
   if (strcmp(osctxt, "audio")==0)
@@ -900,7 +900,7 @@ void CalcOPLevel()
 
   if (strcmp(osctxt, "adf4351")==0)
   {
-    DisplayLevel = DisplayLevel + level;
+    DisplayLevel = DisplayLevel + 30 * level;
   }
 
   if (strcmp(osctxt, "portsdown")==0)
@@ -2205,16 +2205,16 @@ void waituntil(int w,int h)
             {
                if (AttenIn == 0)
               {
-                if (strcmp(AttenType, "NONE") ==0)
-                {
-                  MsgBox4("No Attenuator Selected", "", "Please select an Attenuator Type", "from the Console Setup Menu");
-                  wait_touch();
-                }
-                else
+                if ((strcmp(AttenType, "PE4312")==0) || (strcmp(AttenType, "PE43713")==0) || (strcmp(AttenType, "HMC1119")==0))
                 {
                   AttenIn=1;
                   SetAtten(atten);
                   SetButtonStatus(10,1);
+                }
+                else
+                {
+                  MsgBox4("No Attenuator Selected", "", "Please select an Attenuator Type", "from the Console Setup Menu");
+                  wait_touch();
                 }
               }
               else
