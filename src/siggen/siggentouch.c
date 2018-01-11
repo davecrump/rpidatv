@@ -886,7 +886,6 @@ void CalcOPLevel()
     DisplayLevel = CalLevel[PointBelow] + (CalLevel[PointAbove] - CalLevel[PointBelow]) * proportion;
   }
       printf("Initial Display Level = %d\n", DisplayLevel);
-
   // Now correct for set oscillator level ******************************************
 
   if (strcmp(osctxt, "audio")==0)
@@ -1106,7 +1105,6 @@ void AdjustLevel(int Button)
       }
     }
   }
-  printf("Attenuator %.2f\n", atten);
 }
 
 void SetBandGPIOs()
@@ -2222,10 +2220,9 @@ void waituntil(int w,int h)
               else
               {
                 AttenIn=0;
-
                 SetAtten(0);        // Set min attenuation
-                MsgBox4("If you had an Attenuator in-circuit", "you need to take it out of circuit."
-                  , "as it has a minimum attenuation of 2 dB", "and displayed output will be incorrect");
+                MsgBox4("If you had an Attenuator in-circuit", "you need to take it out of circuit,"
+                  , "as it has a minimum attenuation of 2 dB", "and displayed output level will be incorrect");
                 wait_touch();
                 SetButtonStatus(10,0);
               }
@@ -2940,7 +2937,7 @@ int main(int argc, char **argv)
   // Initialise the attenuator
   if ((strcmp(osctxt, "portsdown")==0) || (strcmp(osctxt, "adf4351")==0))
   {
-    if (strcmp(AttenType, "NONE")!=0)
+    if ((strcmp(AttenType, "PE4312")==0) || (strcmp(AttenType, "PE43713")==0) || (strcmp(AttenType, "HMC1119")==0))
     {
       AttenIn = 1;
     }
