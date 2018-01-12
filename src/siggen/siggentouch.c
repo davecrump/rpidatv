@@ -885,7 +885,9 @@ void CalcOPLevel()
     //printf("proportion = %f \n", proportion);
     DisplayLevel = CalLevel[PointBelow] + (CalLevel[PointAbove] - CalLevel[PointBelow]) * proportion;
   }
+
   // printf("Initial Display Level = %d\n", DisplayLevel);
+
   // Now correct for set oscillator level ******************************************
 
   if (strcmp(osctxt, "audio")==0)
@@ -2248,6 +2250,11 @@ void waituntil(int w,int h)
                 {
                   MsgBox4("No Attenuator Selected.", "Please select an Attenuator Type"
                     , "from the Console Setup Menu", "and restart SigGen");
+                  wait_touch();
+                }
+                else
+                {
+                  MsgBox4("No Attenuator Selected", "", "Please select an Attenuator Type", "from the Console Setup Menu");
                   wait_touch();
                 }
               }
