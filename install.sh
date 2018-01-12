@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump on 20180101
+# Updated by davecrump on 201801060
 
 # Update the package manager
 sudo dpkg --configure -a
@@ -240,6 +240,12 @@ cd /home/pi/rpidatv/src/siggen
 make clean
 make
 sudo make install
+cd /home/pi
+
+# Compile the Attenuator Driver (201801060)
+cd /home/pi/rpidatv/src/atten
+make
+cp /home/pi/rpidatv/src/atten/set_attenuator /home/pi/rpidatv/bin/set_attenuator
 cd /home/pi
 
 # Install FreqShow (see https://learn.adafruit.com/freq-show-raspberry-pi-rtl-sdr-scanner/overview)
