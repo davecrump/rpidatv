@@ -924,17 +924,17 @@ void CalcOPLevel()
   {
     if (strcmp(AttenType, "PE4312")==0)
     {
-      MinAtten = 1.8;
+      MinAtten = 2.5;
       DisplayLevel=round((float)DisplayLevel-10*atten-10*MinAtten);
     }
     if (strcmp(AttenType, "PE43713")==0)
     {
-      MinAtten = 1.8;
+      MinAtten = 2.5;   // Spec says 1.8dB, but measures as 2.5dB
       DisplayLevel=round((float)DisplayLevel-10*atten-10*MinAtten);
     }
     if (strcmp(AttenType, "HMC1119")==0)
     {
-      MinAtten = 1.8;
+      MinAtten = 2.5;
       DisplayLevel=round((float)DisplayLevel-10*atten-10*MinAtten);
     }
   }
@@ -1040,12 +1040,12 @@ void AdjustLevel(int Button)
         ;  // adf5355 behaviour tbd
       }
     }
-    else
+    else                         // With attenuator
     {
       if ((strcmp(osctxt, "adf4351")==0) || (strcmp(osctxt, "adf5355")==0))
       // set adf4351 or adf5355 level
       {
-        level = 0;
+        level = 3;
       }
       if ((strcmp(osctxt, "portsdown")==0) || (strcmp(osctxt, "adf4351")==0))
       // portsdown or adf4351 attenuator behaviour here
@@ -1648,7 +1648,7 @@ void SelectInGroup(int StartButton,int StopButton,int NoButton,int Status)
   }
 }
 
-void ImposeBounds()  // Constrain DisplayFreq to physical limits
+void ImposeBounds()  // Constrain DisplayFreq and level to physical limits
 {
   if (strcmp(osctxt, "audio")==0)
   {
@@ -1665,6 +1665,14 @@ void ImposeBounds()  // Constrain DisplayFreq to physical limits
   {
     SourceUpperFreq = 4294967295LL;
     SourceLowerFreq = 35000000;
+    if (level > 3)
+    {
+      level = 3;
+    }
+    if (level < 0)
+    {
+      level = 0;
+    }
   }
 
   if (strcmp(osctxt, "portsdown")==0)
@@ -1677,6 +1685,14 @@ void ImposeBounds()  // Constrain DisplayFreq to physical limits
   {
     SourceUpperFreq = 2450000000LL;
     SourceLowerFreq = 70000000;
+    if (level > 47)
+    {
+      level = 47;
+    }
+    if (level < 0)
+    {
+      level = 0;
+    }
   }
 
   if (strcmp(osctxt, "adf5355")==0)
@@ -1729,6 +1745,19 @@ void InitOsc()
   {
     AttenIn = 0;
     SetAtten(0);
+  }
+
+  // Turn off modulation if not compatible with mode
+  if ((strcmp(osctxt, "audio") == 0) || (strcmp(osctxt, "pirf") == 0)
+    || (strcmp(osctxt, "adf4351") == 0) || (strcmp(osctxt, "adf5355") == 0))
+  {
+    ModOn = 0;
+  }
+
+  // Set adf4351 level correctly for attenuator
+  if ((strcmp(osctxt, "adf4351") == 0) && (AttenIn == 1))
+  {
+    level = 3;
   }
 
   // Read in amplitude Cal table
@@ -2210,10 +2239,15 @@ void waituntil(int w,int h)
                   AttenIn=1;
                   SetAtten(atten);
                   SetButtonStatus(10,1);
+                  if (strcmp(osctxt, "adf4351")==0)
+                  {
+                    level = 3;
+                  }
                 }
                 else
                 {
-                  MsgBox4("No Attenuator Selected", "", "Please select an Attenuator Type", "from the Console Setup Menu");
+                  MsgBox4("No Attenuator Selected.", "Please select an Attenuator Type"
+                    , "from the Console Setup Menu", "and restart SigGen");
                   wait_touch();
                 }
               }
@@ -2228,6 +2262,10 @@ void waituntil(int w,int h)
               }
               CalcOPLevel();
               InitOsc();
+              if ((OutputStatus == 1) && (strcmp(osctxt, "adf4351")==0))  // adf5341 mode active already running
+              {
+                OscStart();  // Make sure that the adf4351 is running at the correct level
+              }
             }
             else
             {
@@ -2303,11 +2341,6 @@ void waituntil(int w,int h)
           {
             printf("Switch to FREQ menu \n");
             CurrentMenu=2;
-            //BackgroundRGB(0,0,0,255);
-            //ShowTitle();
-            //ShowFreq(DisplayFreq);
-            //ShowLevel(DisplayLevel);
-            //ShowAtten();
           }
           ShowTitle();
           ShowLevel(DisplayLevel);
@@ -2330,10 +2363,6 @@ void waituntil(int w,int h)
           {
             AdjustLevel(i);
             CalcOPLevel();
-            if ((OutputStatus == 1) && (strcmp(osctxt, "adf4351")==0)) // Only restart for adf4351
-            {
-              OscStart();
-            }
           }
           if(i==(Menu1Buttons+3)) // Save
           {
@@ -2360,7 +2389,7 @@ void waituntil(int w,int h)
               }
               else
               {
-                MsgBox4("Modulation only available in", "Portsdown and DATV Express", "output modes", "");
+                MsgBox4("Modulation only available in", "Portsdown and DATV Express", "output modes.", "Touch screen to continue");
                 wait_touch();
               }
             }
@@ -2381,10 +2410,6 @@ void waituntil(int w,int h)
           {
             AdjustLevel(i);
             CalcOPLevel();
-          if ((OutputStatus == 1) && (strcmp(osctxt, "adf4351")==0)) // Only restart for adf4351
-            {
-              OscStart();
-            }
           }
           if(i>=((Menu1Buttons+8))&&(i<=(Menu1Buttons+29))) // Adjust Frequency
           {
