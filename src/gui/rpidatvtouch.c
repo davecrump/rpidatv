@@ -2037,6 +2037,7 @@ void ProcessLeandvb()
   system("sudo killall fbi >/dev/null 2>/dev/null");  // kill any previous images
   system("sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png");  // Add logo image
 
+  MsgBox4("Switching back to Main Menu", "", "Please wait for the receiver", "to clean up files");
   usleep(5000000); // Time to FFT end reading samples
   pthread_join(thfft, NULL);
 	//pclose(fp);
@@ -2047,6 +2048,8 @@ void ProcessLeandvb()
   system("sudo killall fbi >/dev/null 2>/dev/null");
   system("sudo killall leandvb >/dev/null 2>/dev/null");
   system("sudo killall ts2es >/dev/null 2>/dev/null");
+  finish();
+  strcpy(ScreenState, "RXwithImage");            //  Signal to display touch menu without further touch
 }
 
 void ReceiveStart()
@@ -2608,11 +2611,13 @@ void waituntil(int w,int h)
   // Start the main loop for the Touchscreen
   for (;;)
   {
-    // Wait here until screen touched
+    if (strcmp(ScreenState, "RXwithImage") != 0) // Don't wait for touch if returning from recieve
+    {
+      // Wait here until screen touched
+      if (getTouchSample(&rawX, &rawY, &rawPressure)==0) continue;
+    }
 
-    if (getTouchSample(&rawX, &rawY, &rawPressure)==0) continue;
-
-    // Screen has been touched
+    // Screen has been touched or returning from recieve
     printf("x=%d y=%d\n", rawX, rawY);
 
     // React differently depending on context: char ScreenState[255]

@@ -33,6 +33,7 @@
 #define PATH_CONFIG_PORTSDOWN "/home/pi/rpidatv/scripts/rpidatvconfig.txt"
 #define PATH_CAL "/home/pi/rpidatv/src/siggen/siggencal.txt"
 #define PATH_TOUCHCAL "/home/pi/rpidatv/scripts/touchcal.txt"
+#define PATH_ATTEN "/home/pi/rpidatv/bin/set_attenuator "
 
 int fd=0;
 int wscreen, hscreen;
@@ -81,8 +82,8 @@ float CalFactorY = 1.0;
 int64_t DisplayFreq = 437000000;  // Input freq and display freq are the same
 int DisplayLevel = 987;           // calculated for display from (LO) level, atten and freq
 char osctxt[255]="portsdown";     // current source
-int level;                        // current LO level.  Raw data
-int atten;                        // current atten level.  Raw data (0.25 dB steps
+int level;                        // current LO level.  Raw data 0-3 for ADF, 0 - 50 for Exp
+float atten = 31.5;               // current atten level.  Raw data (0 - 31.75) 0.25 dB steps
 
 
 char ref_freq_4351[255] = "25000000";        // read on startup from rpidatvconfig.txt
@@ -95,7 +96,7 @@ int OutputStatus = 0;                        // 0 = off, 1 = on
 int PresetStoreTrigger = 0;                  // 0 = normal, 1 = next press should be preset
 int ModOn = 0;                               // 0 =  modulation off, 1 = modulation on
 int AttenIn = 0;                             // 0 = No attenuator, 1 = attenuator in circuit
-char AttenType[256] = "PE43703";             // or PE4302
+char AttenType[256] = "PE43703";             // or PE4302 (0.5 dB steps) or HMC1119 (0.25dB) or NONE
 
 // Titles for presets in file
 // [0] is the start-up condition. [1] - [4 ] are the presets
@@ -132,7 +133,11 @@ pthread_t thfft,thbutton,thview;
 // Function Prototypes
 
 void Start_Highlights_Menu1();
-
+void MsgBox2(const char *, const char *);
+void MsgBox4(const char *, const char *, const char *, const char *);
+void wait_touch();
+void adf4351On(int);
+void ResetBandGPIOs();
 
 /***************************************************************************//**
  * @brief Looks up the value of Param in PathConfigFile and sets value
@@ -246,6 +251,126 @@ void GetPiAudioCard(char card[256])
 }
 
 /***************************************************************************//**
+ * @brief Checks whether the DATV Express is connected
+ *
+ * @param 
+ *
+ * @return 0 if present, 1 if absent
+*******************************************************************************/
+
+int CheckExpressConnect()
+{
+  FILE *fp;
+  char response[255];
+  int responseint;
+
+  /* Open the command for reading. */
+  fp = popen("lsusb | grep -q 'CY7C68013' ; echo $?", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(response, 7, fp) != NULL)
+  {
+    responseint = atoi(response);
+  }
+
+  /* close */
+  pclose(fp);
+  return responseint;
+}
+
+/***************************************************************************//**
+ * @brief Checks whether the DATV Express Server is Running
+ *
+ * @param 
+ *
+ * @return 0 if running, 1 if not running
+*******************************************************************************/
+
+int CheckExpressRunning()
+{
+  FILE *fp;
+  char response[255];
+  int responseint;
+
+  /* Open the command for reading. */
+  fp = popen("pgrep -x 'express_server' ; echo $?", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(response, 7, fp) != NULL)
+  {
+    responseint = atoi(response);
+  }
+
+  /* close */
+  pclose(fp);
+  return responseint;
+}
+
+
+/***************************************************************************//**
+ * @brief Called to start the DATV Express Server
+ *
+ * @param 
+ *
+ * @return 0 if running OK, 1 if not running
+*******************************************************************************/
+
+int StartExpressServer()
+{
+  char BashText[255];
+  int responseint;
+  // Check if DATV Express is connected
+  if (CheckExpressConnect() == 1)   // Not connected
+  {
+    MsgBox2("DATV Express Not connected", "Connect it or select another mode");
+    wait_touch();
+  }
+
+  // Check if the server is already running
+  if (CheckExpressRunning() == 1)   // Not running, so start it
+  {
+    // Make sure the control file is not locked by deleting it
+    strcpy(BashText, "sudo rm /tmp/expctrl >/dev/null 2>/dev/null");
+    system(BashText);
+
+    // Start the server
+    strcpy(BashText, "cd /home/pi/express_server; ");
+    //system(BashText);
+    strcat(BashText, "sudo nice -n -40 /home/pi/express_server/express_server  >/dev/null 2>/dev/null &");
+    system(BashText);
+    strcpy(BashText, "cd /home/pi");
+    system(BashText);
+    MsgBox4("Please wait 5 seconds", "while the DATV Express firmware is loaded", "", "");
+    usleep(5000000);
+    responseint = CheckExpressRunning();
+    if (responseint == 0)  // Running OK
+    {
+      MsgBox4("", "", "", "DATV Express Firmware Loaded");
+      usleep(1000000);
+    }
+    else
+    {
+      MsgBox4("Failed to Load", "DATV Express Firmware", "Please check connections", "and try again");
+      wait_touch();
+    }
+  }
+  else
+  {
+    responseint = 0;
+  }
+  return responseint;
+}
+
+
+/***************************************************************************//**
  * @brief Reads the Presets from siggenconfig.txt and formats them for
  *        Display and switching
  *
@@ -295,7 +420,7 @@ void ReadPresets()
 
   strcpy(Param, AttenTag[n]);
   GetConfigParam(PATH_CONFIG,Param,Value);
-  atten=atoi(Value);
+  atten=atof(Value);
 
   for( n = 1; n < 5; n = n + 1)  // Read Presets
   {
@@ -320,11 +445,6 @@ void ReadPresets()
   strcpy(Param, "adf5355ref");
   GetConfigParam(PATH_CONFIG,Param,Value);
   strcpy (ref_freq_5355, Value);
-
-  // Read Attenuator Type
-  strcpy(Param, "attentype");
-  GetConfigParam(PATH_CAL,Param,Value);
-  strcpy (AttenType, Value);
 }
 
 void ShowFreq(uint64_t DisplayFreq)
@@ -502,6 +622,37 @@ void ShowLevel(int DisplayLevel)
   }
 }
 
+void ShowAtten()
+{
+  // Display the attenuator setting or DATV Express Level on Menu2
+  char LevelText[255];
+  char AttenSet[255];
+  Fontinfo font = SansTypeface;
+  int pointsize = 20;
+  float vpos = 0.04;
+  float hpos = 0.39;
+  
+  if ((strcmp(osctxt, "audio") != 0) && (CurrentMenu == 2))
+  // Not required for audio or menu 1
+  {
+    if ((strcmp(osctxt, "express") != 0) && (AttenIn == 1))  // do Attenuator text first
+    {
+      strcpy(LevelText, "Attenuator Set to -");
+      snprintf(AttenSet, 7, " %.2f", atten);
+      strcat(LevelText, AttenSet);
+      strcat(LevelText, " dB");
+      Text(hpos*wscreen, vpos*hscreen, LevelText, font, pointsize);
+    }
+    if (strcmp(osctxt, "express") == 0)                // DATV Express Text
+    {
+      strcpy(LevelText, "Express Level = ");
+      snprintf(AttenSet, 3, "%d", level);
+      strcat(LevelText, AttenSet);
+      Text(hpos*wscreen, vpos*hscreen, LevelText, font, pointsize);
+    }
+  }
+}
+
 void ShowTitle()
 {
   // Initialise and calculate the text display
@@ -516,12 +667,14 @@ void ShowTitle()
   VGfloat tw;
 
   // Display Text
-  tw = TextWidth("BATC Portsdown Information Screen", font, pointsize);
+  tw = TextWidth("BATC Portsdown Signal Generator", font, pointsize);
   Text(wscreen / 2.0 - (tw / 2.0), hscreen - linenumber * linepitch, "BATC Portsdown Signal Generator", font, pointsize);
 }
 
 void AdjustFreq(int button)
 {
+  char ExpressCommand[255];
+  char FreqText[255];
   button=button-Menu1Buttons-8;
   switch (button)
   {
@@ -659,7 +812,7 @@ void AdjustFreq(int button)
       break;
     default:
       
-break;
+  break;
   }
   if (DisplayFreq > SourceUpperFreq)
   {
@@ -669,6 +822,36 @@ break;
   {
     DisplayFreq = SourceLowerFreq;
   }
+
+  // Set the freq here
+
+  if (strcmp(osctxt, "express")==0)
+  {
+    strcpy(ExpressCommand, "echo \"set freq ");
+    snprintf(FreqText, 12, "%lld", DisplayFreq);
+    strcat(ExpressCommand, FreqText);
+    strcat(ExpressCommand, "\" >> /tmp/expctrl" );
+    system(ExpressCommand);
+  }
+
+  if (strcmp(osctxt, "portsdown")==0)
+  {
+    if (ModOn == 0)
+    {
+      adf4351On(3); // change adf freq at level 3
+    }
+    else
+    {
+      adf4351On(0); // change adf freq at level 0
+    }
+  }
+
+  if (strcmp(osctxt, "adf4351")==0)
+  {
+    adf4351On(level); // change adf freq at set level
+  }
+  // Change the band if required
+  ResetBandGPIOs();
 }
 
 void CalcOPLevel()
@@ -677,8 +860,9 @@ void CalcOPLevel()
   int PointAbove = 0;
   int n = 0;
   float proportion;
+  float MinAtten;
 
-  // Calculate output level from Osc based on Cal and frequency
+  // Calculate output level from Osc based on Cal and frequency *********************
 
   while ((PointAbove == 0) && (n <= 100))
   {
@@ -689,7 +873,7 @@ void CalcOPLevel()
       PointBelow = n - 1;
     }
   }
-  printf("PointAbove = %d \n", PointAbove);
+  // printf("PointAbove = %d \n", PointAbove);
 
   if (DisplayFreq == CalFreq[n])
   {
@@ -698,11 +882,13 @@ void CalcOPLevel()
   else
   {
     proportion = (float)(DisplayFreq - CalFreq[PointBelow])/(CalFreq[PointAbove]- CalFreq[PointBelow]);
-  printf("proportion = %f \n", proportion);
+    //printf("proportion = %f \n", proportion);
     DisplayLevel = CalLevel[PointBelow] + (CalLevel[PointAbove] - CalLevel[PointBelow]) * proportion;
   }
 
-// Now correct for set oscillator level
+  // printf("Initial Display Level = %d\n", DisplayLevel);
+
+  // Now correct for set oscillator level ******************************************
 
   if (strcmp(osctxt, "audio")==0)
   {
@@ -727,7 +913,7 @@ void CalcOPLevel()
 
   if (strcmp(osctxt, "express")==0)
   {
-    DisplayLevel = -10*level;
+    DisplayLevel = DisplayLevel + 10*level;  // assumes 1 dB steps  Could use look-up table for more accuracy
   }
 
   if (strcmp(osctxt, "adf5355")==0)
@@ -735,32 +921,94 @@ void CalcOPLevel()
     DisplayLevel=0;
   }
 
+  // Now apply attenuation *********************************************************************
   if (AttenIn == 1)
   {
-    if (strcmp(AttenType, "PE4302")==0)
+    if (strcmp(AttenType, "PE4312")==0)
     {
-      DisplayLevel=DisplayLevel-5*atten;
+      MinAtten = 2.5;
+      DisplayLevel=round((float)DisplayLevel-10*atten-10*MinAtten);
     }
-    if (strcmp(AttenType, "PE43703")==0)
+    if (strcmp(AttenType, "PE43713")==0)
     {
-      DisplayLevel=DisplayLevel-5*atten/2;
+      MinAtten = 2.5;   // Spec says 1.8dB, but measures as 2.5dB
+      DisplayLevel=round((float)DisplayLevel-10*atten-10*MinAtten);
+    }
+    if (strcmp(AttenType, "HMC1119")==0)
+    {
+      MinAtten = 2.5;
+      DisplayLevel=round((float)DisplayLevel-10*atten-10*MinAtten);
     }
   }
-  printf("DisplayLevel = %d \n", DisplayLevel);
+  // Now adjust if modulation is on  *********************************************************************
+  if ((ModOn == 1) && (strcmp(osctxt, "express")==0))
+  {
+    DisplayLevel = DisplayLevel - 2;   // Correction for DATV Express mod power (-0.2 dB)
+  }
+  if ((ModOn == 1) && (strcmp(osctxt, "portsdown")==0))
+  {
+    DisplayLevel = DisplayLevel - 16;   // Correction for Portsdown mod power (-1.6 dB)
+  }
 }
 
-void SetAtten()
+void SetAtten(float AttenValue)
 {
-  // This function will send the attenuator command to the attenuator
-  ;
+  // This sets the attenuator to AttenValue
+  char AttenCmd[255];
+  char AttenSet[255];
+  snprintf(AttenSet, 7, " %.2f", AttenValue);
+  strcpy(AttenCmd, PATH_ATTEN);
+  strcat(AttenCmd, AttenType);
+  strcat(AttenCmd, AttenSet);
+  printf("%s\n", AttenCmd);
+  system(AttenCmd);  
 }
 
 void AdjustLevel(int Button)
 {
-  // Deal with audio levels differently
+  char ExpressCommand[255];
+  char LevelText[255];
+
+  // Deal with audio levels **********************************************
   if (strcmp(osctxt, "audio")==0)
   {
     ;  // Audio behaviour tbd
+  }
+
+  // Deal with DATV Express Levels
+  else if (strcmp(osctxt, "express")==0)
+  {
+    if (Button == (Menu1Buttons + 0))  // decrement level by 10
+    {
+      level = level - 10;
+    }
+    if (Button == (Menu1Buttons + 1))  // decrement level by 1
+    {
+      level = level - 1;
+    }
+    if (Button == (Menu1Buttons +5))  // increment level by 10
+    {
+      level = level + 10;
+    }
+    if (Button == (Menu1Buttons +6))  // increment level by 1
+    {
+      level = level + 1;
+    }
+    if (level < 0 )
+    {
+      level = 0;
+    }
+    if (level > 47 )
+    {
+      level = 47;
+    }
+
+    // Now send command to change level
+    strcpy(ExpressCommand, "echo \"set level ");
+    snprintf(LevelText, 3, "%d", level);
+    strcat(ExpressCommand, LevelText);
+    strcat(ExpressCommand, "\" >> /tmp/expctrl" );
+    system(ExpressCommand);
   }
   else
   {
@@ -789,26 +1037,81 @@ void AdjustLevel(int Button)
           }
         }
       }
-      // No variable output for Portsdown
-      if (strcmp(osctxt, "express")==0)
-      {
-        ;  // express behaviour tbd
-      }
       if (strcmp(osctxt, "adf5355")==0)
       {
         ;  // adf5355 behaviour tbd
       }
     }
-    else
+    else                         // With attenuator
     {
-      ;  // code for attenuator here
+      if ((strcmp(osctxt, "adf4351")==0) || (strcmp(osctxt, "adf5355")==0))
+      // set adf4351 or adf5355 level
+      {
+        level = 3;
+      }
+      if ((strcmp(osctxt, "portsdown")==0) || (strcmp(osctxt, "adf4351")==0))
+      // portsdown or adf4351 attenuator behaviour here
+      {
+        if (Button == (Menu1Buttons + 0))  // decrement level by 10 dB
+        {
+          atten = atten + 10.0;
+        }
+        if (Button == (Menu1Buttons + 1))  // decrement level by 1 dB
+        {
+          atten = atten + 1.0;
+        }
+        if (Button == (Menu1Buttons + 2))  // decrement level by .25 or .5 dB
+        {
+          if (strcmp(AttenType, "PE4312") == 0) // 0.5 dB steps
+          {
+            atten = atten + 0.5;
+          }
+          else                                // 0.25 dB steps
+          {
+            atten = atten + 0.25;
+          }
+        }
+        if (Button == (Menu1Buttons + 5))  // increment level by 10 dB
+        {
+          atten = atten - 10.0;
+        }
+        if (Button == (Menu1Buttons + 6))  // increment level by 1 dB
+        {
+          atten = atten - 1.0;
+        }
+        if (Button == (Menu1Buttons + 7))  // increment level by .25 or .5 dB
+        {
+          if (strcmp(AttenType, "PE4312") == 0) // 0.5 dB steps
+          {
+            atten = atten - 0.5;
+          }
+          else                                // 0.25 dB steps
+          {
+            atten = atten - 0.25;
+          }
+        }
+        // Now check bounds
+        if (atten <= 0)                      // Attenuation cannot be less than 0
+        {
+          atten = 0;
+        }
+        if ((strcmp(AttenType, "PE4312") == 0) && (atten >= 31.5)) // max 31.5 dB
+        {
+          atten = 31.5;
+        }
+        if (atten >= 31.75) // max 31.75 dB for other attenuators
+        {
+          atten = 31.75;
+        }
+        SetAtten(atten);
+      }
     }
   }
 }
 
 void SetBandGPIOs()
 {
-  // Set Band GPIos high (for 1255) and filter and IQ low 
+  // Initialise Band GPIOs high (for 1255) and filter and IQ low 
   // for max output and repeatability
 
   pinMode(BandLSBGPIO, OUTPUT);
@@ -822,10 +1125,195 @@ void SetBandGPIOs()
   digitalWrite(BandLSBGPIO, HIGH);
   digitalWrite(BandMSBGPIO, HIGH);
   digitalWrite(FiltLSBGPIO, LOW);
-  digitalWrite(FiltNSBGPIO, LOW);
-  digitalWrite(FiltMSBGPIO, LOW);
+  digitalWrite(FiltNSBGPIO, HIGH);
+  digitalWrite(FiltMSBGPIO, LOW); // 333KS
   digitalWrite(I_GPIO, LOW);
   digitalWrite(Q_GPIO, LOW);
+}
+
+void ResetBandGPIOs()
+{
+  // Reset Band GPIOs to correct band ONLY if mod is on and Portsdown.
+  // Else set 1255.
+  if ((ModOn == 0) || (strcmp(osctxt, "portsdown")!=0))
+  {
+    digitalWrite(BandLSBGPIO, HIGH);
+    digitalWrite(BandMSBGPIO, HIGH);
+  }
+  else                 // Portsdown with Modulation
+  {
+    if (DisplayFreq < 100000000)
+    {
+      digitalWrite(BandLSBGPIO, LOW);
+      digitalWrite(BandMSBGPIO, LOW);
+    }
+    else if (DisplayFreq < 250000000)
+    {
+      digitalWrite(BandLSBGPIO, HIGH);
+      digitalWrite(BandMSBGPIO, LOW);
+    }
+    else if (DisplayFreq < 950000000)
+    {
+      digitalWrite(BandLSBGPIO, LOW);
+      digitalWrite(BandMSBGPIO, HIGH);
+    }
+    else
+    {
+      digitalWrite(BandLSBGPIO, HIGH);
+      digitalWrite(BandMSBGPIO, HIGH);
+    }
+  }
+}
+
+void adf4351On(int adflevel)
+{
+  char transfer[255];
+  char StartPortsdown[255] = "sudo /home/pi/rpidatv/bin/adf4351 ";
+  double freqmhz;
+  freqmhz=(double)DisplayFreq/1000000;
+  snprintf(transfer, 13, "%.6f", freqmhz);
+  strcat(StartPortsdown, transfer);
+  strcat(StartPortsdown, " ");
+  strcat(StartPortsdown, ref_freq_4351);
+  snprintf(transfer, 3, " %d", adflevel);
+  strcat(StartPortsdown, transfer);                    // Level from input parameter
+  printf("Starting portsdown output %s\n", StartPortsdown);
+  system(StartPortsdown);
+}
+
+
+void PortsdownOn()
+{
+  char transfer[255];
+  char StartPortsdown[255] = "sudo /home/pi/rpidatv/bin/adf4351 ";
+  double freqmhz;
+
+  // Change the band setting if required
+  ResetBandGPIOs();
+
+  freqmhz=(double)DisplayFreq/1000000;
+  snprintf(transfer, 13, "%.6f", freqmhz);
+  strcat(StartPortsdown, transfer);
+  strcat(StartPortsdown, " ");
+  strcat(StartPortsdown, ref_freq_4351);
+  strcat(StartPortsdown, " 3"); // Level 3 for SigGen
+  printf("Starting portsdown output\n");
+  system(StartPortsdown);
+}
+
+void PortsdownOnWithMod()
+{
+  char transfer[255];
+  char StartPortsdown[255]; 
+  double freqmhz;
+
+  strcpy(StartPortsdown, "sudo rm videots");
+  system(StartPortsdown); 
+  strcpy(StartPortsdown, "mkfifo videots");
+  system(StartPortsdown);
+
+  // Change the band setting if required
+  ResetBandGPIOs();
+
+  strcpy(StartPortsdown, "sudo /home/pi/rpidatv/bin/adf4351 ");
+  freqmhz=(double)DisplayFreq/1000000;
+  snprintf(transfer, 13, "%.6f", freqmhz);
+  strcat(StartPortsdown, transfer);
+  strcat(StartPortsdown, " ");
+  strcat(StartPortsdown, ref_freq_4351);
+  strcat(StartPortsdown, " 0"); // Level 0 for Transmit
+  printf("Starting portsdown output with Mod\n");
+  system(StartPortsdown);
+
+  strcpy(StartPortsdown, "sudo nice -n -30 /home/pi/rpidatv/bin/rpidatv ");
+  strcat(StartPortsdown, "-i videots -s 333 -c 7/8 -f 0 -p 7 -m IQ -x 12 -y 13 &");
+  system(StartPortsdown);
+
+  strcpy(StartPortsdown, "/home/pi/rpidatv/bin/avc2ts -b 372783 -m 537044 ");
+  strcat(StartPortsdown, "-x 720 -y 576 -f 25 -i 100 -o videots -t 3 -p 255 -s SigGen &");
+  system(StartPortsdown); 
+
+}
+
+
+void ExpressOn()
+{
+  char ExpressCommand[255];
+  char LevelText[255];
+  char FreqText[255];
+
+  strcpy(ExpressCommand, "echo \"set freq ");
+  snprintf(FreqText, 12, "%lld", DisplayFreq);
+  strcat(ExpressCommand, FreqText);
+  strcat(ExpressCommand, "\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set fec 7/8\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set srate 333000\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set port 0\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set level ");
+  snprintf(LevelText, 3, "%d", level);
+  strcat(ExpressCommand, LevelText);
+  strcat(ExpressCommand, "\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set car on\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set ptt tx\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+}
+
+void ExpressOnWithMod()
+{
+  char ExpressCommand[255];
+  char LevelText[255];
+  char FreqText[255];
+
+  strcpy(ExpressCommand, "sudo rm videots");
+  system(ExpressCommand); 
+  strcpy(ExpressCommand, "mkfifo videots");
+  system(ExpressCommand); 
+
+  strcpy(ExpressCommand, "echo \"set freq ");
+  snprintf(FreqText, 12, "%lld", DisplayFreq);
+  strcat(ExpressCommand, FreqText);
+  strcat(ExpressCommand, "\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set fec 7/8\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set srate 333000\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set port 0\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set level ");
+  snprintf(LevelText, 3, "%d", level);
+  strcat(ExpressCommand, LevelText);
+  strcat(ExpressCommand, "\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set car off\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "echo \"set ptt tx\" >> /tmp/expctrl" );
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &");
+  system(ExpressCommand);
+
+  strcpy(ExpressCommand, "/home/pi/rpidatv/bin/avc2ts -b 372783 -m 537044 ");
+  strcat(ExpressCommand, "-x 720 -y 576 -f 25 -i 100 -o videots -t 3 -p 255 -s SigGen &");
+  system(ExpressCommand);
 }
 
 int mymillis()
@@ -1162,7 +1650,7 @@ void SelectInGroup(int StartButton,int StopButton,int NoButton,int Status)
   }
 }
 
-void ImposeBounds()  // Constrain DisplayFreq to physical limits
+void ImposeBounds()  // Constrain DisplayFreq and level to physical limits
 {
   if (strcmp(osctxt, "audio")==0)
   {
@@ -1179,6 +1667,14 @@ void ImposeBounds()  // Constrain DisplayFreq to physical limits
   {
     SourceUpperFreq = 4294967295LL;
     SourceLowerFreq = 35000000;
+    if (level > 3)
+    {
+      level = 3;
+    }
+    if (level < 0)
+    {
+      level = 0;
+    }
   }
 
   if (strcmp(osctxt, "portsdown")==0)
@@ -1191,6 +1687,14 @@ void ImposeBounds()  // Constrain DisplayFreq to physical limits
   {
     SourceUpperFreq = 2450000000LL;
     SourceLowerFreq = 70000000;
+    if (level > 47)
+    {
+      level = 47;
+    }
+    if (level < 0)
+    {
+      level = 0;
+    }
   }
 
   if (strcmp(osctxt, "adf5355")==0)
@@ -1207,7 +1711,6 @@ void ImposeBounds()  // Constrain DisplayFreq to physical limits
   {
     DisplayFreq = SourceLowerFreq;
   }
-
 }
 
 void InitOsc()   
@@ -1224,7 +1727,14 @@ void InitOsc()
   if (strcmp(osctxt, "express")==0)
   {
     printf("Starting DATV Express\n");
-    system("/home/pi/rpidatv/src/siggen/startexpresssvr.sh");
+    //MsgBox4("Please wait","Loading Firmware to DATV Express", "", "");
+    //system("/home/pi/rpidatv/src/siggen/startexpresssvr.sh");
+    n = StartExpressServer();
+    printf("Response from StartExpressServer was %d\n", n);
+    ShowTitle();
+    ShowLevel(DisplayLevel);
+    ShowFreq(DisplayFreq);
+    UpdateWindow();
   }
   else
   {
@@ -1232,8 +1742,27 @@ void InitOsc()
     system(KillExpressSvr);
   }
   
-  // Read in amplitude Cal table
+  // Turn off attenuator if not compatible with mode
+  if ((strcmp(osctxt, "audio") == 0) || (strcmp(osctxt, "pirf") == 0) ||(strcmp(osctxt, "express") == 0))
+  {
+    AttenIn = 0;
+    SetAtten(0);
+  }
 
+  // Turn off modulation if not compatible with mode
+  if ((strcmp(osctxt, "audio") == 0) || (strcmp(osctxt, "pirf") == 0)
+    || (strcmp(osctxt, "adf4351") == 0) || (strcmp(osctxt, "adf5355") == 0))
+  {
+    ModOn = 0;
+  }
+
+  // Set adf4351 level correctly for attenuator
+  if ((strcmp(osctxt, "adf4351") == 0) && (AttenIn == 1))
+  {
+    level = 3;
+  }
+
+  // Read in amplitude Cal table
   strcpy(Param, osctxt);
   strcat(Param, "points");
   GetConfigParam(PATH_CAL,Param,Value);
@@ -1348,11 +1877,8 @@ void InitOsc()
       SetButtonStatus(Menu1Buttons+7,1);         // Hide increment 10s
     }
   }
-  else //attenuator in probably all visible
-  {
-    ; // behaviour tbd
-  }
-  CalcOPLevel();  
+  CalcOPLevel();
+  Start_Highlights_Menu1();  
 }
 
 void SelectOsc(int NoButton)  // Select Oscillator Source
@@ -1369,8 +1895,6 @@ void SelectOsc(int NoButton)  // Select Oscillator Source
   ShowFreq(DisplayFreq);
 
   UpdateWindow();
-
-
 }
 
 void SavePreset(int PresetNo)
@@ -1392,7 +1916,7 @@ void SavePreset(int PresetNo)
   strcpy(Param, LevelTag[PresetNo]);
   SetConfigParam(PATH_CONFIG ,Param, Value);
 
-  snprintf(Value, 5, "%d", atten);
+  snprintf(Value, 6, "%.2f", atten);
   strcpy(TabAtten[PresetNo], Value);
   strcpy(Param, AttenTag[PresetNo]);
   SetConfigParam(PATH_CONFIG ,Param, Value);
@@ -1403,39 +1927,15 @@ void RecallPreset(int PresetNo)
   DisplayFreq = TabFreq[PresetNo];
   strcpy(osctxt, TabOscOption[PresetNo]);
   level=atoi(TabLevel[PresetNo]);
-  atten=atoi(TabAtten[PresetNo]);
+  atten=atof(TabAtten[PresetNo]);
 
   InitOsc();
-}
-
-void SelectAtten(int NoButton,int Status)  // Attenuator on or off
-{
-/*  char Param[]="caption";
-  char Value[255];
-
-            strcpy(Param,"caption");
-            GetConfigParam(PATH_CONFIG,Param,Value);
-            printf("Value=%s %s\n",Value,"Caption old");
-            if(strcmp(Value,"on")==0)
-            {
-               Status=0;
-               SetConfigParam(PATH_CONFIG,Param,"off");
-            }
-            else
-            {
-              Status=1;
-               SetConfigParam(PATH_CONFIG,Param,"on");
-            } 
-*/
-	SelectInGroup(10,10,NoButton,Status);
-
 }
 
 void SelectMod(int NoButton,int Status)  // Modulation on or off
 {
   SelectInGroup(11,11,NoButton,Status);
   SelectInGroup(Menu1Buttons+5,Menu1Buttons+5,NoButton,Status);
-
 }
 
 void OscStart()
@@ -1443,9 +1943,15 @@ void OscStart()
   //  Look up which oscillator we are using
   // Then use an if statement for each alternative
 
+  // Set the attenuator if required
+  if (AttenIn ==1)
+  {
+    SetAtten(atten);
+  }
+
   printf("Oscillator Start\n");
-  char StartPortsdown[256] = "sudo /home/pi/rpidatv/bin/adf4351 ";
-  char transfer[256];
+  char StartPortsdown[255] = "sudo /home/pi/rpidatv/bin/adf4351 ";
+  char transfer[255];
   double freqmhz;
   int adf4351_lev = level; // 0 to 3
 
@@ -1477,27 +1983,32 @@ void OscStart()
 
   if (strcmp(osctxt, "portsdown")==0)
   {
-    freqmhz=(double)DisplayFreq/1000000;
-    snprintf(transfer, 13, "%.6f", freqmhz);
-    strcat(StartPortsdown, transfer);
-    strcat(StartPortsdown, " ");
-    strcat(StartPortsdown, ref_freq_4351);
-    strcat(StartPortsdown, " 3"); // Level 3 for Portsdown F-M
-    printf(StartPortsdown);
-    printf("\nStarting portsdown output\n");
-    system(StartPortsdown);
+    if (ModOn == 0)  // Start Portsdown without Mod
+    {
+      PortsdownOn();
+    }
+    else           // Start Portsdown with Mod
+    {
+      PortsdownOnWithMod();
+    }
   }
 
   if (strcmp(osctxt, "express")==0)
   {
-    printf("\nStarting Express RF output\n");
+    if (ModOn == 0)  // Start Express without Mod
+    {
+      ExpressOn();
+    }
+    else           // Start Express with Mod
+    {
+      ExpressOnWithMod();
+    }
   }
 
   if (strcmp(osctxt, "adf5355")==0)
   {
     printf("\nStarting ADF5355 output\n");
   }
-
 
   SetButtonStatus(13,1);
   SetButtonStatus(47,1);
@@ -1530,8 +2041,8 @@ void OscStop()
   {
     strcpy( expressrx, "echo \"set ptt rx\" >> /tmp/expctrl" );
     system(expressrx);
-    strcpy( expressrx, "echo \"set car off\" >> /tmp/expctrl" );
-    system(expressrx);
+    //strcpy( expressrx, "echo \"set car off\" >> /tmp/expctrl" );
+    //system(expressrx);
     system("sudo killall netcat >/dev/null 2>/dev/null");
     printf("\nStopping Express output\n");
   }
@@ -1601,7 +2112,6 @@ void MsgBox(const char *message)
   VGfloat tw = TextWidth("Touch Screen to Continue", SansTypeface, 25);
   Text(wscreen / 2.0 - (tw / 2.0), 20, "Touch Screen to Continue", SansTypeface, 25);
   End();
-  printf("MsgBox called and waiting for touch\n");
 }
 
 void MsgBox2(const char *message1, const char *message2)
@@ -1619,7 +2129,6 @@ void MsgBox2(const char *message1, const char *message2)
   VGfloat tw = TextWidth("Touch Screen to Continue", SansTypeface, 25);
   Text(wscreen / 2.0 - (tw / 2.0), 20, "Touch Screen to Continue", SerifTypeface, 25);
   End();
-  printf("MsgBox2 called and waiting for touch\n");
 }
 
 void MsgBox4(const char *message1, const char *message2, const char *message3, const char *message4)
@@ -1636,13 +2145,12 @@ void MsgBox4(const char *message1, const char *message2, const char *message3, c
   TextMid(wscreen/2, hscreen/2 - 2.1 * th, message4, SansTypeface, 25);
 
   End();
-  printf("MsgBox4 called and waiting for touch\n");
 }
 
-// wait for a screen touch and act on its position
 void waituntil(int w,int h)
+// wait for a screen touch and act on its position
 {
-  int rawX, rawY, rawPressure, i, ExitSignal ;
+  int rawX, rawY, rawPressure, i, ExitSignal;
   ExitSignal=0; 
 
   // Start the main loop for the Touchscreen
@@ -1678,8 +2186,17 @@ void waituntil(int w,int h)
           if((i>=0)&&(i<=4)) // Signal Source
           {
             OscStop();                // Stop the current output
-            if ((i == 2) || (i == 3))
+            if ((i == 2) || (i == 3)  || i == 4)
             {
+              // Check here that DATV Express is connected
+              if (i == 4)
+              {
+                if (CheckExpressConnect() == 1)   // Not detected
+                {
+                  MsgBox2("DATV Express Not connected", "Connect it or select another mode");
+                  wait_touch();
+                }
+              }
               SelectOsc(i);
             }
             else
@@ -1693,6 +2210,8 @@ void waituntil(int w,int h)
             if (PresetStoreTrigger == 0)
             {
               RecallPreset(i-4);  // Recall preset
+              OscStop();
+              InitOsc();
               Start_Highlights_Menu1();
             }
             else
@@ -1713,41 +2232,84 @@ void waituntil(int w,int h)
           }
           if(i==10) // Attenuator in/out
           {
-            MsgBox("Attenuator not implemented yet");
-            wait_touch();
-            /* if (AttenIn == 0)
+            if ((strcmp(osctxt, "portsdown")==0) || (strcmp(osctxt, "adf4351")==0))
             {
-              AttenIn=1;
-              SetAtten();
-              SetButtonStatus(10,1);
+               if (AttenIn == 0)
+              {
+                if ((strcmp(AttenType, "PE4312")==0) || (strcmp(AttenType, "PE43713")==0) || (strcmp(AttenType, "HMC1119")==0))
+                {
+                  AttenIn=1;
+                  SetAtten(atten);
+                  SetButtonStatus(10,1);
+                  if (strcmp(osctxt, "adf4351")==0)
+                  {
+                    level = 3;
+                  }
+                }
+                else
+                {
+                  MsgBox4("No Attenuator Selected.", "Please select an Attenuator Type"
+                    , "from the Console Setup Menu", "and restart SigGen");
+                  wait_touch();
+                }
+              }
+              else
+              {
+                AttenIn=0;
+                SetAtten(0);        // Set min attenuation
+                MsgBox4("If you had an Attenuator in-circuit", "you need to take it out of circuit,"
+                  , "as it has a minimum attenuation of 2 dB", "and displayed output level will be incorrect");
+                wait_touch();
+                SetButtonStatus(10,0);
+              }
+              CalcOPLevel();
+              InitOsc();
+              if ((OutputStatus == 1) && (strcmp(osctxt, "adf4351")==0))  // adf5341 mode active already running
+              {
+                OscStart();  // Make sure that the adf4351 is running at the correct level
+              }
             }
             else
             {
               AttenIn=0;
-              SetButtonStatus(10,0);
+              MsgBox("Attenuator not implemented for this output");
+              wait_touch();
             }
-            CalcOPLevel();
-            */
           }
           if(i==11) // Modulation on/off
           {
-            MsgBox("Modulation not implemented yet");
-            wait_touch();
-            /* if (ModOn == 0)
+            if (ModOn == 0)
             {
-              ModOn=1;
-              // Do something to turn the mod on
-              SetButtonStatus(11,1);
-              SetButtonStatus(Menu1Buttons+4,1);
+              if ((strcmp(osctxt, "portsdown")==0) || (strcmp(osctxt, "express")==0))
+              {
+                ModOn=1;
+                if (OutputStatus == 1)  // Oscillator already running
+                {
+                  OscStop();
+                  OscStart();
+                }
+                SetButtonStatus(11,1);
+                SetButtonStatus(Menu1Buttons+4,1);
+
+              }
+              else
+              {
+                MsgBox4("Modulation only available in", "Portsdown and DATV Express", "output modes", "");
+                wait_touch();
+              }
             }
             else
             {
               ModOn=0;
+              if (OutputStatus == 1)  // Oscillator already running
+              {
+                OscStop();
+                OscStart();
+              }
               SetButtonStatus(11,0);
               SetButtonStatus(Menu1Buttons+4,0);
-              // Do something to turn the mod off
             }
-            */
+            CalcOPLevel();
           }
           if(i==12) // Set Preset
           {
@@ -1781,14 +2343,12 @@ void waituntil(int w,int h)
           {
             printf("Switch to FREQ menu \n");
             CurrentMenu=2;
-            BackgroundRGB(0,0,0,255);
-            ShowTitle();
-            ShowFreq(DisplayFreq);
-            ShowLevel(DisplayLevel);
           }
           ShowTitle();
           ShowLevel(DisplayLevel);
           ShowFreq(DisplayFreq);
+          printf("Calling ShowAtten\n");
+          ShowAtten();
           UpdateWindow();
         }
       }
@@ -1805,10 +2365,6 @@ void waituntil(int w,int h)
           {
             AdjustLevel(i);
             CalcOPLevel();
-            if (OutputStatus == 1)
-            {
-              OscStart();
-            }
           }
           if(i==(Menu1Buttons+3)) // Save
           {
@@ -1820,32 +2376,42 @@ void waituntil(int w,int h)
           }
           if(i==(Menu1Buttons+4)) // Modulation on-off
           {
-           MsgBox("Modulation not implemented yet");
-            wait_touch();
-            /* if (ModOn == 0)
+            if (ModOn == 0)
             {
-              ModOn=1;
-              // Do something to turn the mod on
-              SetButtonStatus(11,1);
-              SetButtonStatus(Menu1Buttons+4,1);
+              if ((strcmp(osctxt, "portsdown")==0) || (strcmp(osctxt, "express")==0))
+              {
+                ModOn=1;
+                if (OutputStatus == 1)  // Oscillator already running
+                {
+                  OscStop();
+                  OscStart();
+                }
+                SetButtonStatus(11,1);
+                SetButtonStatus(Menu1Buttons+4,1);
+              }
+              else
+              {
+                MsgBox4("Modulation only available in", "Portsdown and DATV Express", "output modes.", "Touch screen to continue");
+                wait_touch();
+              }
             }
             else
             {
               ModOn=0;
+              if (OutputStatus == 1)  // Oscillator already running
+              {
+                OscStop();
+                OscStart();
+              }
               SetButtonStatus(11,0);
               SetButtonStatus(Menu1Buttons+4,0);
-              // Do something to turn the mod off
             }
-            */
+            CalcOPLevel();
           }
           if(i>=((Menu1Buttons+5))&&(i<=(Menu1Buttons+7))) // Increment Level
           {
             AdjustLevel(i);
             CalcOPLevel();
-            if (OutputStatus == 1)
-            {
-              OscStart();
-            }
           }
           if(i>=((Menu1Buttons+8))&&(i<=(Menu1Buttons+29))) // Adjust Frequency
           {
@@ -1853,12 +2419,13 @@ void waituntil(int w,int h)
             CalcOPLevel();
             if (OutputStatus == 1)
             {
-              OscStart();
+              // OscStart(); Not required for portsdown, express or adf, but might be required for audio
             }
             BackgroundRGB(0,0,0,255);
             ShowTitle();
             ShowFreq(DisplayFreq);
             ShowLevel(DisplayLevel);
+            ShowAtten();
           }
           if(i==(Menu1Buttons+30)) // Oscillator on
           {
@@ -1896,6 +2463,7 @@ void waituntil(int w,int h)
           ShowTitle();
           ShowLevel(DisplayLevel);
           ShowFreq(DisplayFreq);
+          ShowAtten();
           UpdateWindow();
         }
       }
@@ -1929,9 +2497,21 @@ void Start_Highlights_Menu1()
   {
     SelectInGroup(0,4,3,1);
   }
+  if(strcmp(Value,TabOsc[4])==0)
+  {
+    SelectInGroup(0,4,4,1);
+  }
   if(strcmp(Value,TabOsc[9])==0)
   {
     SelectInGroup(0,4,9,1);
+  }
+  if(AttenIn == 1)
+  {
+    SetButtonStatus(10,1);
+  }
+  else
+  {
+    SetButtonStatus(10,0);
   }
 }
 
@@ -2279,7 +2859,10 @@ terminate(int dummy)
 {
   OscStop();
   printf("Terminate\n");
+  finish();
   char Commnd[255];
+  sprintf(Commnd, "sudo killall express_server");
+  system(Commnd);
   sprintf(Commnd,"stty echo");
   system(Commnd);
   sprintf(Commnd,"reset");
@@ -2326,10 +2909,15 @@ int main(int argc, char **argv)
     Inversed = 1;
   }
 
-  //Look up ADF4351 Ref Freq from Portsdown Config
-  strcpy(Param,"adfref");
-  GetConfigParam(PATH_CONFIG_PORTSDOWN,Param,Value);
-  strcpy(ref_freq_4351,Value);
+  // Look up ADF4351 Ref Freq from Portsdown Config
+  strcpy(Param, "adfref");
+  GetConfigParam(PATH_CONFIG_PORTSDOWN, Param, Value);
+  strcpy(ref_freq_4351, Value);
+
+  // Look up attenuator type from Portsdown Config
+  strcpy(Param, "attenuator");
+  GetConfigParam(PATH_CONFIG_PORTSDOWN, Param, Value);
+  strcpy(AttenType, Value);
 
   // Check for presence of touchscreen
   for(NoDeviceEvent=0;NoDeviceEvent<5;NoDeviceEvent++)
@@ -2372,6 +2960,15 @@ int main(int argc, char **argv)
 
   // Define the buttons for Menu 2
   Define_Menu2();
+
+  // Initialise the attenuator
+  if ((strcmp(osctxt, "portsdown")==0) || (strcmp(osctxt, "adf4351")==0))
+  {
+    if ((strcmp(AttenType, "PE4312")==0) || (strcmp(AttenType, "PE43713")==0) || (strcmp(AttenType, "HMC1119")==0))
+    {
+      AttenIn = 1;
+    }
+  }
 
   // Start the button Menu
   Start(wscreen,hscreen);
@@ -2416,15 +3013,16 @@ int main(int argc, char **argv)
     waituntil(wscreen,hscreen);
   }
 
+  // Program flow only gets here when exit button pushed
+  OscStop();
+
   // Shutdown the graphics system so that there are no hanging menus
   finish();
 
-  // Program flow only gets here when exit button pushed
-  // Start the Portsdown DATV TX and exit
-  //system("(sleep .5 && /home/pi/rpidatv/bin/rpidatvgui) &");
-
   //Tidy up the terminal
   char Commnd[255];
+  strcpy(Commnd, "echo \"set kill\" >> /tmp/expctrl");
+  system(Commnd);
   sprintf(Commnd,"stty echo");
   system(Commnd);
   sprintf(Commnd,"reset");

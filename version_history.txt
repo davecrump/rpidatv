@@ -1,3 +1,11 @@
+201801061
+Introduces attenuator option for Portsdown output in SigGen
+Adds attenuator option to Portsdown and ADF4351 modes in SigGen
+Enables DATV Express SigGen
+Enables 333KD QPSK mod for Portsdown and ADF4351 modes in SigGen
+Cures multiple overlays of receive parameters
+Single touch exit from receive to Main Menu
+
 201801012
 Introduces scheduler.sh to switch between rpidatv, siggen & FreqShow
 Adds a Display option for the Element14_7
