@@ -885,9 +885,7 @@ void CalcOPLevel()
     //printf("proportion = %f \n", proportion);
     DisplayLevel = CalLevel[PointBelow] + (CalLevel[PointAbove] - CalLevel[PointBelow]) * proportion;
   }
-
   // printf("Initial Display Level = %d\n", DisplayLevel);
-
   // Now correct for set oscillator level ******************************************
 
   if (strcmp(osctxt, "audio")==0)
