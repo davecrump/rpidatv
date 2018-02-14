@@ -2,7 +2,7 @@
  *  @file    pe43713.c
  *  @author  Ray M0DHP
  *  @date    2017-12-22  
- *  @version 0.1
+ *  @version 0.2
 *******************************************************************************/
 
 #include <unistd.h>
@@ -41,6 +41,7 @@ int pe43713_set_level(float level)
 
     // Set idle conditions
 
+    usleep(10);
     digitalWrite(LE_43713_GPIO, LOW);
     digitalWrite(CLK_43713_GPIO, LOW);
 
@@ -50,6 +51,7 @@ int pe43713_set_level(float level)
     for (bit = 0; bit <= 7; bit++)
     {
       digitalWrite(DATA_43713_GPIO, (integer_level >> bit) & 0x01);
+      usleep(10);
       digitalWrite(CLK_43713_GPIO, HIGH);
       usleep(10);
       digitalWrite(CLK_43713_GPIO, LOW);
@@ -62,6 +64,7 @@ int pe43713_set_level(float level)
     for (bit = 0; bit <= 7; bit++)
     {
       digitalWrite(DATA_43713_GPIO, (PE43713_ADDRESS >> bit) & 0x01);
+      usleep(10);
       digitalWrite(CLK_43713_GPIO, HIGH);
       usleep(10);
       digitalWrite(CLK_43713_GPIO, LOW);

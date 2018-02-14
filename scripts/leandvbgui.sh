@@ -1,8 +1,11 @@
 #! /bin/bash
+
+# Amended 201802040 DGC
+
 PATHBIN="/home/pi/rpidatv/bin/"
 PATHSCRIPT="/home/pi/rpidatv/scripts"
 CONFIGFILE=$PATHSCRIPT"/rpidatvconfig.txt"
-
+PCONFIGFILE="/home/pi/rpidatv/scripts/portsdown_config.txt"
 
 get_config_var() {
 lua - "$1" "$2" <<EOF
@@ -19,9 +22,9 @@ end
 EOF
 }
 
-SYMBOLRATEK=$(get_config_var symbolrate $CONFIGFILE)
-FREQ_OUTPUT=$(get_config_var freqoutput $CONFIGFILE)
-FEC=$(get_config_var fec $CONFIGFILE)
+SYMBOLRATEK=$(get_config_var symbolrate $PCONFIGFILE)
+FREQ_OUTPUT=$(get_config_var freqoutput $PCONFIGFILE)
+FEC=$(get_config_var fec $PCONFIGFILE)
 let FECNUM=FEC
 let FECDEN=FEC+1
 

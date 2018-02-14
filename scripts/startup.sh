@@ -12,6 +12,7 @@ PATHSCRIPT=/home/pi/rpidatv/scripts
 PATHRPI=/home/pi/rpidatv/bin
 CONFIGFILE=$PATHSCRIPT"/rpidatvconfig.txt"
 PATHCONFIGS="/home/pi/rpidatv/scripts/configs"  ## Path to config files
+PCONFIGFILE="/home/pi/rpidatv/scripts/portsdown_config.txt"
 
 ############ Function to Read from Config File ###############
 
@@ -173,7 +174,7 @@ if [ "$RESULT" -eq 0 ]; then
 fi
 
 # Read the desired start-up behaviour
-MODE_STARTUP=$(get_config_var startup $CONFIGFILE)
+MODE_STARTUP=$(get_config_var startup $PCONFIGFILE)
 
 # Select the appropriate action
 
@@ -205,7 +206,7 @@ case "$MODE_STARTUP" in
   ;;
   Display_boot)
     # First start DATV Express Server if required
-    MODE_OUTPUT=$(get_config_var modeoutput $CONFIGFILE)
+    MODE_OUTPUT=$(get_config_var modeoutput $PCONFIGFILE)
     if [ "$MODE_OUTPUT" == "DATVEXPRESS" ]; then
       if pgrep -x "express_server" > /dev/null; then
         : # Express already running

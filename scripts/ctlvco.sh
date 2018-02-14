@@ -1,3 +1,7 @@
+#!/bin/bash
+
+# Updated 201802040
+
 ########## ctlvco.sh ############
 
 # Called by a.sh in IQ mode to set ADF4351 vco 
@@ -8,6 +12,8 @@
 PATHSCRIPT=/home/pi/rpidatv/scripts
 PATHRPI=/home/pi/rpidatv/bin
 CONFIGFILE=$PATHSCRIPT"/rpidatvconfig.txt"
+PCONFIGFILE="/home/pi/rpidatv/scripts/portsdown_config.txt"
+PATH_ATTEN="/home/pi/rpidatv/bin/set_attenuator "
 
 ############### Function to read Config File ###############
 
@@ -28,27 +34,38 @@ EOF
 
 ########### Read Frequency and Ref Frequency ###############
 
-FREQM=$(get_config_var freqoutput $CONFIGFILE)
-FREQR=$(get_config_var adfref $CONFIGFILE)
+FREQM=$(get_config_var freqoutput $PCONFIGFILE)
+FREQR=$(get_config_var adfref $PCONFIGFILE)
+ATTENUATOR=$(get_config_var attenuator $PCONFIGFILE)
+ATTENLEVEL=$(get_config_var attenlevel $PCONFIGFILE)
 
-INT_FREQ_OUTPUT=${FREQM%.*}
+################ Set Attenuator Level #####################
 
-############### Switch Power based on Frequency ########
-
-if (( $INT_FREQ_OUTPUT \< 100 )); then
-  PWR=$(get_config_var adflevel0 $CONFIGFILE);
-elif (( $INT_FREQ_OUTPUT \< 250 )); then
-  PWR=$(get_config_var adflevel1 $CONFIGFILE);
-elif (( $INT_FREQ_OUTPUT \< 950 )); then
-  PWR=$(get_config_var adflevel2 $CONFIGFILE);
-elif (( $INT_FREQ_OUTPUT \< 4400 )); then
-  PWR=$(get_config_var adflevel3 $CONFIGFILE);
+#Change ATTENLEVEL sign if not 0 
+if (( $(bc <<< "$ATTENLEVEL < 0") )); then
+  ATTENLEVEL=${ATTENLEVEL:1}
 else
-  PWR="0";
+  ATTENLEVEL=0.00
 fi
+
+case "$ATTENUATOR" in
+NONE)
+  :
+;;
+PE4312)
+  sudo $PATH_ATTEN PE4312 "$ATTENLEVEL"
+;;
+PE43713)
+  sudo $PATH_ATTEN PE43713 "$ATTENLEVEL"
+;;
+HMC1119)
+  sudo $PATH_ATTEN HMC1119 "$ATTENLEVEL"
+;;
+esac
 
 ############### Call binary to set frequency ########
 
+PWR="0";
 sudo $PATHRPI"/adf4351" $FREQM $FREQR $PWR
 
 ### End ###

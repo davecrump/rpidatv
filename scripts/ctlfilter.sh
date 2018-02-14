@@ -3,8 +3,8 @@
 ########## ctlfilter.sh ############
 
 # Called by a.sh in IQ and DATVEXPRESS modes to switch in correct
-# Nyquist Filter and band switching
-# Written by Dave G8GKQ 20170209
+# Nyquist Filter, band/transverter switching and attenuator level
+# Written by Dave G8GKQ 20170209.  Last amended 201802040
 
 # SR Outputs:
 
@@ -38,6 +38,8 @@
 
 PATHSCRIPT=/home/pi/rpidatv/scripts
 CONFIGFILE=$PATHSCRIPT"/rpidatvconfig.txt"
+PCONFIGFILE="/home/pi/rpidatv/scripts/portsdown_config.txt"
+PATH_ATTEN="/home/pi/rpidatv/bin/set_attenuator "
 
 ############### PIN DEFINITIONS ###########
 
@@ -56,12 +58,16 @@ band_bit0=1
 #band_bit_1 MSB of band switching word = BCM 19 / Header 35
 band_bit1=19
 
+#tverter_bit: 0 for direct, 1 for transverter = BCM 4 / Header 7
+tverter_bit=4
+
 # Set all as outputs
 gpio -g mode $filter_bit0 out
 gpio -g mode $filter_bit1 out
 gpio -g mode $filter_bit2 out
 gpio -g mode $band_bit0 out
 gpio -g mode $band_bit1 out
+gpio -g mode $tverter_bit out
 
 ############### Function to read Config File ###############
 
@@ -82,7 +88,7 @@ EOF
 
 ############### Read Symbol Rate #########################
 
-SYMBOLRATEK=$(get_config_var symbolrate $CONFIGFILE)
+SYMBOLRATEK=$(get_config_var symbolrate $PCONFIGFILE)
 
 ############### Switch GPIOs based on Symbol Rate ########
 
@@ -116,58 +122,121 @@ else
                 gpio -g write $filter_bit2 1;
 fi
 
-############### Read Frequency #########################
+############### Read Frequency and Band #########################
 
-FREQ_OUTPUT=$(get_config_var freqoutput $CONFIGFILE)
-
+FREQ_OUTPUT=$(get_config_var freqoutput $PCONFIGFILE)
 INT_FREQ_OUTPUT=${FREQ_OUTPUT%.*}
+BAND=$(get_config_var band $PCONFIGFILE)
+DIRECT=TRUE
 
-############### Switch GPIOs based on Frequency ########
-# Switch contest images at the same time
-
-if (( $INT_FREQ_OUTPUT \< 100 )); then
+case "$BAND" in
+d1)
+  DIRECT=TRUE
+;;
+d2)
+  DIRECT=TRUE
+;;
+d3)
+  DIRECT=TRUE
+;;
+d4)
+  DIRECT=TRUE
+;;
+d5)
+  DIRECT=TRUE
+;;
+t1)
+  DIRECT=FALSE
   gpio -g write $band_bit0 0;
   gpio -g write $band_bit1 0;
-  cp -f /home/pi/rpidatv/scripts/images/contest0.png /home/pi/rpidatv/scripts/images/contest.png
-elif (( $INT_FREQ_OUTPUT \< 250 )); then
+  gpio -g write $tverter_bit 1;
+;;
+t2)
+  DIRECT=FALSE
   gpio -g write $band_bit0 1;
   gpio -g write $band_bit1 0;
-  cp -f /home/pi/rpidatv/scripts/images/contest1.png /home/pi/rpidatv/scripts/images/contest.png
-elif (( $INT_FREQ_OUTPUT \< 950 )); then
+  gpio -g write $tverter_bit 1;
+;;
+t3)
+  DIRECT=FALSE
   gpio -g write $band_bit0 0;
   gpio -g write $band_bit1 1;
-  cp -f /home/pi/rpidatv/scripts/images/contest2.png /home/pi/rpidatv/scripts/images/contest.png
-elif (( $INT_FREQ_OUTPUT \< 4400 )); then
+  gpio -g write $tverter_bit 1;
+;;
+t4)
+  DIRECT=FALSE
   gpio -g write $band_bit0 1;
   gpio -g write $band_bit1 1;
-  cp -f /home/pi/rpidatv/scripts/images/contest3.png /home/pi/rpidatv/scripts/images/contest.png
-else
-  gpio -g write $band_bit0 0;
-  gpio -g write $band_bit1 0;
+  gpio -g write $tverter_bit 1;
+;;
+esac
+
+####### SET BAND/TRANSVERTER SWITCHING ##########################
+
+if [ "$DIRECT" == "TRUE" ]; then
+
+# Switch GPIOs based on Frequency #
+
+  if (( $INT_FREQ_OUTPUT \< 100 )); then
+    gpio -g write $band_bit0 0;
+    gpio -g write $band_bit1 0;
+  elif (( $INT_FREQ_OUTPUT \< 250 )); then
+    gpio -g write $band_bit0 1;
+    gpio -g write $band_bit1 0;
+  elif (( $INT_FREQ_OUTPUT \< 950 )); then
+    gpio -g write $band_bit0 0;
+    gpio -g write $band_bit1 1;
+  elif (( $INT_FREQ_OUTPUT \< 4400 )); then
+    gpio -g write $band_bit0 1;
+    gpio -g write $band_bit1 1;
+  else
+    gpio -g write $band_bit0 0;
+    gpio -g write $band_bit1 0;
+  fi
+
+  # Read the start-up behaviour so we don't mess up the TX indication
+  MODE_STARTUP=$(get_config_var startup $PCONFIGFILE)
+  if [ "$MODE_STARTUP" == "Keyed_TX_boot" ] || [ "$MODE_STARTUP" == "Keyed_Stream_boot" ]\
+    || [ "$MODE_STARTUP" == "Cont_Stream_boot" ]; then
+    :
+  else
+    gpio -g write $tverter_bit 0;
+  fi
 fi
 
-################ If DATVEXPRESS in use, Set Ports ########
+################ Set Attenuator Level #####################
 
-MODE_OUTPUT=$(get_config_var modeoutput $CONFIGFILE)
+ATTENUATOR=$(get_config_var attenuator $PCONFIGFILE)
+ATTENLEVEL=$(get_config_var attenlevel $PCONFIGFILE)
+
+#Change ATTENLEVEL sign if not 0 
+if (( $(bc <<< "$ATTENLEVEL < 0") )); then
+  ATTENLEVEL=${ATTENLEVEL:1}
+else
+  ATTENLEVEL=0.00
+fi
+
+case "$ATTENUATOR" in
+NONE)
+  :
+;;
+PE4312)
+  sudo $PATH_ATTEN PE4312 "$ATTENLEVEL"
+;;
+PE43713)
+  sudo $PATH_ATTEN PE43713 "$ATTENLEVEL"
+;;
+HMC1119)
+  sudo $PATH_ATTEN HMC1119 "$ATTENLEVEL"
+;;
+esac
+
+################ If DATV EXPRESS in use, Set Ports ########
+
+MODE_OUTPUT=$(get_config_var modeoutput $PCONFIGFILE)
 if [ $MODE_OUTPUT = "DATVEXPRESS" ]; then
-  if (( $INT_FREQ_OUTPUT \< 100 )); then
-    EXPPORTS0=$(get_config_var expports0 $CONFIGFILE)
-    echo "set port "$EXPPORTS0 >> /tmp/expctrl
-  elif (( $INT_FREQ_OUTPUT \< 250 )); then
-    EXPPORTS1=$(get_config_var expports1 $CONFIGFILE)
-    echo "set port "$EXPPORTS1 >> /tmp/expctrl
-  elif (( $INT_FREQ_OUTPUT \< 950 )); then
-    EXPPORTS2=$(get_config_var expports2 $CONFIGFILE)
-    echo "set port "$EXPPORTS2 >> /tmp/expctrl
-  elif (( $INT_FREQ_OUTPUT \< 2000 )); then
-    EXPPORTS3=$(get_config_var expports3 $CONFIGFILE)
-    echo "set port "$EXPPORTS3 >> /tmp/expctrl
-  elif (( $INT_FREQ_OUTPUT \< 4400 )); then
-    EXPPORTS4=$(get_config_var expports4 $CONFIGFILE)
-    echo "set port "$EXPPORTS4 >> /tmp/expctrl
-  else
-    echo "set port 0" >> /tmp/expctrl
-  fi
+  EXPPORTS=$(get_config_var expports $PCONFIGFILE)
+  echo "set port "$EXPPORTS >> /tmp/expctrl
 fi
 
 ### End ###

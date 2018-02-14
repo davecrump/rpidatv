@@ -1,6 +1,10 @@
+#!/bin/bash
+
+# Amended 201802040 DGC
+
 PATHSCRIPT=/home/pi/rpidatv
 CONFIGFILE=$PATHSCRIPT"/rpidatvconfig.txt"
-
+PCONFIGFILE="/home/pi/rpidatv/scripts/portsdown_config.txt"
 
 ############### PIN DEFINITION ###########"
 #Source=GPIO 5 / Header 29  
@@ -109,9 +113,9 @@ do_transmit()
 
 do_refresh_config()
 {
-	MODE_INPUT=$(get_config_var modeinput $CONFIGFILE)
-	SYMBOLRATEK=$(get_config_var symbolrate $CONFIGFILE)
-	FEC=$(get_config_var fec $CONFIGFILE)
+	MODE_INPUT=$(get_config_var modeinput $PCONFIGFILE)
+	SYMBOLRATEK=$(get_config_var symbolrate $PCONFIGFILE)
+	FEC=$(get_config_var fec $PCONFIGFILE)
 }
 
 do_process_button()
@@ -135,7 +139,7 @@ do_process_button()
 				NEW_MODE_INPUT=CAMH264
 			;;
 		esac
-		set_config_var modeinput "$NEW_MODE_INPUT" $CONFIGFILE
+		set_config_var modeinput "$NEW_MODE_INPUT" $PCONFIGFILE
 		
 		echo $NEW_MODE_INPUT
 		do_transmit
@@ -155,7 +159,7 @@ do_process_button()
 				NEW_SR=250
 			;;
 		esac
-		set_config_var symbolrate "$NEW_SR" $CONFIGFILE
+		set_config_var symbolrate "$NEW_SR" $PCONFIGFILE
 		#echo $NEW_SR
 		do_transmit
 	fi
@@ -172,7 +176,7 @@ do_process_button()
 				NEW_FEC=1
 			;;
 		esac
-		set_config_var fec "$NEW_FEC" $CONFIGFILE
+		set_config_var fec "$NEW_FEC" $PCONFIGFILE
 		#echo $NEW_FEC
 		do_transmit
 	fi

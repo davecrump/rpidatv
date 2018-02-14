@@ -41,6 +41,7 @@ int hmc1119_set_level(float level)
 
     // Set idle conditions
 
+    usleep(10);
     digitalWrite(LE_1119_GPIO, LOW);
     digitalWrite(CLK_1119_GPIO, LOW);
 
@@ -50,6 +51,7 @@ int hmc1119_set_level(float level)
     for (bit = 6; bit >= 0; bit--)
     {
       digitalWrite(DATA_1119_GPIO, (integer_level >> bit) & 0x01);
+      usleep(10);
       digitalWrite(CLK_1119_GPIO, HIGH);
       usleep(10);
       digitalWrite(CLK_1119_GPIO, LOW);

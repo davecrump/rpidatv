@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updated by davecrump 201801060
+# Updated by davecrump 201802040
 # Modified to overwrite ~/rpidatv/scripts and
 # ~/rpidatv/src, then compile
 # rpidatv, rpidatvgui avc2ts and adf4351
@@ -8,13 +8,19 @@
 reset
 
 printf "\nCommencing update.\n\n"
-printf "Note that if you have not updated since 201703060, this will take longer than previous updates\n\n"
 
 # Note previous version number
 cp -f -r /home/pi/rpidatv/scripts/installed_version.txt /home/pi/prev_installed_version.txt
 
 # Make a safe copy of rpidatvconfig.txt
-cp -f -r /home/pi/rpidatv/scripts/rpidatvconfig.txt /home/pi/rpidatvconfig.txt
+cp -f -r /home/pi/rpidatv/scripts/rpidatvconfig.txt /home/pi/rpidatvconfig.txt >/dev/null 2>/dev/null
+
+
+# If they exist, make a safe copies of portsdown_config and portsdown_presets (201802040)
+if [ -f "/home/pi/rpidatv/scripts/portsdown_config.txt" ]; then
+  cp -f -r /home/pi/rpidatv/scripts/portsdown_config.txt /home/pi/portsdown_config.txt
+  cp -f -r /home/pi/rpidatv/scripts/portsdown_presets.txt /home/pi/portsdown_presets.txt
+fi
 
 # Make a safe copy of siggencal.txt if required (201710281)
 if [ -f "/home/pi/rpidatv/src/siggen/siggencal.txt" ]; then
@@ -30,6 +36,19 @@ fi
 if [ ! -f "/usr/bin/fbi" ]; then
   sudo apt-get -y install fbi
 fi
+
+# Delete any old update message image  201802040
+rm /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
+
+# Create the update image in the tempfs folder
+convert -size 720x576 xc:white \
+    -gravity Center -pointsize 50 -annotate 0 "Updating Portsdown\nSoftware\n\nPlease wait" \
+    -gravity South -pointsize 50 -annotate 0 "DO NOT TURN POWER OFF" \
+    /home/pi/tmp/update.jpg
+
+# Display the update message on the desktop
+sudo fbi -T 1 -noverbose -a /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
+(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
 
 # Uninstall the apt-listchanges package to allow silent install of ca certificates
 # http://unix.stackexchange.com/questions/124468/how-do-i-resolve-an-apparent-hanging-update-process
@@ -61,6 +80,7 @@ sudo sed -i '/dtoverlay=ads7846/d' config.txt
 cd /home/pi
 
 # Check which source to download.  Default is production
+# option -p or null is the production load
 # option -d is development from davecrump
 # option -s is staging from batc/staging
 if [ "$1" == "-d" ]; then
@@ -225,19 +245,16 @@ if [ -f /home/pi/.pi-sdn ]; then
   cp /home/pi/rpidatv/scripts/configs/text.pi-sdn /home/pi/.pi-sdn
 fi
 
-# Restore or update rpidatvconfig.txt for
-# 201701020 201701270 201702100 201707220
-# Note the optional addion of outputformat in 201712180
-if ! grep -q caption /home/pi/rpidatvconfig.txt; then
-  # File needs updating
-  printf "Adding new entries to user's rpidatvconfig.txt\n"
+# Restore or update portsdown_config.txt 20180204
+
+if [ -f "/home/pi/portsdown_config.txt" ]; then  ## file exists, so restore it
+  cp -f -r /home/pi/portsdown_config.txt /home/pi/rpidatv/scripts/portsdown_config.txt
+else           ## file does not exist, so copy relavent items from rpidatvconfig.txt
   source /home/pi/rpidatv/scripts/copy_config.sh
-else
-  # File is correct format
-  printf "Copying user's rpidatvconfig.txt for use unchanged\n"
-  cp -f -r /home/pi/rpidatvconfig.txt /home/pi/rpidatv/scripts/rpidatvconfig.txt
 fi
-rm -f /home/pi/rpidatvconfig.txt
+## rm -f /home/pi/rpidatvconfig.txt
+rm -f /home/pi/portsdown_config.txt
+rm -f /home/pi/portsdown_presets.txt
 rm -f /home/pi/rpidatv/scripts/copy_config.sh
 
 # Install Waveshare 3.5B DTOVERLAY if required (201704080)
@@ -347,6 +364,18 @@ rm -rf /home/pi/rpidatv/scripts/installed_version.txt
 cp /home/pi/rpidatv/scripts/latest_version.txt /home/pi/rpidatv/scripts/installed_version.txt
 cp -f -r /home/pi/prev_installed_version.txt /home/pi/rpidatv/scripts/prev_installed_version.txt
 rm -rf /home/pi/prev_installed_version.txt
+
+# Delete any old update image
+rm /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
+
+# Create the update image in the tempfs folder
+convert -size 720x576 xc:white \
+    -gravity Center -pointsize 50 -annotate 0 "Update Complete\n\nPLEASE REBOOT NOW\n\n(by pressing "y" on the keyboard)" \
+    /home/pi/tmp/update.jpg
+
+# Display the reboot message on the touchscreen
+sudo fbi -T 1 -noverbose -a /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
+(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
 
 # Offer reboot
 printf "A reboot may be required before using the update.\n"

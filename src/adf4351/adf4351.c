@@ -178,9 +178,10 @@ int32_t adf4350_write(uint32_t data)
 	digitalWrite(CLK_4351_GPIO, LOW);
 	digitalWrite(DATA_4351_GPIO, LOW);
 
-	//Select device LE low
-
+	// Delay, select device LE low and delay again
+        usleep(10);
 	digitalWrite(LE_4351_GPIO, LOW);
+        usleep(10);
 
 	// printf(" ADF4351 Register (one of the five) Updated\n");
 
@@ -200,7 +201,7 @@ int32_t adf4350_write(uint32_t data)
 			digitalWrite(DATA_4351_GPIO, LOW);
 
 		// Pulse clock
-
+		usleep(10);
 		digitalWrite(CLK_4351_GPIO, HIGH);
 		usleep(10);
 		digitalWrite(CLK_4351_GPIO, LOW);
@@ -210,9 +211,10 @@ int32_t adf4350_write(uint32_t data)
 		data <<= 1;
 	}
 
-	//Set ADF4351 LE high
+	//Set ADF4351 LE high and delay before exit
 
 	digitalWrite(LE_4351_GPIO, HIGH);
+        usleep(10);
 
 	return 0;
 }

@@ -1,7 +1,24 @@
-//
-// shapedemo: testbed for OpenVG APIs
-// Anthony Starks (ajstarks@gmail.com)
-//
+// siggentouch.c
+/*
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+  shapedemo: testbed for OpenVG APIs
+  by Anthony Starks (ajstarks@gmail.com)
+
+  Some code by Evariste F5OEO
+  Rewitten by Dave, G8GKQ
+*/
 #include <linux/input.h>
 #include <string.h>
 
@@ -30,7 +47,8 @@
 #define KYEL  "\x1B[33m"
 
 #define PATH_CONFIG "/home/pi/rpidatv/src/siggen/siggenconfig.txt"
-#define PATH_CONFIG_PORTSDOWN "/home/pi/rpidatv/scripts/rpidatvconfig.txt"
+#define PATH_CONFIG_PORTSDOWN "/home/pi/rpidatv/scripts/rpidatvconfig.txt" // no longer used
+#define PATH_PCONFIG "/home/pi/rpidatv/scripts/portsdown_config.txt"
 #define PATH_CAL "/home/pi/rpidatv/src/siggen/siggencal.txt"
 #define PATH_TOUCHCAL "/home/pi/rpidatv/scripts/touchcal.txt"
 #define PATH_ATTEN "/home/pi/rpidatv/bin/set_attenuator "
@@ -823,35 +841,38 @@ void AdjustFreq(int button)
     DisplayFreq = SourceLowerFreq;
   }
 
-  // Set the freq here
+  // Set the freq here if output active
 
-  if (strcmp(osctxt, "express")==0)
+  if (OutputStatus == 1)
   {
-    strcpy(ExpressCommand, "echo \"set freq ");
-    snprintf(FreqText, 12, "%lld", DisplayFreq);
-    strcat(ExpressCommand, FreqText);
-    strcat(ExpressCommand, "\" >> /tmp/expctrl" );
-    system(ExpressCommand);
-  }
-
-  if (strcmp(osctxt, "portsdown")==0)
-  {
-    if (ModOn == 0)
+    if (strcmp(osctxt, "express")==0)
     {
-      adf4351On(3); // change adf freq at level 3
+      strcpy(ExpressCommand, "echo \"set freq ");
+      snprintf(FreqText, 12, "%lld", DisplayFreq);
+      strcat(ExpressCommand, FreqText);
+      strcat(ExpressCommand, "\" >> /tmp/expctrl" );
+      system(ExpressCommand);
     }
-    else
-    {
-      adf4351On(0); // change adf freq at level 0
-    }
-  }
 
-  if (strcmp(osctxt, "adf4351")==0)
-  {
-    adf4351On(level); // change adf freq at set level
+    if (strcmp(osctxt, "portsdown")==0)
+    {
+      if (ModOn == 0)
+      {
+        adf4351On(3); // change adf freq at level 3
+      }
+      else
+      {
+        adf4351On(0); // change adf freq at level 0
+      }
+    }
+
+    if (strcmp(osctxt, "adf4351")==0)
+    {
+      adf4351On(level); // change adf freq at set level
+    }
+    // Change the band if required
+    ResetBandGPIOs();
   }
-  // Change the band if required
-  ResetBandGPIOs();
 }
 
 void CalcOPLevel()
@@ -1378,7 +1399,7 @@ void TransformTouchMap(int x, int y)
     scaledX = shiftX+wscreen-y/(scaleXvalue+factorX);
 
     strcpy(Param,"display");  //Check for Waveshare 4 inch
-    GetConfigParam(PATH_CONFIG_PORTSDOWN,Param,Value);
+    GetConfigParam(PATH_PCONFIG,Param,Value);
     if(strcmp(Value,"Waveshare4")!=0)
     {
       scaledY = shiftY+hscreen-x/(scaleYvalue+factorY);
@@ -2903,7 +2924,7 @@ int main(int argc, char **argv)
   // Determine if using Waveshare or Waveshare B or Waveshare 4 inch screen
   // from rpidatvconfig.txt
   strcpy(Param,"display");
-  GetConfigParam(PATH_CONFIG_PORTSDOWN,Param,Value);
+  GetConfigParam(PATH_PCONFIG,Param,Value);
   if((strcmp(Value,"Waveshare")==0) || (strcmp(Value,"WaveshareB")==0) || (strcmp(Value,"Waveshare4")==0))
   {
     Inversed = 1;
@@ -2911,12 +2932,12 @@ int main(int argc, char **argv)
 
   // Look up ADF4351 Ref Freq from Portsdown Config
   strcpy(Param, "adfref");
-  GetConfigParam(PATH_CONFIG_PORTSDOWN, Param, Value);
+  GetConfigParam(PATH_PCONFIG, Param, Value);
   strcpy(ref_freq_4351, Value);
 
   // Look up attenuator type from Portsdown Config
   strcpy(Param, "attenuator");
-  GetConfigParam(PATH_CONFIG_PORTSDOWN, Param, Value);
+  GetConfigParam(PATH_PCONFIG, Param, Value);
   strcpy(AttenType, Value);
 
   // Check for presence of touchscreen

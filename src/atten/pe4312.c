@@ -2,7 +2,7 @@
  *  @file    pe4312.c
  *  @author  Ray M0DHP
  *  @date    2017-12-22  
- *  @version 0.1
+ *  @version 0.2
 *******************************************************************************/
 
 #include <unistd.h>
@@ -35,12 +35,14 @@ int pe4312_set_level(float level)
 
     // Set all nominated pins to outputs
 
+
     pinMode(LE_4312_GPIO, OUTPUT);
     pinMode(CLK_4312_GPIO, OUTPUT);
     pinMode(DATA_4312_GPIO, OUTPUT);
 
     // Set idle conditions
 
+    usleep(10);
     digitalWrite(LE_4312_GPIO, LOW);
     digitalWrite(CLK_4312_GPIO, LOW);
 
@@ -50,6 +52,7 @@ int pe4312_set_level(float level)
     for (bit = 5; bit >= 0; bit--)
     {
       digitalWrite(DATA_4312_GPIO, (integer_level >> bit) & 0x01);
+      usleep(10);
       digitalWrite(CLK_4312_GPIO, HIGH);
       usleep(10);
       digitalWrite(CLK_4312_GPIO, LOW);

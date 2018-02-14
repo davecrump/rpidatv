@@ -1,5 +1,7 @@
 #! /bin/bash
 
+Version 201802040
+
 # This script shuts down any transmission that has been started by a.sh.
 # It can be called by other programs that want to start and stop transmission
 # without using menu.sh or rpidatvtouch.c
@@ -10,6 +12,7 @@
 PATHSCRIPT=/home/pi/rpidatv/scripts
 PATHRPI=/home/pi/rpidatv/bin
 CONFIGFILE=$PATHSCRIPT"/rpidatvconfig.txt"
+PCONFIGFILE="/home/pi/rpidatv/scripts/portsdown_config.txt"
 PATHCONFIGS="/home/pi/rpidatv/scripts/configs"  ## Path to config files
 
 ############ Function to Read from Config File ###############
@@ -29,7 +32,7 @@ end
 EOF
 }
 
-MODE_OUTPUT=$(get_config_var modeoutput $CONFIGFILE)
+MODE_OUTPUT=$(get_config_var modeoutput $PCONFIGFILE)
 
   # Stop DATV Express transmitting if required
   if [ "$MODE_OUTPUT" == "DATVEXPRESS" ]; then
@@ -65,4 +68,15 @@ MODE_OUTPUT=$(get_config_var modeoutput $CONFIGFILE)
 
   # Stop the audio for CompVid mode
   sudo killall arecord >/dev/null 2>/dev/null
+
+  # Check if driver for Logitech C270 or C525 needs to be reloaded
+  dmesg | grep -E -q "046d:0825|Webcam C525"
+  if [ $? == 0 ]; then
+    printf "Either C270 or C525 detected\n"
+    sleep 3
+    v4l2-ctl --list-devices > /dev/null 2> /dev/null
+  else
+    printf "Neither C270 nor C525 detected\n"
+  fi
+
 
