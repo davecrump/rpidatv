@@ -9,23 +9,23 @@ printf "CID\n\n"
 
 cat /sys/block/mmcblk0/device/cid
 
-printf "\nManufacturer ID\n\n"
+printf "\nManufacturer ID: "
 
 cat /sys/block/mmcblk0/device/manfid
 
-printf "\nOEM ID\n\n"
+printf "\nOEM ID: "
 
 cat /sys/block/mmcblk0/device/oemid
 
-printf "\nDate of Manufacture\n\n"
+printf "\nDate of Manufacture: "
 
 cat /sys/block/mmcblk0/device/date
 
-printf "\nProduct Name\n\n"
+printf "\nProduct Name: "
 
 cat /sys/block/mmcblk0/device/name
 
-printf "\nProduct Serial Number\n\n"
+printf "\nProduct Serial Number: "
 
 cat /sys/block/mmcblk0/device/serial
 

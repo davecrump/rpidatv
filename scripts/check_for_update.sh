@@ -52,7 +52,7 @@ then
         rm update.sh >/dev/null 2>/dev/null
         wget https://raw.githubusercontent.com/BritishAmateurTelevisionClub/rpidatv/master/update.sh
         chmod +x update.sh
-        /home/pi/update.sh
+        /home/pi/update.sh -p
         exit
     elif [[ "$REPLY" = "d" || "$REPLY" = "D" ]]; then  ## Development upgrade requested
         printf "\nUpgrading now to the Development Version...\n"
@@ -90,7 +90,7 @@ then
         rm update.sh >/dev/null 2>/dev/null
         wget https://raw.githubusercontent.com/BritishAmateurTelevisionClub/rpidatv/master/update.sh
         chmod +x update.sh
-        source /home/pi/update.sh 
+        source /home/pi/update.sh -p
         exit
     else                                        ##  Upgrade available, but rejected
         printf "Not upgrading\n"
@@ -110,7 +110,7 @@ else                                            ## Version Error
         cd /home/pi
         rm update.sh >/dev/null 2>/dev/null
         wget https://raw.githubusercontent.com/BritishAmateurTelevisionClub/rpidatv/master/update.sh
-        chmod +x update.sh
+        chmod +x update.sh -p
         /home/pi/update.sh
         exit
     elif [[ "$REPLY" = "d" || "$REPLY" = "D" ]]; then  ## Development upgrade requested

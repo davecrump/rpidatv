@@ -1,13 +1,14 @@
 #! /bin/bash
 # set -x #Uncomment for testing
 
-# Version 201712181
+# Version 201802040
 
 ############# SET GLOBAL VARIABLES ####################
 
 PATHRPI="/home/pi/rpidatv/bin"
 PATHSCRIPT="/home/pi/rpidatv/scripts"
 CONFIGFILE=$PATHSCRIPT"/rpidatvconfig.txt"
+PCONFIGFILE="/home/pi/rpidatv/scripts/portsdown_config.txt"
 
 ############# MAKE SURE THAT WE KNOW WHERE WE ARE ##################
 
@@ -30,7 +31,8 @@ end
 EOF
 }
 
-# ########################## SURE TO KILL ALL PROCESS ################
+# ########################## KILL ALL PROCESSES BEFORE STARTING  ################
+
 sudo killall -9 ffmpeg >/dev/null 2>/dev/null
 sudo killall rpidatv >/dev/null 2>/dev/null
 sudo killall hello_encode.bin >/dev/null 2>/dev/null
@@ -75,20 +77,21 @@ detect_audio()
   else                   ## card detected
     printf "Audio card present\n"
     # Check for the presence of a dedicated audio device
-    arecord -l | grep -E -q "USB Audio Device|USB AUDIO|Head|Sound Device"
+    arecord -l | grep -E -q "USB Audio Device|USB AUDIO|Head|Sound Device|Webcam C525|U0x46d0x825"
     if [ $? == 0 ]; then   ## Present
       # Look for the dedicated USB Audio Device, select the line and take
       # the 6th character.  Max card number = 8 !!
-      MIC="$(arecord -l | grep -E "USB Audio Device|USB AUDIO|Head|Sound Device" | head -c 6 | tail -c 1)"
+      MIC="$(arecord -l | grep -E "USB Audio Device|USB AUDIO|Head|Sound Device|Webcam C525|U0x46d0x825" \
+        | head -c 6 | tail -c 1)"
     fi
     # Check for the presence of a Video dongle with audio
     arecord -l | grep -E -q \
-      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby|Webcam"
+      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby"
     if [ $? == 0 ]; then   ## Present
       # Look for the video dongle, select the line and take
       # the 6th character.  Max card number = 8 !!
       USBTV="$(arecord -l | grep -E \
-        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby|Webcam" \
+        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby" \
         | head -c 6 | tail -c 1)"
     fi
   fi
@@ -237,48 +240,49 @@ detect_video()
 
 ############ READ FROM rpidatvconfig.txt and Set PARAMETERS #######################
 
-MODE_INPUT=$(get_config_var modeinput $CONFIGFILE)
-TSVIDEOFILE=$(get_config_var tsvideofile $CONFIGFILE)
-PATERNFILE=$(get_config_var paternfile $CONFIGFILE)
-UDPINADDR=$(get_config_var udpinaddr $CONFIGFILE)
-UDPOUTADDR=$(get_config_var udpoutaddr $CONFIGFILE)
-CALL=$(get_config_var call $CONFIGFILE)
+MODE_INPUT=$(get_config_var modeinput $PCONFIGFILE)
+TSVIDEOFILE=$(get_config_var tsvideofile $PCONFIGFILE)
+PATERNFILE=$(get_config_var paternfile $PCONFIGFILE)
+UDPOUTADDR=$(get_config_var udpoutaddr $PCONFIGFILE)
+CALL=$(get_config_var call $PCONFIGFILE)
 CHANNEL=$CALL
-FREQ_OUTPUT=$(get_config_var freqoutput $CONFIGFILE)
-BATC_OUTPUT=$(get_config_var batcoutput $CONFIGFILE)
+FREQ_OUTPUT=$(get_config_var freqoutput $PCONFIGFILE)
+BATC_OUTPUT=$(get_config_var batcoutput $PCONFIGFILE)
 OUTPUT_BATC="-f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT"
 
-STREAM_URL=$(get_config_var streamurl $CONFIGFILE)
-STREAM_KEY=$(get_config_var streamkey $CONFIGFILE)
+STREAM_URL=$(get_config_var streamurl $PCONFIGFILE)
+STREAM_KEY=$(get_config_var streamkey $PCONFIGFILE)
 OUTPUT_STREAM="-f flv $STREAM_URL/$STREAM_KEY"
 
-MODE_OUTPUT=$(get_config_var modeoutput $CONFIGFILE)
-SYMBOLRATEK=$(get_config_var symbolrate $CONFIGFILE)
-GAIN=$(get_config_var rfpower $CONFIGFILE)
-PIDVIDEO=$(get_config_var pidvideo $CONFIGFILE)
-PIDAUDIO=$(get_config_var pidaudio $CONFIGFILE)
-PIDPMT=$(get_config_var pidpmt $CONFIGFILE)
-PIDSTART=$(get_config_var pidstart $CONFIGFILE)
-SERVICEID=$(get_config_var serviceid $CONFIGFILE)
-LOCATOR=$(get_config_var locator $CONFIGFILE)
-PIN_I=$(get_config_var gpio_i $CONFIGFILE)
-PIN_Q=$(get_config_var gpio_q $CONFIGFILE)
+MODE_OUTPUT=$(get_config_var modeoutput $PCONFIGFILE)
+SYMBOLRATEK=$(get_config_var symbolrate $PCONFIGFILE)
+GAIN=$(get_config_var rfpower $PCONFIGFILE)
+PIDVIDEO=$(get_config_var pidvideo $PCONFIGFILE)
+PIDAUDIO=$(get_config_var pidaudio $PCONFIGFILE)
+PIDPMT=$(get_config_var pidpmt $PCONFIGFILE)
+PIDSTART=$(get_config_var pidstart $PCONFIGFILE)
+SERVICEID=$(get_config_var serviceid $PCONFIGFILE)
+LOCATOR=$(get_config_var locator $PCONFIGFILE)
+PIN_I=$(get_config_var gpio_i $PCONFIGFILE)
+PIN_Q=$(get_config_var gpio_q $PCONFIGFILE)
 
-ANALOGCAMNAME=$(get_config_var analogcamname $CONFIGFILE)
-ANALOGCAMINPUT=$(get_config_var analogcaminput $CONFIGFILE)
-ANALOGCAMSTANDARD=$(get_config_var analogcamstandard $CONFIGFILE)
-VNCADDR=$(get_config_var vncaddr $CONFIGFILE)
+ANALOGCAMNAME=$(get_config_var analogcamname $PCONFIGFILE)
+ANALOGCAMINPUT=$(get_config_var analogcaminput $PCONFIGFILE)
+ANALOGCAMSTANDARD=$(get_config_var analogcamstandard $PCONFIGFILE)
+VNCADDR=$(get_config_var vncaddr $PCONFIGFILE)
 
-AUDIO_PREF=$(get_config_var audio $CONFIGFILE)
-CAPTIONON=$(get_config_var caption $CONFIGFILE)
-OPSTD=$(get_config_var outputstandard $CONFIGFILE)
-LOCATOR=$(get_config_var locator $CONFIGFILE)
-DISPLAY=$(get_config_var display $CONFIGFILE)
+AUDIO_PREF=$(get_config_var audio $PCONFIGFILE)
+CAPTIONON=$(get_config_var caption $PCONFIGFILE)
+OPSTD=$(get_config_var outputstandard $PCONFIGFILE)
+DISPLAY=$(get_config_var display $PCONFIGFILE)
+
+BAND_LABEL=$(get_config_var labelofband $PCONFIGFILE)
+NUMBERS=$(get_config_var numbers $PCONFIGFILE)
 
 OUTPUT_IP=""
 
 let SYMBOLRATE=SYMBOLRATEK*1000
-FEC=$(get_config_var fec $CONFIGFILE)
+FEC=$(get_config_var fec $PCONFIGFILE)
 let FECNUM=FEC
 let FECDEN=FEC+1
 
@@ -391,21 +395,8 @@ case "$MODE_OUTPUT" in
     # Set the ports
     $PATHSCRIPT"/ctlfilter.sh"
 
-    # Set the output level based on the band
-    INT_FREQ_OUTPUT=${FREQ_OUTPUT%.*}
-    if (( $INT_FREQ_OUTPUT \< 100 )); then
-      GAIN=$(get_config_var explevel0 $CONFIGFILE);
-    elif (( $INT_FREQ_OUTPUT \< 250 )); then
-      GAIN=$(get_config_var explevel1 $CONFIGFILE);
-    elif (( $INT_FREQ_OUTPUT \< 950 )); then
-      GAIN=$(get_config_var explevel2 $CONFIGFILE);
-    elif (( $INT_FREQ_OUTPUT \< 2000 )); then
-      GAIN=$(get_config_var explevel3 $CONFIGFILE);
-    elif (( $INT_FREQ_OUTPUT \< 4400 )); then
-      GAIN=$(get_config_var explevel4 $CONFIGFILE);
-    else
-      GAIN="30";
-    fi
+    # Set the output level
+    GAIN=$(get_config_var explevel $PCONFIGFILE);
 
     # Set Gain
     echo "set level "$GAIN >> /tmp/expctrl
@@ -653,14 +644,14 @@ fi
         # No code for beeps here
         if [ "$AUDIO_CARD" == 0 ]; then
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
-            -f v4l2 -input_format h264 \
+            -f v4l2 -input_format h264 -video_size 720x576 \
             -i /dev/video0 \
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
             -g 25 \
             -f flv $STREAM_URL/$STREAM_KEY &
         else
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
-            -f v4l2 -input_format h264 \
+            -f v4l2 -input_format h264 -video_size 720x576 \
             -i /dev/video0 -thread_queue_size 2048 \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
@@ -969,9 +960,6 @@ fi
     # Now generate the stream
 
     PORT=10000
-    # $PATHRPI"/mnc" -l -i eth0 -p $PORT $UDPINADDR > videots &
-    # Unclear why Evariste uses multicast address here - my BT router dislikes routing multicast intensely so
-    # I have changed it to just listen on the predefined port number for a UDP stream
     netcat -u -4 -l $PORT > videots &
   ;;
 
@@ -1020,57 +1008,56 @@ fi
 
 #============================================ CONTEST H264 =============================================================
   "CONTEST")
-    # Select the right image
-    INT_FREQ_OUTPUT=${FREQ_OUTPUT%.*}
-    if (( $INT_FREQ_OUTPUT \< 100 )); then
-      cp -f /home/pi/rpidatv/scripts/images/contest0.png /home/pi/rpidatv/scripts/images/contest.png
-    elif (( $INT_FREQ_OUTPUT \< 250 )); then
-      cp -f /home/pi/rpidatv/scripts/images/contest1.png /home/pi/rpidatv/scripts/images/contest.png
-    elif (( $INT_FREQ_OUTPUT \< 950 )); then
-      cp -f /home/pi/rpidatv/scripts/images/contest2.png /home/pi/rpidatv/scripts/images/contest.png
-    else
-      cp -f /home/pi/rpidatv/scripts/images/contest3.png /home/pi/rpidatv/scripts/images/contest.png
-    fi
 
-    # Display the numbers on the desktop
-    #sudo killall -9 fbcp >/dev/null 2>/dev/null
-    #fbcp & >/dev/null 2>/dev/null  ## fbcp gets started here and stays running. Not called by a.sh
-    sudo fbi -T 1 -noverbose -a $PATHSCRIPT"/images/contest.png" >/dev/null 2>/dev/null
-    (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+  # Delete the old numbers image
+  rm /home/pi/tmp/contest.jpg >/dev/null 2>/dev/null
 
-    # If PiCam is present unload driver   
-    vcgencmd get_camera | grep 'detected=1' >/dev/null 2>/dev/null
-    RESULT="$?"
-    if [ "$RESULT" -eq 0 ]; then
-      sudo modprobe -r bcm2835_v4l2
-    fi    
+  # Create the numbers image in the tempfs folder
+  convert -size 720x576 xc:white \
+    -gravity North -pointsize 125 -annotate 0 "$CALL" \
+    -gravity Center -pointsize 200 -annotate 0 "$NUMBERS" \
+    -gravity South -pointsize 75 -annotate 0 "$LOCATOR   ""$BAND_LABEL" \
+    /home/pi/tmp/contest.jpg
 
-    # Set up means to transport of stream out of unit
-    case "$MODE_OUTPUT" in
-      "BATC")
-        sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC &
-      ;;
-      "IP")
-        OUTPUT_FILE=""
-      ;;
-      "DATVEXPRESS")
-        echo "set ptt tx" >> /tmp/expctrl
-        sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
-      ;;
-      "COMPVID")
-        OUTPUT_FILE="/dev/null" #Send avc2ts output to /dev/null
-      ;;
-      *)
-        sudo nice -n -30 $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K \
-          -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
+  # Display the numbers on the desktop
+  sudo fbi -T 1 -noverbose -a /home/pi/tmp/contest.jpg >/dev/null 2>/dev/null
+  (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
 
-      ;;
-    esac
+  # If PiCam is present unload driver   
+  vcgencmd get_camera | grep 'detected=1' >/dev/null 2>/dev/null
+  RESULT="$?"
+  if [ "$RESULT" -eq 0 ]; then
+    sudo modprobe -r bcm2835_v4l2
+  fi    
 
-    $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT \
-      -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
+  # Set up means to transport of stream out of unit
+  case "$MODE_OUTPUT" in
+    "BATC")
+      sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC &
+    ;;
+    "IP")
+      OUTPUT_FILE=""
+    ;;
+    "DATVEXPRESS")
+      echo "set ptt tx" >> /tmp/expctrl
+      sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
+    ;;
+    "COMPVID")
+      OUTPUT_FILE="/dev/null" #Send avc2ts output to /dev/null
+    ;;
+    *)
+      sudo nice -n -30 $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K \
+        -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
+    ;;
+  esac
 
-   ;;
+  # Genrate an H264 transport Stream
+  $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT \
+    -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
+
+  # Switching and code to generate an MPEG-2 TS to go here
+
+  ;;
   #============================================ ANALOG MPEG-2 INPUT MODE =============================================================
   "ANALOGMPEG-2")
 
