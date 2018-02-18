@@ -1,8 +1,8 @@
 /**************************************************************************//***
  *  @file    hmc1119.c
  *  @author  Ray M0DHP
- *  @date    2017-12-22  
- *  @version 0.1
+ *  @date    2018-02-16  
+ *  @version 0.3
 *******************************************************************************/
 
 #include <unistd.h>
@@ -41,7 +41,7 @@ int hmc1119_set_level(float level)
 
     // Set idle conditions
 
-    usleep(10);
+    usleep(HMC1119_SLEEP);
     digitalWrite(LE_1119_GPIO, LOW);
     digitalWrite(CLK_1119_GPIO, LOW);
 
@@ -51,19 +51,19 @@ int hmc1119_set_level(float level)
     for (bit = 6; bit >= 0; bit--)
     {
       digitalWrite(DATA_1119_GPIO, (integer_level >> bit) & 0x01);
-      usleep(10);
+      usleep(HMC1119_SLEEP);
       digitalWrite(CLK_1119_GPIO, HIGH);
-      usleep(10);
+      usleep(HMC1119_SLEEP);
       digitalWrite(CLK_1119_GPIO, LOW);
-      usleep(10);
+      usleep(HMC1119_SLEEP);
     }
 
     // Latch data
 
     digitalWrite(LE_1119_GPIO, HIGH);
-    usleep(10);
+    usleep(HMC1119_SLEEP);
     digitalWrite(LE_1119_GPIO, LOW);
-    usleep(10);
+    usleep(HMC1119_SLEEP);
 
     return 0;
   }
