@@ -1,8 +1,8 @@
 /**************************************************************************//***
  *  @file    pe4312.h
  *  @author  Ray M0DHP
- *  @date    2017-12-22  
- *  @version 0.1
+ *  @date    2018-02-16  
+ *  @version 0.3
 *******************************************************************************/
 
 #ifndef __PE4312_H__
@@ -23,6 +23,9 @@
 #define PE4312_MIN_ATTENUATION	     0.0 	// dB
 #define PE4312_MAX_ATTENUATION	    31.5 	// dB
 #define PE4312_DISPLAY_NAME     "PE43x2"
+
+// Set time to wait for signals to settle after each control line state change
+#define PE4312_SLEEP                 100        // us
 
 
 /******************************************************************************/
