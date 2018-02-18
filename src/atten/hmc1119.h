@@ -1,8 +1,8 @@
 /**************************************************************************//***
  *  @file    hmc1119.h
  *  @author  Ray M0DHP
- *  @date    2017-12-22  
- *  @version 0.1
+ *  @date    2018-02-16
+ *  @version 0.3
 *******************************************************************************/
 
 #ifndef __HMC1119_H__
@@ -23,6 +23,9 @@
 #define HMC1119_MIN_ATTENUATION	     0.00 	// dB
 #define HMC1119_MAX_ATTENUATION	    31.75 	// dB
 #define HMC1119_DISPLAY_NAME    "HMC1119"
+
+// Set time to wait for signals to settle after each control line state change
+#define HMC1119_SLEEP                 100       // us
 
 
 /******************************************************************************/

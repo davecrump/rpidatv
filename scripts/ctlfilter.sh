@@ -194,7 +194,9 @@ if [ "$DIRECT" == "TRUE" ]; then
     gpio -g write $band_bit1 0;
   fi
 
-  # Read the start-up behaviour so we don't mess up the TX indication
+  # Set the transverter bit low but first, read the start-up behaviour
+  #  so we don't mess up the TX indication which shares a GPIO pin
+
   MODE_STARTUP=$(get_config_var startup $PCONFIGFILE)
   if [ "$MODE_STARTUP" == "Keyed_TX_boot" ] || [ "$MODE_STARTUP" == "Keyed_Stream_boot" ]\
     || [ "$MODE_STARTUP" == "Cont_Stream_boot" ]; then
@@ -241,5 +243,5 @@ fi
 
 ### End ###
 
-# Revert to menu.sh or a.sh #
+# Revert to rpidatvgui, menu.sh or a.sh #
 

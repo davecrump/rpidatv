@@ -1,8 +1,8 @@
 /**************************************************************************//***
  *  @file    pe4312.c
  *  @author  Ray M0DHP
- *  @date    2017-12-22  
- *  @version 0.2
+ *  @date    2018-02-16  
+ *  @version 0.3
 *******************************************************************************/
 
 #include <unistd.h>
@@ -42,7 +42,7 @@ int pe4312_set_level(float level)
 
     // Set idle conditions
 
-    usleep(10);
+    usleep(PE4312_SLEEP);
     digitalWrite(LE_4312_GPIO, LOW);
     digitalWrite(CLK_4312_GPIO, LOW);
 
@@ -52,16 +52,16 @@ int pe4312_set_level(float level)
     for (bit = 5; bit >= 0; bit--)
     {
       digitalWrite(DATA_4312_GPIO, (integer_level >> bit) & 0x01);
-      usleep(10);
+      usleep(PE4312_SLEEP);
       digitalWrite(CLK_4312_GPIO, HIGH);
-      usleep(10);
+      usleep(PE4312_SLEEP);
       digitalWrite(CLK_4312_GPIO, LOW);
-      usleep(10);
+      usleep(PE4312_SLEEP);
     }
     digitalWrite(LE_4312_GPIO, HIGH);
-    usleep(10);
+    usleep(PE4312_SLEEP);
     digitalWrite(LE_4312_GPIO, LOW);
-    usleep(10);
+    usleep(PE4312_SLEEP);
     return 0;
   }
   else

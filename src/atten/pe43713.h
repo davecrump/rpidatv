@@ -1,8 +1,8 @@
 /**************************************************************************//***
  *  @file    pe43713.h
  *  @author  Ray M0DHP
- *  @date    2017-12-22  
- *  @version 0.1
+ *  @date    2018-02-16
+ *  @version 0.3
 *******************************************************************************/
 
 #ifndef __PE43713_H__
@@ -24,6 +24,9 @@
 #define PE43713_MAX_ATTENUATION	    31.75 	// dB
 #define PE43713_DISPLAY_NAME    "PE437x3"
 #define PE43713_ADDRESS                 0
+
+// Set time to wait for signals to settle after each control line state change
+#define PE43713_SLEEP                 100       // us
 
 
 /******************************************************************************/
