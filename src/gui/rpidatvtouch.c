@@ -2873,6 +2873,9 @@ void RecallPreset(int PresetButton)
   GetConfigParam(PATH_PPRESETS, Param, Value);
   SetConfigParam(PATH_PCONFIG, "audio", Value);
   strcpy(ModeAudio, Value);
+
+  // Make sure that changes are applied
+  DoFreqChange();
 }
 
 void TransmitStart()
