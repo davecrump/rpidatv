@@ -448,7 +448,7 @@ void GetThrottled(char Throttled[256])
 }
 
 /***************************************************************************//**
- * @brief Reads the input source from rpidatvconfig.txt
+ * @brief Reads the input source from portsdown_config.txt
  *        and determines coding and video source
  * @param sets strings: coding, source
  *
@@ -587,7 +587,7 @@ void ReadModeInput(char coding[256], char vsource[256])
 }
 
 /***************************************************************************//**
- * @brief Reads the output mode from rpidatvconfig.txt
+ * @brief Reads the output mode from portsdown_config.txt
  *        and determines the user-friendly string for display
  * @param sets strings: Moutput
  *
@@ -652,7 +652,7 @@ void ReadModeOutput(char Moutput[256])
 }
 
 /***************************************************************************//**
- * @brief Reads the EasyCap modes from rpidatvconfig.txt
+ * @brief Reads the EasyCap modes from portsdown_config.txt
  *        
  * @param nil
  *
@@ -667,7 +667,7 @@ void ReadModeEasyCap()
 }
 
 /***************************************************************************//**
- * @brief Reads the Caption State from rpidatvconfig.txt
+ * @brief Reads the Caption State from portsdown_config.txt
  *        
  * @param nil
  *
@@ -680,7 +680,7 @@ void ReadCaptionState()
 }
 
 /***************************************************************************//**
- * @brief Reads the Audio State from rpidatvconfig.txt
+ * @brief Reads the Audio State from portsdown_config.txt
  *        
  * @param nil
  *
@@ -693,7 +693,7 @@ void ReadAudioState()
 }
 
 /***************************************************************************//**
- * @brief Reads the current Attenuator from rpidatvconfig.txt
+ * @brief Reads the current Attenuator from portsdown_config.txt
  *        
  * @param nil
  *
@@ -942,7 +942,7 @@ void GetUSBVidDev(char VidDevName[256])
 }
 
 /***************************************************************************//**
- * @brief Detects if a Logitech webcam was connected since last restart
+ * @brief Detects if a Logitech C525 or C270 webcam was connected since last restart
  *
  * @param None
  *
@@ -977,7 +977,7 @@ int DetectLogitechWebcam()
 }
 
 /***************************************************************************//**
- * @brief Reads the Presets from rpidatvconfig.txt and formats them for
+ * @brief Reads the Presets from portsdown_config.txt and formats them for
  *        Display and switching
  *
  * @param None.  Works on global variables
@@ -1058,7 +1058,7 @@ void ReadPresets()
 }
 
 /***************************************************************************//**
- * @brief Checks for the presence on an RTL-SDR
+ * @brief Checks for the presence of an RTL-SDR
  *        
  * @param None
  *
@@ -1833,7 +1833,6 @@ int getTouchScreenDetails(int *screenXmin,int *screenXmax,int *screenYmin,int *s
 return IsAtouchDevice;
 }
 
-
 int getTouchSample(int *rawX, int *rawY, int *rawPressure)
 {
 	int i;
@@ -2272,10 +2271,11 @@ void SelectFreq(int NoButton)  //Frequency
 
   DoFreqChange();
 
+  // **** Not required - now in DoFreqChange() ******
   // Set the Band (and filter) Switching
-  system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
-  // And wait for it to finish using rpidatvconfig.txt
-  usleep(100000);
+  // system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
+  // And wait for it to finish using portsdown_config.txt
+  // usleep(100000);
 }
 
 void SelectSR(int NoButton)  // Symbol Rate
@@ -2570,6 +2570,11 @@ void DoFreqChange()
 
   strcpy(Param, "numbers");
   SetConfigParam(PATH_PCONFIG ,Param, Value);
+
+  // Set the Band (and filter) Switching
+  system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
+  // And wait for it to finish using portsdown_config.txt
+  usleep(100000);
 }
 
 void SelectBand(int NoButton)  // Set the Band
@@ -2624,10 +2629,11 @@ void SelectBand(int NoButton)  // Set the Band
   // Make all the changes required after a band change
   DoFreqChange();
 
+  // *** Not required, now in DoFreqChange() ***
   // Set the Band (and filter) Switching
-  system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
+  // system ("sudo /home/pi/rpidatv/scripts/ctlfilter.sh");
   // and wait for it to finish using portsdown_config.txt
-  usleep(100000);
+  // usleep(100000);
 }
 
 void SelectVidIP(int NoButton)  // Comp Vid or S-Video
@@ -2867,11 +2873,14 @@ void RecallPreset(int PresetButton)
   GetConfigParam(PATH_PPRESETS, Param, Value);
   SetConfigParam(PATH_PCONFIG, "audio", Value);
   strcpy(ModeAudio, Value);
+
+  // Make sure that changes are applied
+  DoFreqChange();
 }
 
 void TransmitStart()
 {
-  printf("Transmit Start\n");
+  // printf("Transmit Start\n");
 
   char Param[255];
   char Value[255];
@@ -2956,7 +2965,7 @@ void TransmitStop()
 {
   char Param[255];
   char Value[255];
-  printf("Transmit Stop\n");
+  // printf("Transmit Stop\n");
 
   // Turn the VCO off
   system("sudo /home/pi/rpidatv/bin/adf4351 off");
@@ -7707,7 +7716,7 @@ terminate(int dummy)
   exit(1);
 }
 
-// main initializes the system and shows the picture. 
+// main initializes the system and starts Menu 1 
 
 int main(int argc, char **argv)
 {

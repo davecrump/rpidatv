@@ -1,3 +1,9 @@
+201802200
+Restores "save-to-USB" capability
+Enables C920 Wecam
+Instant band switching
+Decreases Attenuator spi clock frequency for reliability
+
 201802041
 Major touchscreen menu re-write
 Introduces new gui sub-menus for parameter and config selection

@@ -894,11 +894,11 @@ do_stop_transmit()
   # Check if driver for Logitech C270 or C525 needs to be reloaded
   dmesg | grep -E -q "046d:0825|Webcam C525"
   if [ $? == 0 ]; then
-    printf "Either C270 or C525 detected\n"
+    // printf "Either C270 or C525 detected\n"
     sleep 3
     v4l2-ctl --list-devices > /dev/null 2> /dev/null
   else
-    printf "Neither C270 nor C525 detected\n"
+    // printf "Neither C270 nor C525 detected\n"
   fi
 }
 
@@ -2038,7 +2038,7 @@ do_touch_factory()
       cp $PATHSCRIPT"/configs/touchcal.txt.factory" $PATHSCRIPT"/touchcal.txt"
       whiptail --title "Message" --msgbox "Touchscreen calibration reset to zero.  Please press enter to continue" 8 78
     else
-      whiptail --title "Message" --msgbox "Current Configuration Retained.  Please press enter to continue" 8 78
+      whiptail --title "Message" --msgbox "Current Calibration Retained.  Please press enter to continue" 8 78
     fi
   fi
 }
@@ -2046,21 +2046,22 @@ do_touch_factory()
 do_back_up()
 {
   BACKUP=""
-  BACKUP=$(whiptail --inputbox "Enter y or n" 8 78 $BACKUP --title "SAVE TO USB? EXISTING FILE WILL BE OVER-WRITTEN" 3>&1 1>&2 2>&3)
+  BACKUP=$(whiptail --inputbox "Enter y or n" 8 78 $BACKUP --title "SAVE TO USB? EXISTING FILES WILL BE OVER-WRITTEN" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
     if [[ "$BACKUP" == "y" || "$BACKUP" == "Y" ]]; then
       ls -l /dev/disk/by-uuid|grep -q sda  # returns 0 if USB drive connected
       if [ $? -eq 0 ]; then
         sudo mv -f /media/usb0/portsdown_config.txt /media/usb0/portsdown_config.txt.bak >/dev/null 2>/dev/null
-        sudo cp $PATHSCRIPT"/portsdown_config.txt.txt" /media/usb0/portsdown_config.txt >/dev/null 2>/dev/null
+        sudo cp $PATHSCRIPT"/portsdown_config.txt" /media/usb0/portsdown_config.txt >/dev/null 2>/dev/null
         sudo mv -f /media/usb0/portsdown_presets.txt /media/usb0/portsdown_presets.txt.bak >/dev/null 2>/dev/null
         sudo cp $PATHSCRIPT"/portsdown_presets.txt" /media/usb0/portsdown_presets.txt >/dev/null 2>/dev/null
-        whiptail --title "Message" --msgbox "Configuration file copied to USB.  Please press enter to continue" 8 78
+        sudo umount /media/usb0 >/dev/null 2>/dev/null
+        whiptail --title "Message" --msgbox "Config files copied to USB.  USB Drive unmounted.  Press enter to continue" 8 78
       else
         whiptail --title "Message" --msgbox "No USB Drive found.  Please press enter to continue" 8 78
       fi
     else
-      whiptail --title "Message" --msgbox "Configuration file not copied.  Please press enter to continue" 8 78
+      whiptail --title "Message" --msgbox "Configuration files not copied.  Please press enter to continue" 8 78
     fi
   fi
 }
@@ -2078,7 +2079,7 @@ do_load_settings()
           cp /media/usb0/portsdown_config.txt $PATHSCRIPT"/portsdown_config.txt" >/dev/null 2>/dev/null
           mv -f $PATHSCRIPT"/portsdown_presets.txt" $PATHSCRIPT"/portsdown_presets.txt.bak" >/dev/null 2>/dev/null
           cp /media/usb0/portsdown_presets.txt $PATHSCRIPT"/portsdown_presets.txt" >/dev/null 2>/dev/null
-          whiptail --title "Message" --msgbox "Configuration file copied from USB.  Please press enter to continue" 8 78
+          whiptail --title "Message" --msgbox "Configuration files copied from USB.  Please press enter to continue" 8 78
         else
           whiptail --title "Message" --msgbox "File portsdown_config.txt not found.  Please press enter to continue" 8 78
         fi
@@ -2086,7 +2087,7 @@ do_load_settings()
         whiptail --title "Message" --msgbox "No USB Drive found.  Please press enter to continue" 8 78
       fi
     else
-      whiptail --title "Message" --msgbox "Configuration file not copied.  Please press enter to continue" 8 78
+      whiptail --title "Message" --msgbox "Configuration files not copied.  Please press enter to continue" 8 78
     fi
   fi
 }
