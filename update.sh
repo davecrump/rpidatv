@@ -249,6 +249,7 @@ fi
 
 if [ -f "/home/pi/portsdown_config.txt" ]; then  ## file exists, so restore it
   cp -f -r /home/pi/portsdown_config.txt /home/pi/rpidatv/scripts/portsdown_config.txt
+  cp -f -r /home/pi/portsdown_presets.txt /home/pi/rpidatv/scripts/portsdown_presets.txt
 else           ## file does not exist, so copy relavent items from rpidatvconfig.txt
   source /home/pi/rpidatv/scripts/copy_config.sh
 fi
