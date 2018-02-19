@@ -86,12 +86,12 @@ detect_audio()
     fi
     # Check for the presence of a Video dongle with audio
     arecord -l | grep -E -q \
-      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby"
+      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby|Webcam C920"
     if [ $? == 0 ]; then   ## Present
       # Look for the video dongle, select the line and take
       # the 6th character.  Max card number = 8 !!
       USBTV="$(arecord -l | grep -E \
-        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby" \
+        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby|Webcam C920" \
         | head -c 6 | tail -c 1)"
     fi
   fi
