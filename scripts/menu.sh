@@ -894,11 +894,11 @@ do_stop_transmit()
   # Check if driver for Logitech C270 or C525 needs to be reloaded
   dmesg | grep -E -q "046d:0825|Webcam C525"
   if [ $? == 0 ]; then
-    // printf "Either C270 or C525 detected\n"
+    # printf "Either C270 or C525 detected\n"
     sleep 3
     v4l2-ctl --list-devices > /dev/null 2> /dev/null
-  else
-    // printf "Neither C270 nor C525 detected\n"
+  # else
+    # printf "Neither C270 nor C525 detected\n"
   fi
 }
 
