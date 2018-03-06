@@ -53,27 +53,49 @@ detect_audio()
   # audio, detected.  Else AUDIO_CARD=0
 
   # Then, depending on the values of  $AUDIO_PREF and $MODE_INPUT it sets
-  # AUDIO_CARD_NUMBER (typically 0, 1 or 2)
+  # AUDIO_CARD_NUMBER (typically 0, 1 2 or 3)
   # AUDIO_CHANNELS (0 for no audio required, 1 for mic, 2 for video stereo capture)
-  # AUDIO_SAMPLE (44100 for mic, 48000 for video stereo capture)
+  # AUDIO_SAMPLE (44100 for mic, 48000 for video stereo capture, and ?? for Webcam)
 
   # Set initial conditions for later testing
   MIC=9
   USBTV=9
+  WCAM=9
+
   printf "Audio selection = $AUDIO_PREF \n"
 
   # Check on picture input type
-  if [ "$MODE_INPUT" == "ANALOGCAM" ] || [ "$MODE_INPUT" == "ANALOGMPEG-2" ]; then
-    PIC_INPUT="ANALOG"
-  else
+  case "$MODE_INPUT" in
+  "ANALOGCAM" | "ANALOGMPEG-2" | "ANALOG16MPEG-2" )
+     PIC_INPUT="ANALOG"
+  printf "Video Input is $PIC_INPUT \n"
+  ;;
+  "WEBCAMH264" | "WEBCAMMPEG-2" | "WEBCAM16MPEG-2" | "WEBCAMHDMPEG-2" \
+  | "C920H264" | "C920HDH264" | "C920FHDH264")
+    PIC_INPUT="WEBCAM"
+  ;;
+  *)
     PIC_INPUT="DIGITAL"
-  fi
+    printf "Mode Input is $MODE_INPUT \n"
+  ;;
+  esac
   printf "Video Input is $PIC_INPUT \n"
 
   # First check if any audio card is present
   arecord -l | grep -q 'card'
   if [ $? != 0 ]; then   ## not present
     printf "Audio card not present\n"
+    # No known card detected so take the safe option and go for beeps
+    # unless noaudio selected:
+    if [ "$AUDIO_PREF" == "no_audio" ]; then  # no audio
+      AUDIO_CARD=0
+      AUDIO_CHANNELS=0
+      AUDIO_SAMPLE=44100
+    else                                      # bleeps
+      AUDIO_CARD=0
+      AUDIO_CHANNELS=1
+      AUDIO_SAMPLE=44100
+    fi
   else                   ## card detected
     printf "Audio card present\n"
     # Check for the presence of a dedicated audio device
@@ -86,57 +108,103 @@ detect_audio()
     fi
     # Check for the presence of a Video dongle with audio
     arecord -l | grep -E -q \
-      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby|Webcam C920"
+      "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby"
     if [ $? == 0 ]; then   ## Present
       # Look for the video dongle, select the line and take
       # the 6th character.  Max card number = 8 !!
       USBTV="$(arecord -l | grep -E \
-        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby|Webcam C920" \
+        "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby" \
         | head -c 6 | tail -c 1)"
     fi
-  fi
-  # Check if any cards were detected
-  if [ "$MIC" == "9" ] && [ "$USBTV" == "9" ]; then
-    # No known card detected so take the safe option and go for beeps
-    # unless noaudio selected:
-    if [ "$AUDIO_PREF" == "no_audio" ]; then  # no audio
-      AUDIO_CARD=0
-      AUDIO_CHANNELS=0
-      AUDIO_SAMPLE=44100
-    else                                      # bleeps
-      AUDIO_CARD=0
-      AUDIO_CHANNELS=1
-      AUDIO_SAMPLE=44100
+
+    C920Present=0
+    # Check for the presence of a Webcam with stereo audio
+    arecord -l | grep -E -q \
+      "Webcam C920"
+    if [ $? == 0 ]; then   ## Present
+      C920Present=1
+      # Look for the video dongle, select the line and take
+      # the 6th character.  Max card number = 8 !!
+      WCAM="$(arecord -l | grep -E \
+        "Webcam C920" \
+        | head -c 6 | tail -c 1)"
+      WC_AUDIO_CHANNELS=2
+      WC_AUDIO_SAMPLE=48000
     fi
-  else
+
+    # Check for the presence of a Webcam with mono audio
+    arecord -l | grep -E -q \
+      "Webcam C525|U0x46d0x825|Webcam C170"
+    if [ $? == 0 ]; then   ## Present
+      # Look for the video dongle, select the line and take
+      # the 6th character.  Max card number = 8 !!
+      WCAM="$(arecord -l | grep -E \
+        "Webcam C525|U0x46d0x825|Webcam C170" \
+        | head -c 6 | tail -c 1)"
+      WC_AUDIO_CHANNELS=1
+      WC_AUDIO_SAMPLE=44100
+    fi
+
+      WC_AUDIO_CHANNELS=2
+      WC_AUDIO_SAMPLE=48000
+
+
     # At least one card detected, so sort out what card parameters are used
     case "$AUDIO_PREF" in
       auto)                                                 # Auto selected
-        if [ "$USBTV" != "9" ] && [ "$MIC" != "9" ]; then   # 2 cards
-          if [ "$PIC_INPUT" == "DIGITAL" ]; then            # using Pi Cam video
-            AUDIO_CARD=1                                    # so use mic audio
-            AUDIO_CARD_NUMBER=$MIC
-            AUDIO_CHANNELS=1
-            AUDIO_SAMPLE=44100
-          else                                              # using EasyCap video
-            AUDIO_CARD=1                                    # so use EasyCap audio
-            AUDIO_CARD_NUMBER=$USBTV
-            AUDIO_CHANNELS=2
-            AUDIO_SAMPLE=48000
-          fi
-        fi
-        if [ "$USBTV" == "9" ] && [ "$MIC" != "9" ]; then   # Mic card only
-            AUDIO_CARD=1                                    # so use mic
-            AUDIO_CARD_NUMBER=$MIC
-            AUDIO_CHANNELS=1
-            AUDIO_SAMPLE=44100
-        fi
-        if [ "$USBTV" != "9" ] && [ "$MIC" == "9" ]; then   # EasyCap card only
-          AUDIO_CARD=1                                      # So use EasyCap
-          AUDIO_CARD_NUMBER=$USBTV
-          AUDIO_CHANNELS=2
-          AUDIO_SAMPLE=48000
-        fi
+        case "$PIC_INPUT" in
+          "DIGITAL")                                        # Using Pi Cam video
+            if [ "$MIC" != "9" ]; then                      # Mic available
+              AUDIO_CARD=1                                  # so use mic audio
+              AUDIO_CARD_NUMBER=$MIC
+              AUDIO_CHANNELS=1
+              AUDIO_SAMPLE=44100
+            elif [ "$USBTV" != "9" ] && [ "$MIC" == "9" ]; then # Mic not available, but EasyCap is
+              AUDIO_CARD=1                                  # so use EasyCap audio
+              AUDIO_CARD_NUMBER=$USBTV
+              AUDIO_CHANNELS=2
+              AUDIO_SAMPLE=48000
+            else                                            # Neither available
+              AUDIO_CARD=0                                  # So no audio
+              AUDIO_CHANNELS=0
+              AUDIO_SAMPLE=44100
+            fi
+          ;;
+          "ANALOG")                                         # Using Easycap video
+            if [ "$USBTV" != "9" ]; then                    # Easycap Audio available
+              AUDIO_CARD=1                                  # so use EasyCap audio
+              AUDIO_CARD_NUMBER=$USBTV
+              AUDIO_CHANNELS=2
+              AUDIO_SAMPLE=48000
+            elif [ "$MIC" != "9" ] && [ "$USBTV" == "9" ]; then # EasyCap not available, but Mic is
+              AUDIO_CARD=1                                  # so use Mic audio
+              AUDIO_CARD_NUMBER=$MIC
+              AUDIO_CHANNELS=1
+              AUDIO_SAMPLE=44100
+            else                                            # Neither available
+              AUDIO_CARD=0                                  # So no audio
+              AUDIO_CHANNELS=0
+              AUDIO_SAMPLE=44100
+            fi
+          ;;
+          "WEBCAM")                                         # Using Webcam video
+            if [ "$WCAM" != "9" ]; then                     # Webcam Audio available
+              AUDIO_CARD=1                                  # So use Webcam audio
+              AUDIO_CARD_NUMBER=$WCAM
+              AUDIO_CHANNELS=$WC_AUDIO_CHANNELS
+              AUDIO_SAMPLE=$WC_AUDIO_SAMPLE
+            elif [ "$MIC" != "9" ] && [ "$WCAM" == "9" ]; then # Webcam not available, but Mic is
+              AUDIO_CARD=1                                  # so use Mic audio
+              AUDIO_CARD_NUMBER=$MIC
+              AUDIO_CHANNELS=1
+              AUDIO_SAMPLE=44100
+            else                                            # Neither available
+              AUDIO_CARD=0                                  # So no audio
+              AUDIO_CHANNELS=0
+              AUDIO_SAMPLE=44100
+            fi
+          ;;
+        esac
       ;;
       mic)                                                  # Mic selected
         if [ "$MIC" != "9" ]; then                          # Mic card detected
@@ -145,10 +213,9 @@ detect_audio()
           AUDIO_CHANNELS=1
           AUDIO_SAMPLE=44100
         else                                                # No mic card
-          AUDIO_CARD=1                                      # So use EasyCap
-          AUDIO_CARD_NUMBER=$USBTV
-          AUDIO_CHANNELS=2
-          AUDIO_SAMPLE=48000
+          AUDIO_CARD=0                                      # So no audio
+          AUDIO_CHANNELS=0
+          AUDIO_SAMPLE=44100
         fi
       ;;
       video)                                                # EasyCap selected
@@ -158,6 +225,18 @@ detect_audio()
           AUDIO_CHANNELS=2
           AUDIO_SAMPLE=48000
         else                                                # No EasyCap
+          AUDIO_CARD=0                                      # So no audio
+          AUDIO_CHANNELS=0
+          AUDIO_SAMPLE=44100
+        fi
+      ;;
+      webcam)                                               # Webcam selected
+        if [ "$WCAM" != "9" ]; then                         # Webcam detected
+          AUDIO_CARD=1                                      # So use Webcam
+          AUDIO_CARD_NUMBER=$WCAM
+          AUDIO_CHANNELS=$WC_AUDIO_CHANNELS
+          AUDIO_SAMPLE=$WC_AUDIO_SAMPLE
+        else                                                # No Webcam Audio
           AUDIO_CARD=1                                      # so use mic
           AUDIO_CARD_NUMBER=$MIC
           AUDIO_CHANNELS=1
@@ -171,38 +250,19 @@ detect_audio()
       ;;
       no_audio)
         AUDIO_CARD=0
+        AUDIO_CARD_NUMBER=9
         AUDIO_CHANNELS=0
         AUDIO_SAMPLE=44100
       ;;
       *)                                                    # Unidentified option
-        if [ "$USBTV" != "9" ] && [ "$MIC" != "9" ]; then   # 2 cards
-          if [ "$PIC_INPUT" == "DIGITAL" ]; then            # using Pi Cam video
-            AUDIO_CARD=1                                    # so use mic audio
-            AUDIO_CARD_NUMBER=$MIC
-            AUDIO_CHANNELS=1
-            AUDIO_SAMPLE=44100
-          else                                              # using EasyCap video
-            AUDIO_CARD=1                                    # so use EasyCap audio
-            AUDIO_CARD_NUMBER=$USBTV
-            AUDIO_CHANNELS=2
-            AUDIO_SAMPLE=48000
-          fi
-        fi
-        if [ "$USBTV" == "9" ] && [ "$MIC" != "9" ]; then   # Mic card only
-          AUDIO_CARD=1                                      # so use mic
-          AUDIO_CARD_NUMBER=$MIC
-          AUDIO_CHANNELS=1
-          AUDIO_SAMPLE=44100
-        fi
-        if [ "$USBTV" != "9" ] && [ "$MIC" == "9" ]; then   # EasyCap card only
-          AUDIO_CARD=1                                      # So use EasyCap
-          AUDIO_CARD_NUMBER=$USBTV
-          AUDIO_CHANNELS=2
-          AUDIO_SAMPLE=48000
-        fi
+        AUDIO_CARD=0                                        # No Audio
+        AUDIO_CARD_NUMBER=9
+        AUDIO_CHANNELS=0
+        AUDIO_SAMPLE=44100
       ;;
     esac
   fi
+  printf "WCAM = $WCAM\n"
 
   printf "AUDIO_CARD = $AUDIO_CARD\n"
   printf "AUDIO_CARD_NUMBER = $AUDIO_CARD_NUMBER \n"
@@ -214,10 +274,44 @@ detect_audio()
 
 detect_video()
 {
+  # List the video devices, select the 2 lines for any Webcam device, then
+  # select the line with the device details and delete the leading tab
+  VID_WEBCAM="$(v4l2-ctl --list-devices 2> /dev/null | \
+    sed -n '/Webcam/,/dev/p' | grep 'dev' | tr -d '\t')"
+
+  if [ "${#VID_WEBCAM}" -lt "10" ]; then
+
+    # List the video devices, select the 2 lines for a C270 device, then
+    # select the line with the device details and delete the leading tab
+    VID_WEBCAM="$(v4l2-ctl --list-devices 2> /dev/null | \
+      sed -n '/046d:0825/,/dev/p' | grep 'dev' | tr -d '\t')"
+  fi
+
+  printf "The first Webcam device string is $VID_WEBCAM\n"
+
+
   # List the video devices, select the 2 lines for any usb device, then
   # select the line with the device details and delete the leading tab
-  VID_USB="$(v4l2-ctl --list-devices 2> /dev/null | \
-    sed -n '/usb/,/dev/p' | grep 'dev' | tr -d '\t')"
+  VID_USB1="$(v4l2-ctl --list-devices 2> /dev/null | \
+    sed -n '/usb/,/dev/p' | grep 'dev' | tr -d '\t' | head -n1)"
+
+  
+  printf "The first USB device string is $VID_USB1\n"
+ 
+  VID_USB2="$(v4l2-ctl --list-devices 2> /dev/null | \
+    sed -n '/usb/,/dev/p' | grep 'dev' | tr -d '\t' | tail -n1)"
+  printf "The second USB device string is $VID_USB2\n"
+
+  if [ "$VID_USB1" != "$VID_WEBCAM" ]; then
+    VID_USB=$VID_USB1
+  printf "The first test passed"
+  fi
+
+  if [ "$VID_USB2" != "$VID_WEBCAM" ]; then
+    VID_USB=$VID_USB2
+  printf "The second test passed"
+  fi  
+  printf "The final USB device string is $VID_USB\n"
 
   # List the video devices, select the 2 lines for any mmal device, then
   # select the line with the device details and delete the leading tab
@@ -232,11 +326,15 @@ detect_video()
     printf "VID_PICAM was not found, setting to /dev/video0\n"
     VID_PICAM="/dev/video0"
   fi
+  if [ "$VID_WEBCAM" == '' ]; then
+    printf "VID_WEBCAM was not found, setting to /dev/video2\n"
+    VID_WEBCAM="/dev/video2"
+  fi
 
   printf "The PI-CAM device string is $VID_PICAM\n"
   printf "The USB device string is $VID_USB\n"
+  printf "The Webcam device string is $VID_WEBCAM\n"
 }
-
 
 ############ READ FROM rpidatvconfig.txt and Set PARAMETERS #######################
 
@@ -291,11 +389,15 @@ detect_audio
 detect_video
 ANALOGCAMNAME=$VID_USB
 
-#Adjust the PIDs for non-ffmpeg modes
-if [ "$MODE_INPUT" != "CAMMPEG-2" ] && [ "$MODE_INPUT" != "ANALOGMPEG-2" ] \
-  && [ "$MODE_INPUT" != "CAMHDMPEG-2" ] && [ "$MODE_INPUT" != "CARDMPEG-2" ]; then
-  let PIDPMT=$PIDVIDEO-1
-fi
+#Adjust the PIDs for avc2ts modes
+
+case "$MODE_INPUT" in
+  "CAMH264" | "ANALOGCAM" | "WEBCAMH264" | "CARDH264" | "PATERNAUDIO" \
+    | "CONTEST" | "DESKTOP" | "VNC" )
+    let PIDPMT=$PIDVIDEO-1
+  ;;
+esac  
+
 ########### Set 480p Output Format if compatible and required ###############
 
 let IMAGE_HEIGHT=576
@@ -333,9 +435,9 @@ case "$MODE_OUTPUT" in
     if [ "$MODE_INPUT" == "CAMH264" ]; then
       MODE_INPUT="CAMMPEG-2"
     fi
-    # If ANALOGMPEG-2 is selected, temporarily select ANALOGCAM
-    if [ "$MODE_INPUT" == "ANALOGMPEG-2" ]; then
-      MODE_INPUT="ANALOGCAM"
+    # If ANALOGCAM is selected, temporarily select ANALOGMPEG-2
+    if [ "$MODE_INPUT" == "ANALOGCAM" ]; then
+      MODE_INPUT="ANALOGMPEG-2"
     fi
   ;;
 
@@ -346,9 +448,9 @@ case "$MODE_OUTPUT" in
     if [ "$MODE_INPUT" == "CAMH264" ]; then
       MODE_INPUT="CAMMPEG-2"
     fi
-    # If ANALOGMPEG-2 is selected, temporarily select ANALOGCAM
-    if [ "$MODE_INPUT" == "ANALOGMPEG-2" ]; then
-      MODE_INPUT="ANALOGCAM"
+    # If ANALOGCAM is selected, temporarily select ANALOGMPEG-2
+    if [ "$MODE_INPUT" == "ANALOGCAM" ]; then
+      MODE_INPUT="ANALOGMPEG-2"
     fi
   ;;
 
@@ -438,9 +540,13 @@ OUTPUT_QPSK="videots"
 # BITRATE TS THEORIC
 let BITRATE_TS=SYMBOLRATE*2*188*FECNUM/204/FECDEN
 
+# echo Theoretical Bitrate TS $BITRATE_TS
+
+
 # Calculate the Video Bit Rate for Sound/no sound
 if [ "$MODE_INPUT" == "CAMMPEG-2" ] || [ "$MODE_INPUT" == "ANALOGMPEG-2" ] \
-  || [ "$MODE_INPUT" == "CAMHDMPEG-2" ] || [ "$MODE_INPUT" == "CARDPEG-2" ]; then
+  || [ "$MODE_INPUT" == "CAMHDMPEG-2" ] || [ "$MODE_INPUT" == "CARDMPEG-2" ] \
+  || [ "$MODE_INPUT" == "CAM16MPEG-2" ] || [ "$MODE_INPUT" == "ANALOG16MPEG-2" ]; then
   if [ "$AUDIO_CHANNELS" != 0 ]; then                 # Sound active
     let BITRATE_VIDEO=(BITRATE_TS*75)/100-74000
   else
@@ -452,10 +558,14 @@ fi
 
 let SYMBOLRATE_K=SYMBOLRATE/1000
 
-# Increase video resolution for CAMHDMPEG-2
+# Increase video resolution for CAMHDMPEG-2 and CAM16MPEG-2
 if [ "$MODE_INPUT" == "CAMHDMPEG-2" ] && [ "$SYMBOLRATE_K" -gt 999 ]; then
   VIDEO_WIDTH=1280
   VIDEO_HEIGHT=720
+  VIDEO_FPS=15
+elif [ "$MODE_INPUT" == "CAM16MPEG-2" ] && [ "$SYMBOLRATE_K" -gt 999 ]; then
+  VIDEO_WIDTH=1024
+  VIDEO_HEIGHT=576
   VIDEO_FPS=15
 else
   # Reduce video resolution at low bit rates
@@ -552,7 +662,7 @@ case "$MODE_INPUT" in
   ;;
 
   #============================================ MPEG-2 PI CAM INPUT MODE =============================================================
-  "CAMMPEG-2"|"CAMHDMPEG-2")
+  "CAMMPEG-2"|"CAMHDMPEG-2"|"CAM16MPEG-2")
 
 # Set up the command for the MPEG-2 Callsign caption
 # Note that spaces are not allowed in the CAPTION string below!
@@ -572,7 +682,7 @@ else
   if [ "$CAPTIONON" == "on" ]; then
     CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf:\
 text=$CALL:fontcolor=white:fontsize=36:box=1:boxcolor=black@0.5:boxborderw=5:\
-x=(w/2-w/8-text_w)/2:y=(h/4-text_h)/2"
+x=w/10:y=(h/4-text_h)/2"
     VF="-vf "
   else
     CAPTION=""
@@ -644,18 +754,18 @@ fi
         # No code for beeps here
         if [ "$AUDIO_CARD" == 0 ]; then
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
-            -f v4l2 -input_format h264 -video_size 720x576 \
+            -f v4l2 -input_format h264 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
             -i /dev/video0 \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
+            -framerate 25 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" -c:v h264_omx -b:v 576k \
             -g 25 \
             -f flv $STREAM_URL/$STREAM_KEY &
         else
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
-            -f v4l2 -input_format h264 -video_size 720x576 \
+            -f v4l2 -input_format h264 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
             -i /dev/video0 -thread_queue_size 2048 \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
+            -framerate 25 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" -c:v h264_omx -b:v 512k \
             -ar 22050 -ac $AUDIO_CHANNELS -ab 64k \
             -g 25 \
             -f flv $STREAM_URL/$STREAM_KEY &
@@ -800,18 +910,28 @@ fi
 
   ;;
 
-  #============================================ ANALOG H264 =============================================================
-  "ANALOGCAM")
+  #============================================ ANALOG and WEBCAM H264 =============================================================
+  "ANALOGCAM" | "WEBCAMH264")
 
     # Turn off the viewfinder (which would show Pi Cam)
     v4l2-ctl --overlay=0
 
-    # Set the EasyCap input and video standard
-    if [ "$ANALOGCAMINPUT" != "-" ]; then
-      v4l2-ctl -d $ANALOGCAMNAME "--set-input="$ANALOGCAMINPUT
-    fi
-    if [ "$ANALOGCAMSTANDARD" != "-" ]; then
-      v4l2-ctl -d $ANALOGCAMNAME "--set-standard="$ANALOGCAMSTANDARD
+    if [ "$MODE_INPUT" == "ANALOGCAM" ]; then
+      # Set the EasyCap input and video standard
+      if [ "$ANALOGCAMINPUT" != "-" ]; then
+        v4l2-ctl -d $ANALOGCAMNAME "--set-input="$ANALOGCAMINPUT
+      fi
+      if [ "$ANALOGCAMSTANDARD" != "-" ]; then
+        v4l2-ctl -d $ANALOGCAMNAME "--set-standard="$ANALOGCAMSTANDARD
+      fi
+    else
+      # Webcam in use
+      # If a C920 put it in the right mode
+      if [ $C920Present == 1 ]; then
+         v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=800,height=600,pixelformat=0
+      fi
+      ANALOGCAMNAME=$VID_WEBCAM
+      #ANALOGCAMNAME="/dev/video2"
     fi
 
     # If PiCam is present unload driver   
@@ -836,73 +956,47 @@ fi
         echo "set ptt tx" >> /tmp/expctrl
         sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
       ;;
-      "COMPVID")
-        : # Do nothing.  Mode does not work yet
-      ;;
       *)
         sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
       ;;
     esac
 
     # Now generate the stream
-    case "$MODE_OUTPUT" in
-      "BATC")
-        if [ "$AUDIO_CARD" == "0" ]; then
-          # No audio
-          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048  \
-            -f v4l2 \
-            -i $VID_USB \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
-            -vf "format=yuyv422,yadif=0:1:0" -g 25 \
-            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
-        else
-          # With audio
-          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
-            -f v4l2 \
-            -i $VID_USB \
-            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
-            -i hw:$AUDIO_CARD_NUMBER,0 \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-            -ar 22050 -ac $AUDIO_CHANNELS -ab 64k \
-            -vf "format=yuyv422,yadif=0:1:0" -g 25 \
-            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
-        fi
-      ;;
-      "STREAMER")
-        if [ "$AUDIO_CARD" == "0" ]; then
-          # No audio
-          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048\
-            -f v4l2 \
-            -i $VID_USB \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
-            -vf yadif=0:1:0 -g 25 \
-            -f flv $STREAM_URL/$STREAM_KEY &
-       else
-          # With audio
-          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048\
-            -f v4l2 \
-            -i $VID_USB \
-            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
-            -i hw:$AUDIO_CARD_NUMBER,0 \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-            -ar 22050 -ac $AUDIO_CHANNELS -ab 64k \
-            -vf yadif=0:1:0 -g 25 \
-            -f flv $STREAM_URL/$STREAM_KEY &
-        fi
-      ;;
-     "COMPVID")
-        : # Do nothing.  Mode does not work yet
-      ;;
-      *)
-        $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT\
-          -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 2 -e $ANALOGCAMNAME -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
-      ;;
-    esac
+    $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT\
+      -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 2 -e $ANALOGCAMNAME -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
   ;;
 
-#============================================ DESKTOP H264 =============================================================
+#============================================ DESKTOP MODES H264 =============================================================
 
-  "DESKTOP")
+  "DESKTOP" | "CONTEST" | "CARDH264")
+
+    if [ "$MODE_INPUT" == "CONTEST" ]; then
+      # Delete the old numbers image
+      rm /home/pi/tmp/contest.jpg >/dev/null 2>/dev/null
+
+      # Create the numbers image in the tempfs folder
+      convert -size 720x576 xc:white \
+        -gravity North -pointsize 125 -annotate 0 "$CALL" \
+        -gravity Center -pointsize 200 -annotate 0 "$NUMBERS" \
+        -gravity South -pointsize 75 -annotate 0 "$LOCATOR   ""$BAND_LABEL" \
+        /home/pi/tmp/contest.jpg
+
+      # Display the numbers on the desktop
+      sudo fbi -T 1 -noverbose -a /home/pi/tmp/contest.jpg >/dev/null 2>/dev/null
+      (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+    elif [ "$MODE_INPUT" == "CARDH264" ]; then
+      if [ "$CAPTIONON" == "on" ]; then
+        rm /home/pi/tmp/caption.png >/dev/null 2>/dev/null
+        rm /home/pi/tmp/tcf2.jpg >/dev/null 2>/dev/null
+        convert -size 720x80 xc:transparent -fill white -gravity Center -pointsize 40 -annotate 0 $CALL /home/pi/tmp/caption.png
+        convert /home/pi/rpidatv/scripts/images/tcf.jpg /home/pi/tmp/caption.png -geometry +0+475 -composite /home/pi/tmp/tcf2.jpg
+        sudo fbi -T 1 -noverbose -a /home/pi/tmp/tcf2.jpg >/dev/null 2>/dev/null
+      else
+        sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/tcf.jpg >/dev/null 2>/dev/null
+      fi
+      (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+    fi
+
     # If PiCam is present unload driver   
     vcgencmd get_camera | grep 'detected=1' >/dev/null 2>/dev/null
     RESULT="$?"
@@ -1006,60 +1100,38 @@ fi
     sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c "carrier" -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
   ;;
 
-#============================================ CONTEST H264 =============================================================
-  "CONTEST")
+  #============================================ ANALOG AND WEBCAM MPEG-2 INPUT MODES ======================================================
+  #============================================ INCLUDES STREAMING OUTPUTS (H264)    ======================================================
+  "ANALOGMPEG-2" | "ANALOG16MPEG-2" | "WEBCAMMPEG-2" | "WEBCAM16MPEG-2" | "WEBCAMHDMPEG-2")
 
-  # Delete the old numbers image
-  rm /home/pi/tmp/contest.jpg >/dev/null 2>/dev/null
-
-  # Create the numbers image in the tempfs folder
-  convert -size 720x576 xc:white \
-    -gravity North -pointsize 125 -annotate 0 "$CALL" \
-    -gravity Center -pointsize 200 -annotate 0 "$NUMBERS" \
-    -gravity South -pointsize 75 -annotate 0 "$LOCATOR   ""$BAND_LABEL" \
-    /home/pi/tmp/contest.jpg
-
-  # Display the numbers on the desktop
-  sudo fbi -T 1 -noverbose -a /home/pi/tmp/contest.jpg >/dev/null 2>/dev/null
-  (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
-
-  # If PiCam is present unload driver   
-  vcgencmd get_camera | grep 'detected=1' >/dev/null 2>/dev/null
-  RESULT="$?"
-  if [ "$RESULT" -eq 0 ]; then
-    sudo modprobe -r bcm2835_v4l2
-  fi    
-
-  # Set up means to transport of stream out of unit
-  case "$MODE_OUTPUT" in
-    "BATC")
-      sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -i videots -y $OUTPUT_BATC &
+    # Sort out image size and scaling
+    SCALE=""
+    case "$MODE_INPUT" in
+    ANALOG16MPEG-2)
+      SCALE="scale=512:288,"
     ;;
-    "IP")
-      OUTPUT_FILE=""
-    ;;
-    "DATVEXPRESS")
-      echo "set ptt tx" >> /tmp/expctrl
-      sudo nice -n -30 netcat -u -4 127.0.0.1 1314 < videots &
-    ;;
-    "COMPVID")
-      OUTPUT_FILE="/dev/null" #Send avc2ts output to /dev/null
-    ;;
-    *)
-      sudo nice -n -30 $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K \
-        -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
-    ;;
-  esac
+    WEBCAMMPEG-2)
+       if [ $C920Present == 1 ]; then
+         v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=640,height=480,pixelformat=0
+      fi
 
-  # Genrate an H264 transport Stream
-  $PATHRPI"/avc2ts" -b $BITRATE_VIDEO -m $BITRATE_TS -x $VIDEO_WIDTH -y $VIDEO_HEIGHT \
-    -f $VIDEO_FPS -i 100 $OUTPUT_FILE -t 3 -p $PIDPMT -s $CHANNEL $OUTPUT_IP &
-
-  # Switching and code to generate an MPEG-2 TS to go here
-
-  ;;
-  #============================================ ANALOG MPEG-2 INPUT MODE =============================================================
-  "ANALOGMPEG-2")
+    ;;
+    WEBCAM16MPEG-2)
+      if [ $C920Present == 1 ]; then
+         v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=1280,height=768,pixelformat=0
+      fi
+      VIDEO_WIDTH="1280"
+      VIDEO_HEIGHT="768"
+      SCALE="scale=1024:576,"
+    ;;
+    WEBCAMHDMPEG-2)
+      if [ $C920Present == 1 ]; then
+         v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=1280,height=768,pixelformat=0
+      fi
+      VIDEO_WIDTH="1280"
+      VIDEO_HEIGHT="768"
+    ;;
+    esac
 
     # Turn off the viewfinder (which would show Pi Cam)
     v4l2-ctl --overlay=0
@@ -1070,8 +1142,7 @@ fi
       if [ "$CAPTIONON" == "on" ]; then
         CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf: \
           text=\'$CALL-$LOCATOR\': fontcolor=white: fontsize=36: box=1: boxcolor=black@0.5: \
-          boxborderw=5:
-        x=(w/2-(text_w/2)): y=(h-text_h-40), "
+          boxborderw=5: x=(w/2-(text_w/2)): y=(h-text_h-40), "
       else
         CAPTION=""
       fi
@@ -1079,18 +1150,24 @@ fi
       if [ "$CAPTIONON" == "on" ]; then
         CAPTION="drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf: \
           text=\'$CALL\': fontcolor=white: fontsize=36: box=1: boxcolor=black@0.5: \
-          boxborderw=5: x=(w/2-w/8-text_w)/2: y=(h/4-text_h)/2, "
+          boxborderw=5: x=w/10: y=(h/4-text_h)/2, "
       else
         CAPTION=""    
       fi
     fi
 
-    # Set the EasyCap input and PAL/NTSC standard
-    if [ "$ANALOGCAMINPUT" != "-" ]; then
-      v4l2-ctl -d $ANALOGCAMNAME "--set-input="$ANALOGCAMINPUT
-    fi
-    if [ "$ANALOGCAMSTANDARD" != "-" ]; then
-      v4l2-ctl -d $ANALOGCAMNAME "--set-standard="$ANALOGCAMSTANDARD
+    # Select USB Video Dongle or Webcam and set USB Video modes
+    if [ "$MODE_INPUT" == "ANALOGMPEG-2" ] || [ "$MODE_INPUT" == "ANALOG16MPEG-2" ]; then
+      # Set the EasyCap input 
+      if [ "$ANALOGCAMINPUT" != "-" ]; then
+        v4l2-ctl -d $ANALOGCAMNAME "--set-input="$ANALOGCAMINPUT
+      fi
+      # Set PAL or NTSC standard
+      if [ "$ANALOGCAMSTANDARD" != "-" ]; then
+        v4l2-ctl -d $ANALOGCAMNAME "--set-standard="$ANALOGCAMSTANDARD
+      fi
+    else
+      VID_USB=$VID_WEBCAM
     fi
 
     # Set the sound/video lipsync
@@ -1101,29 +1178,12 @@ fi
 
     # Set up the means to transport the stream out of the unit
     case "$MODE_OUTPUT" in
-      "BATC")
-        ITS_OFFSET="-00:00:5.0"
-        #sudo nice -n -30 $PATHRPI"/ffmpeg" -i videots -y $OUTPUT_STREAM &
-        sudo nice -n -30 $PATHRPI"/ffmpeg" -i videots -y  -video_size 640x480\
-          -b:v 500k -maxrate 700k -bufsize 2048k $OUTPUT_BATC &
-        OUTPUT="videots"
-      ;;
-      "STREAMER")
-        ITS_OFFSET="-00:00:5.0"
-        #sudo nice -n -30 $PATHRPI"/ffmpeg" -i videots -y $OUTPUT_STREAM &
-        sudo nice -n -30 $PATHRPI"/ffmpeg" -i videots -y  -video_size 640x480\
-          -b:v 500k -maxrate 700k -bufsize 2048k $OUTPUT_STREAM &
-        OUTPUT="videots"
-      ;;
-      "IP")
+      "IP" | "BATC" | "STREAMER" | "COMPVID")
         : # Do nothing
       ;;
       "DATVEXPRESS")
         echo "set ptt tx" >> /tmp/expctrl
         # ffmpeg sends the stream directly to DATVEXPRESS
-      ;;
-      "COMPVID")
-        : # Do nothing
       ;;
       *)
         # For IQ, QPSKRF, DIGITHIN and DTX1 rpidatv generates the IQ (and RF for QPSKRF)
@@ -1132,6 +1192,56 @@ fi
     esac
 
     # Now generate the stream
+
+    case "$MODE_OUTPUT" in
+      "BATC")
+        if [ "$AUDIO_CARD" == "0" ]; then
+          # No audio
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048  \
+            -f v4l2 -video_size 720x576 \
+            -i $VID_USB \
+            -framerate 25 -c:v h264_omx -b:v 576k \
+            -vf "$CAPTION""format=yuyv422,yadif=0:1:0" -g 25 \
+            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+        else
+          # With audio
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
+            -f v4l2 -video_size 720x576 \
+            -i $VID_USB \
+            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+            -i hw:$AUDIO_CARD_NUMBER,0 \
+            -framerate 25 -c:v h264_omx -b:v 512k \
+            -ar 22050 -ac $AUDIO_CHANNELS -ab 64k \
+            -vf "$CAPTION""format=yuyv422,yadif=0:1:0" -g 25 \
+            -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
+        fi
+      ;;
+      "STREAMER")
+        if [ "$AUDIO_CARD" == "0" ]; then
+          # No audio
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048\
+            -f v4l2 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
+            -i $VID_USB \
+            -framerate 25 -c:v h264_omx -b:v 576k \
+            -vf "$CAPTION""$SCALE"yadif=0:1:0 -g 25 \
+            -f flv $STREAM_URL/$STREAM_KEY &
+
+       else
+          # With audio
+          $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048\
+            -f v4l2 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
+            -i $VID_USB \
+            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+            -i hw:$AUDIO_CARD_NUMBER,0 \
+            -framerate 25 -c:v h264_omx -b:v 512k \
+            -ar 22050 -ac $AUDIO_CHANNELS -ab 64k \
+            -vf "$CAPTION""$SCALE"yadif=0:1:0 -g 25 \
+            -f flv $STREAM_URL/$STREAM_KEY &
+        fi
+      ;;
+      *)
+#            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+#            -i hw:$AUDIO_CARD_NUMBER,0 \
 
     if [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "0" ]; then
 
@@ -1142,7 +1252,7 @@ fi
         -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
         -i $VID_USB -fflags nobuffer \
         \
-        -c:v mpeg2video -vf "$CAPTION""format=yuva420p, hqdn3d=15" \
+        -c:v mpeg2video  -vf "$CAPTION""$SCALE""format=yuva420p, hqdn3d=15" \
         -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO \
         -f mpegts  -blocksize 1880 \
         -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
@@ -1163,7 +1273,7 @@ fi
         -f lavfi -ac 1 \
         -i "sine=frequency=500:beep_factor=4:sample_rate=44100:duration=0" \
         \
-        -c:v mpeg2video -vf "$CAPTION""format=yuva420p, hqdn3d=15" \
+        -c:v mpeg2video -vf "$CAPTION""$SCALE""format=yuva420p, hqdn3d=15" \
         -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
         -f mpegts  -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
         -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
@@ -1186,7 +1296,7 @@ fi
         -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
         -i hw:$AUDIO_CARD_NUMBER,0 \
         \
-        -c:v mpeg2video -vf "$CAPTION""format=yuva420p, hqdn3d=15" \
+        -c:v mpeg2video -vf "$CAPTION""$SCALE""format=yuva420p, hqdn3d=15" \
         -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
         -f mpegts  -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
         -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
@@ -1196,22 +1306,68 @@ fi
         -muxrate $BITRATE_TS -y $OUTPUT &
 
     fi
+    ;;
+    esac
   ;;
   #============================================ MPEG-2 STATIC TEST CARD MODE =============================================================
-  "CARDMPEG-2")
+  "CARDMPEG-2" | "CONTESTMPEG-2" | "CARD16MPEG-2"| "CARDHDMPEG-2"  )
 
-# Set up the command for the MPEG-2 Test Card Callsign caption
+    if [ "$MODE_INPUT" == "CONTESTMPEG-2" ]; then
+      # Delete the old numbers image
+      rm /home/pi/tmp/contest.jpg >/dev/null 2>/dev/null
 
-# Note that spaces are not allowed in the CAPTION string below!
-if [ "$CAPTIONON" == "on" ]; then
-  CAPTION="fps=10,drawtext=fontfile=/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf:\
-text=$CALL:fontcolor=white:fontsize=40:box=0:\
-x=(w-text_w)/2:y=(57*h/32-text_h)/2"
-  VF="-vf "
-else
-  CAPTION="fps=10"
-  VF="-vf "    
-fi
+      # Create the numbers image in the tempfs folder
+      convert -size 720x576 xc:white \
+        -gravity North -pointsize 125 -annotate 0 "$CALL" \
+        -gravity Center -pointsize 200 -annotate 0 "$NUMBERS" \
+        -gravity South -pointsize 75 -annotate 0 "$LOCATOR   ""$BAND_LABEL" \
+        /home/pi/tmp/contest.jpg
+        IMAGEFILE="/home/pi/tmp/contest.jpg"
+
+      # Display the numbers on the desktop
+      sudo fbi -T 1 -noverbose -a /home/pi/tmp/contest.jpg >/dev/null 2>/dev/null
+      (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+    
+    elif [ "$MODE_INPUT" == "CARDMPEG-2" ]; then
+      if [ "$CAPTIONON" == "on" ]; then
+        rm /home/pi/tmp/caption.png >/dev/null 2>/dev/null
+        rm /home/pi/tmp/tcf2.jpg >/dev/null 2>/dev/null
+        convert -size 720x80 xc:transparent -fill white -gravity Center -pointsize 40 -annotate 0 $CALL /home/pi/tmp/caption.png
+        convert /home/pi/rpidatv/scripts/images/tcf.jpg /home/pi/tmp/caption.png -geometry +0+475 -composite /home/pi/tmp/tcf2.jpg
+        IMAGEFILE="/home/pi/tmp/tcf2.jpg"
+        sudo fbi -T 1 -noverbose -a /home/pi/tmp/tcf2.jpg >/dev/null 2>/dev/null
+      else
+        IMAGEFILE="/home/pi/rpidatv/scripts/images/tcf.jpg"
+        sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/tcf.jpg >/dev/null 2>/dev/null
+      fi
+      (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+    elif [ "$MODE_INPUT" == "CARD16MPEG-2" ]; then
+      if [ "$CAPTIONON" == "on" ]; then
+        rm /home/pi/tmp/caption.png >/dev/null 2>/dev/null
+        rm /home/pi/tmp/tcfw162.jpg >/dev/null 2>/dev/null
+        convert -size 1024x80 xc:transparent -fill white -gravity Center -pointsize 50 -annotate 0 $CALL /home/pi/tmp/caption.png
+        convert /home/pi/rpidatv/scripts/images/tcfw16.jpg /home/pi/tmp/caption.png -geometry +0+478 -composite /home/pi/tmp/tcfw162.jpg
+        IMAGEFILE="/home/pi/tmp/tcfw162.jpg"
+        sudo fbi -T 1 -noverbose -a /home/pi/tmp/tcfw162.jpg >/dev/null 2>/dev/null
+      else
+        IMAGEFILE="/home/pi/rpidatv/scripts/images/tcfw16.jpg"
+        sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/tcfw16.jpg >/dev/null 2>/dev/null
+      fi
+      (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+    elif [ "$MODE_INPUT" == "CARDHDMPEG-2" ]; then
+      if [ "$CAPTIONON" == "on" ]; then
+        rm /home/pi/tmp/caption.png >/dev/null 2>/dev/null
+        rm /home/pi/tmp/tcfw2.jpg >/dev/null 2>/dev/null
+        convert -size 1280x80 xc:transparent -fill white -gravity Center -pointsize 65 -annotate 0 $CALL /home/pi/tmp/caption.png
+        convert /home/pi/rpidatv/scripts/images/tcfw.jpg /home/pi/tmp/caption.png -geometry +0+608 -composite /home/pi/tmp/tcfw2.jpg
+        IMAGEFILE="/home/pi/tmp/tcfw2.jpg"
+        sudo fbi -T 1 -noverbose -a /home/pi/tmp/tcfw2.jpg >/dev/null 2>/dev/null
+      else
+        IMAGEFILE="/home/pi/rpidatv/scripts/images/tcfw.jpg"
+        sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/tcfw.jpg >/dev/null 2>/dev/null
+      fi
+      (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+    fi
 
   # Turn the viewfinder off
   v4l2-ctl --overlay=0
@@ -1252,7 +1408,7 @@ fi
         if [ "$AUDIO_CARD" == 0 ]; then
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG\
             -f image2 -loop 1 \
-            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
+            -i $IMAGEFILE \
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
             $VF $CAPTION \
             \
@@ -1260,7 +1416,7 @@ fi
         else
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
             -f image2 -loop 1 \
-            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
+            -i $IMAGEFILE \
             \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
@@ -1276,22 +1432,21 @@ fi
         if [ "$AUDIO_CARD" == 0 ]; then
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048 \
             -f image2 -loop 1 \
-            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
+            -i $IMAGEFILE \
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
             $VF $CAPTION \
             \
             -f flv $STREAM_URL/$STREAM_KEY &
         else
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
-           -f image2 -loop 1 \
-            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
+            -f image2 -loop 1 \
+            -i $IMAGEFILE \
             \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
             \
-            -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 512k \
-            $VF $CAPTION \
-            \
+            -framerate 25 -c:v h264_omx -b:v 512k \
+            -ar 22050 -ac $AUDIO_CHANNELS -ab 64k            \
             -f flv $STREAM_URL/$STREAM_KEY &
         fi
       ;;
@@ -1303,9 +1458,9 @@ fi
           sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
             -f image2 -loop 1 \
             -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
-            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
+            -i $IMAGEFILE \
             \
-            $VF $CAPTION -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
+            -vf fps=10 -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
             -f mpegts  -blocksize 1880 \
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
@@ -1320,12 +1475,12 @@ fi
           sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
             -f image2 -loop 1 \
             -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
-            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
+            -i $IMAGEFILE \
             \
             -f lavfi -ac 1 \
             -i "sine=frequency=500:beep_factor=4:sample_rate=44100:duration=0" \
             \
-            $VF $CAPTION -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
+            -vf fps=10 -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
             -f mpegts  -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
@@ -1343,12 +1498,12 @@ fi
           sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET"\
             -f image2 -loop 1 \
             -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
-            -i /home/pi/rpidatv/scripts/images/tcf.jpg \
+            -i $IMAGEFILE \
             \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
             \
-            $VF $CAPTION -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO \
+            -vf fps=10 -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO \
             -f mpegts  -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
             -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
             -mpegts_service_id $SERVICEID \
@@ -1358,6 +1513,59 @@ fi
         fi
       ;;
     esac
+  ;;
+# ============================================ H264 FROM C920 =============================
+
+  "C920H264" | "C920HDH264" | "C920FHDH264")
+
+    # Turn off the viewfinder (which would show Pi Cam)
+    v4l2-ctl --overlay=0
+
+    # Set up the means to transport the stream out of the unit
+    # Not compatible with COMPVID, BATC or STREAMER output modes
+    case "$MODE_OUTPUT" in
+      "IP")
+        : # Do nothing
+      ;;
+      "DATVEXPRESS")
+        echo "set ptt tx" >> /tmp/expctrl
+        # ffmpeg sends the stream directly to DATVEXPRESS
+      ;;
+      *)
+        # For IQ, QPSKRF, DIGITHIN and DTX1 rpidatv generates the IQ (and RF for QPSKRF)
+        sudo $PATHRPI"/rpidatv" -i videots -s $SYMBOLRATE_K -c $FECNUM"/"$FECDEN -f $FREQUENCY_OUT -p $GAIN -m $MODE -x $PIN_I -y $PIN_Q &
+      ;;
+    esac
+
+    # Now set the camera resolution and H264 output
+    case "$MODE_INPUT" in
+      C920H264)
+        v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=640,height=480,pixelformat=1
+#       v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=800,height=600,pixelformat=1
+      ;;
+      C920HDH264)
+        v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=1280,height=720,pixelformat=1
+      ;;
+      C920FHDH264)
+        v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=1920,height=1080,pixelformat=1
+      ;;
+    esac
+
+    # And send the camera stream to the fifo
+
+    sudo nice -n -30 $PATHRPI"/ffmpeg" \
+      -f v4l2 -vcodec h264 \
+      -i "$VID_WEBCAM" \
+      -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+      -i hw:$AUDIO_CARD_NUMBER,0 \
+      -vcodec copy \
+      -f mpegts -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
+      -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
+      -mpegts_service_id $SERVICEID \
+      -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
+      -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
+      -muxrate $BITRATE_TS -y $OUTPUT &
+
   ;;
 esac
 

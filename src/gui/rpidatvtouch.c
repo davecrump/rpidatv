@@ -126,23 +126,23 @@ char TabModeInput[12][255]={"CAMMPEG-2","CAMH264","PATERNAUDIO","ANALOGCAM","CAR
   ,"IPTSIN","ANALOGMPEG-2", "CARDMPEG-2", "CAMHDMPEG-2", "DESKTOP", "FILETS"};
 char TabFreq[9][255]={"71", "146.5", "437", "1249", "1255", "436", "436.5", "437.5", "438"};
 char FreqLabel[31][255];
-char TabModeAudio[5][255]={"auto", "mic", "video", "bleeps", "no_audio"};
-char TabModeSTD[2][255]={"6","0"};
-char TabModeVidIP[2][255]={"0","1"};
-char TabModeOP[8][255]={"IQ", "QPSKRF", "DATVEXPRESS", "BATC", "STREAMER", "COMPVID", "DTX1", "IP"};
-char TabModeOPtext[8][255]={"Portsdown", " UGLY ", "EXPRESS", " BATC ", "STREAM", "ANALOG", " DTX1 ", "IPTS out"};
-char TabAtten[4][255] = {"NONE", "PE4312", "PE43713", "HMC1119"};
-char CurrentModeOP[255] = "QPSKRF";
-char CurrentModeOPtext[255] = " UGLY ";
+char TabModeAudio[6][15]={"auto", "mic", "video", "bleeps", "no_audio", "webcam"};
+char TabModeSTD[2][7]={"6","0"};
+char TabModeVidIP[2][7]={"0","1"};
+char TabModeOP[8][31]={"IQ", "QPSKRF", "DATVEXPRESS", "BATC", "STREAMER", "COMPVID", "DTX1", "IP"};
+char TabModeOPtext[8][31]={"Portsdown", " UGLY ", "EXPRESS", " BATC ", "STREAM", "ANALOG", " DTX1 ", "IPTS out"};
+char TabAtten[4][15] = {"NONE", "PE4312", "PE43713", "HMC1119"};
+char CurrentModeOP[31] = "QPSKRF";
+char CurrentModeOPtext[31] = " UGLY ";
 char TabTXMode[2][255] = {"DVB-S", "Carrier"};
 char CurrentTXMode[255] = "DVB-S";
 char CurrentModeInput[255] = "DESKTOP";
 char TabEncoding[4][255] = {"H264", "MPEG-2", "IPTS in", "TS File"};
 char CurrentEncoding[255] = "H264";
-char TabSource[6][255] = {"Pi Cam", "CompVid", "TCAnim", "TestCard", "PiScreen", "Contest"};
-char CurrentSource[255] = "PiScreen";
-char TabFormat[3][255] = {"4:3", "720p", " "};
-char CurrentFormat[255] = "4:3";
+char TabSource[8][15] = {"Pi Cam", "CompVid", "TCAnim", "TestCard", "PiScreen", "Contest", "Webcam", "C920"};
+char CurrentSource[15] = "PiScreen";
+char TabFormat[4][15] = {"4:3", "16:9","720p", "1080p"};
+char CurrentFormat[15] = "4:3";
 char CurrentCaptionState[255] = "on";
 char CurrentAudioState[255] = "auto";
 char CurrentAtten[255] = "NONE";
@@ -472,22 +472,32 @@ void ReadModeInput(char coding[256], char vsource[256])
     strcpy(CurrentFormat, "4:3");
     strcpy(CurrentSource, TabSource[0]); // Pi Cam
   } 
-  else if (strcmp(ModeInput, "CAMMPEG-2") == 0)
+  else if (strcmp(ModeInput, "ANALOGCAM") == 0)
   {
-    strcpy(coding, "MPEG-2");
-    strcpy(vsource, "RPi Camera");
+    strcpy(coding, "H264");
+    strcpy(vsource, "Ext Video Input");
     strcpy(CurrentTXMode, "DVB-S");
-    strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentEncoding, "H264");
     strcpy(CurrentFormat, "4:3");
-    strcpy(CurrentSource, TabSource[0]); // Pi Cam
+    strcpy(CurrentSource, TabSource[1]); // EasyCap
   }
-  else if (strcmp(ModeInput, "FILETS") == 0)
+  else if (strcmp(ModeInput, "WEBCAMH264") == 0)
   {
-    strcpy(coding, "Native");
-    strcpy(vsource, "TS File");
+    strcpy(coding, "H264");
+    strcpy(vsource, "Webcam");
     strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "H264");
     strcpy(CurrentFormat, "4:3");
-    strcpy(CurrentEncoding, "TS File");
+    strcpy(CurrentSource, TabSource[6]); // Webcam
+  }
+  else if (strcmp(ModeInput, "CARDH264") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "Static Test Card F");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "H264");
+    strcpy(CurrentFormat, "4:3");
+    strcpy(CurrentSource, TabSource[3]); // TestCard
   }
   else if (strcmp(ModeInput, "PATERNAUDIO") == 0)
   {
@@ -497,6 +507,24 @@ void ReadModeInput(char coding[256], char vsource[256])
     strcpy(CurrentEncoding, "H264");
     strcpy(CurrentFormat, "4:3");
     strcpy(CurrentSource, TabSource[2]); // TCAnim
+  }
+  else if (strcmp(ModeInput, "CONTEST") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "Contest Numbers");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "H264");
+    strcpy(CurrentFormat, "4:3");
+    strcpy(CurrentSource, TabSource[5]); // Contest
+  }
+  else if (strcmp(ModeInput, "DESKTOP") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "Screen");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "H264");
+    strcpy(CurrentFormat, "4:3");
+    strcpy(CurrentSource, TabSource[4]); // Desktop
   }
   else if (strcmp(ModeInput, "CARRIER") == 0)
   {
@@ -511,21 +539,20 @@ void ReadModeInput(char coding[256], char vsource[256])
     strcpy(CurrentTXMode, "DVB-S");
     strcpy(CurrentEncoding, "H264");
   }
+  else if (strcmp(ModeInput, "FILETS") == 0)
+  {
+    strcpy(coding, "Native");
+    strcpy(vsource, "TS File");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentFormat, "4:3");
+    strcpy(CurrentEncoding, "TS File");
+  }
   else if (strcmp(ModeInput, "IPTSIN") == 0)
   {
     strcpy(coding, "Native");
     strcpy(vsource, "IP Transport Stream");
     strcpy(CurrentTXMode, "DVB-S");
     strcpy(CurrentEncoding, "IPTS in");
-  }
-  else if (strcmp(ModeInput, "ANALOGCAM") == 0)
-  {
-    strcpy(coding, "H264");
-    strcpy(vsource, "Ext Video Input");
-    strcpy(CurrentTXMode, "DVB-S");
-    strcpy(CurrentEncoding, "H264");
-    strcpy(CurrentFormat, "4:3");
-    strcpy(CurrentSource, TabSource[1]); // EasyCap
   }
   else if (strcmp(ModeInput, "VNC") == 0)
   {
@@ -535,23 +562,14 @@ void ReadModeInput(char coding[256], char vsource[256])
     strcpy(CurrentEncoding, "H264");
     strcpy(CurrentFormat, "4:3");
   }
-  else if (strcmp(ModeInput, "DESKTOP") == 0)
+  else if (strcmp(ModeInput, "CAMMPEG-2") == 0)
   {
-    strcpy(coding, "H264");
-    strcpy(vsource, "Screen");
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "RPi Camera");
     strcpy(CurrentTXMode, "DVB-S");
-    strcpy(CurrentEncoding, "H264");
+    strcpy(CurrentEncoding, "MPEG-2");
     strcpy(CurrentFormat, "4:3");
-    strcpy(CurrentSource, TabSource[4]); // Desktop
-  }
-  else if (strcmp(ModeInput, "CONTEST") == 0)
-  {
-    strcpy(coding, "H264");
-    strcpy(vsource, "Contest Numbers");
-    strcpy(CurrentTXMode, "DVB-S");
-    strcpy(CurrentEncoding, "H264");
-    strcpy(CurrentFormat, "4:3");
-    strcpy(CurrentSource, TabSource[5]); // Contest
+    strcpy(CurrentSource, TabSource[0]); // Pi Cam
   }
   else if (strcmp(ModeInput, "ANALOGMPEG-2") == 0)
   {
@@ -559,7 +577,16 @@ void ReadModeInput(char coding[256], char vsource[256])
     strcpy(vsource, "Ext Video Input");
     strcpy(CurrentTXMode, "DVB-S");
     strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentFormat, "4:3");
     strcpy(CurrentSource, TabSource[1]); // EasyCap
+  }
+  else if (strcmp(ModeInput, "WEBCAMMPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "Webcam");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentSource, TabSource[6]); // Webcam
   }
   else if (strcmp(ModeInput, "CARDMPEG-2") == 0)
   {
@@ -570,6 +597,24 @@ void ReadModeInput(char coding[256], char vsource[256])
     strcpy(CurrentFormat, "4:3");
     strcpy(CurrentSource, TabSource[3]); // Desktop
   }
+  else if (strcmp(ModeInput, "CONTESTMPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "Contest Numbers");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentFormat, "4:3");
+    strcpy(CurrentSource, TabSource[5]); // Contest
+  }
+  else if (strcmp(ModeInput, "CAM16MPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "RPi Cam 16:9");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentFormat, "16:9");
+    strcpy(CurrentSource, TabSource[0]); // Pi Cam
+  }
   else if (strcmp(ModeInput, "CAMHDMPEG-2") == 0)
   {
     strcpy(coding, "MPEG-2");
@@ -578,6 +623,78 @@ void ReadModeInput(char coding[256], char vsource[256])
     strcpy(CurrentEncoding, "MPEG-2");
     strcpy(CurrentFormat, "720p");
     strcpy(CurrentSource, TabSource[0]); // Pi Cam
+  }
+  else if (strcmp(ModeInput, "ANALOG16MPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "Ext Video Input");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentFormat, "16:9");
+    strcpy(CurrentSource, TabSource[1]); // EasyCap
+  }
+  else if (strcmp(ModeInput, "WEBCAM16MPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "Webcam");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentFormat, "16:9");
+    strcpy(CurrentSource, TabSource[6]); // Webcam
+  }
+  else if (strcmp(ModeInput, "WEBCAMHDMPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "Webcam");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentFormat, "720p");
+    strcpy(CurrentSource, TabSource[6]); // Webcam
+  }
+  else if (strcmp(ModeInput, "CARD16MPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "Static Test Card");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentFormat, "16:9");
+    strcpy(CurrentSource, TabSource[3]); // TestCard
+  }
+  else if (strcmp(ModeInput, "CARDHDMPEG-2") == 0)
+  {
+    strcpy(coding, "MPEG-2");
+    strcpy(vsource, "Static Test Card");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "MPEG-2");
+    strcpy(CurrentFormat, "720p");
+    strcpy(CurrentSource, TabSource[3]); // TestCard
+  }
+  else if (strcmp(ModeInput, "C920H264") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "C920 Webcam");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "H264");
+    strcpy(CurrentFormat, "4:3");
+    strcpy(CurrentSource, TabSource[7]); // C920
+  }
+  else if (strcmp(ModeInput, "C920HDH264") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "C920 Webcam");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "H264");
+    strcpy(CurrentFormat, "720p");
+    strcpy(CurrentSource, TabSource[7]); // C920
+  }
+  else if (strcmp(ModeInput, "C920FHDH264") == 0)
+  {
+    strcpy(coding, "H264");
+    strcpy(vsource, "C920 Webcam");
+    strcpy(CurrentTXMode, "DVB-S");
+    strcpy(CurrentEncoding, "H264");
+    strcpy(CurrentFormat, "1080p");
+    strcpy(CurrentSource, TabSource[7]); // C920
   }
   else
   {
@@ -914,9 +1031,52 @@ void GetDevices(char DeviceName1[256], char DeviceName2[256])
 void GetUSBVidDev(char VidDevName[256])
 {
   FILE *fp;
-  char response_line[256];
+  char response_line[255];
+  char WebcamName[255] = "none";
 
-  /* Open the command for reading. */
+  // Read the Webcam address if it is present
+
+  fp = popen("v4l2-ctl --list-devices 2> /dev/null | sed -n '/Webcam/,/dev/p' | grep 'dev' | tr -d '\t'", "r");
+  if (fp == NULL)
+  {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(response_line, 250, fp) != NULL)
+  {
+    if (strlen(response_line) > 1)
+    {
+      strcpy(WebcamName, response_line);
+    }
+  }
+  pclose(fp);
+
+  if (strcmp(WebcamName, "none") == 0)  // not detected from "Webcam", so try "046d:0825"
+  {
+    fp = popen("v4l2-ctl --list-devices 2> /dev/null | sed -n '/046d:0825/,/dev/p' | grep 'dev' | tr -d '\t'", "r");
+    if (fp == NULL)
+    {
+      printf("Failed to run command\n" );
+      exit(1);
+    }
+
+    /* Read the output a line at a time - output it. */
+    while (fgets(response_line, 250, fp) != NULL)
+    {
+      if (strlen(response_line) > 1)
+       {
+        strcpy(WebcamName, response_line);
+      }
+    }
+    pclose(fp);
+  }
+
+  printf("Webcam device name is %s", WebcamName);
+
+
+  // Now look for USB devices, but reject any lines that match the Webcam address
   fp = popen("v4l2-ctl --list-devices 2> /dev/null | sed -n '/usb/,/dev/p' | grep 'dev' | tr -d '\t'", "r");
   if (fp == NULL)
   {
@@ -933,9 +1093,16 @@ void GetUSBVidDev(char VidDevName[256])
     }
     else
     {
-      strcpy(VidDevName, response_line);
+      // printf("This time response was %s\n", response_line);
+      
+      if (strcmp(WebcamName, response_line) != 0) // If they don't match
+      {
+        strcpy(VidDevName, response_line);
+      }
     }
   }
+
+  printf("Video capture device name is %s\n", VidDevName);
 
   /* close */
   pclose(fp);
@@ -975,6 +1142,44 @@ int DetectLogitechWebcam()
     return 2;
   }
 }
+
+
+/***************************************************************************//**
+ * @brief Detects if a Logitech C920 webcam is currently connected
+ *
+ * @param nil
+ *
+ * @return 1 if connected, 0 if not connected
+*******************************************************************************/
+
+int CheckC920()
+{
+  FILE *fp;
+  char response_line[255];
+
+  // Read the Webcam address if it is present
+
+  fp = popen("v4l2-ctl --list-devices 2> /dev/null | sed -n '/C920/,/dev/p' | grep 'dev' | tr -d '\t'", "r");
+  if (fp == NULL)
+  {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(response_line, 250, fp) != NULL)
+  {
+    if (strlen(response_line) > 1)
+    {
+      return 1;
+    }
+
+  }
+  pclose(fp);
+
+  return 0;
+}
+
 
 /***************************************************************************//**
  * @brief Reads the Presets from portsdown_config.txt and formats them for
@@ -1960,59 +2165,220 @@ void ApplyTXConfig()
     }
     else if (strcmp(CurrentEncoding, "H264") == 0)
     {
+      if (strcmp(CurrentFormat, "1080p") == 0)
+      {
+        if (CheckC920() == 1)
+        {
+          if (strcmp(CurrentSource, "C920") == 0)
+          {
+            strcpy(ModeInput, "C920FHDH264");
+          }
+          else
+          {
+            MsgBox2("1080p only available with C920 Webcam"
+              , "Switching to C920");
+            wait_touch();
+            strcpy(ModeInput, "C920FHDH264");
+          }
+        }
+        else
+        {
+        MsgBox2("1080p only available with C920 Webcam"
+          , "Please select another mode");
+        wait_touch();
+        }
+      }
       if (strcmp(CurrentFormat, "720p") == 0)
       {
-        MsgBox2("720p only available with Pi Cam in MPEG-2", " ");
+        if (CheckC920() == 1)
+        {
+          if (strcmp(CurrentSource, "C920") == 0)
+          {
+            strcpy(ModeInput, "C920HDH264");
+          }
+          else
+          {
+            MsgBox2("720p H264 only available with C920 Webcam"
+              , "Switching to C920");
+            wait_touch();
+           strcpy(ModeInput, "C920HDH264");
+          }
+        }
+        else
+        {
+        MsgBox2("720p H264 only available with C920 Webcam"
+          , "Selecting Pi Cam 720p MPEG-2");
+          strcpy(ModeInput, "CAMHDMPEG-2");
         wait_touch();
-        strcpy(ModeInput, "CAMHDMPEG-2");
+        }
       }
-      if (strcmp(CurrentSource, "Pi Cam") == 0)
+      if (strcmp(CurrentFormat, "16:9") == 0)
       {
-        strcpy(ModeInput, "CAMH264");
-      }
-      else if (strcmp(CurrentSource, "CompVid") == 0)
-      {
-        strcpy(ModeInput, "ANALOGCAM");
-      }
-      else if (strcmp(CurrentSource, "TCAnim") == 0)
-      {
-        strcpy(ModeInput, "PATERNAUDIO");
-      }
-      else if (strcmp(CurrentSource, "Contest") == 0)
-      {
-        strcpy(ModeInput, "CONTEST");
-      }
-      else if (strcmp(CurrentSource, "PiScreen") == 0)
-      {
-        strcpy(ModeInput, "DESKTOP");
-      }
-      else if (strcmp(CurrentSource, "TestCard") == 0)
-      {
-        strcpy(ModeInput, "PATERNAUDIO");
-        MsgBox2("Test Card F not available with H264", "Selecting TCAnim instead");
+        MsgBox2("16:9 only available with MPEG-2"
+          , "Selecting Pi Cam 16:9 MPEG-2");
+          strcpy(ModeInput, "CAM16MPEG-2");
         wait_touch();
       }
-      else // Shouldn't happen
+      if (strcmp(CurrentFormat, "4:3") == 0)
       {
-        strcpy(ModeInput, "DESKTOP");
+        if (strcmp(CurrentSource, "Pi Cam") == 0)
+        {
+          strcpy(ModeInput, "CAMH264");
+        }
+        else if (strcmp(CurrentSource, "CompVid") == 0)
+        {
+          strcpy(ModeInput, "ANALOGCAM");
+        }
+        else if (strcmp(CurrentSource, "TCAnim") == 0)
+        {
+          strcpy(ModeInput, "PATERNAUDIO");
+        }
+        else if (strcmp(CurrentSource, "TestCard") == 0)
+        {
+          strcpy(ModeInput, "CARDH264");
+        }
+        else if (strcmp(CurrentSource, "PiScreen") == 0)
+        {
+          strcpy(ModeInput, "DESKTOP");
+        }
+        else if (strcmp(CurrentSource, "Contest") == 0)
+        {
+          strcpy(ModeInput, "CONTEST");
+        }
+        else if (strcmp(CurrentSource, "Webcam") == 0)
+        {
+          strcpy(ModeInput, "WEBCAMH264");
+        }
+        else if (strcmp(CurrentSource, "C920") == 0)
+        {
+          strcpy(ModeInput, "C920H264");
+        }
+        else // Shouldn't happen
+        {
+          strcpy(ModeInput, "DESKTOP");
+        }
       }
     }
     else  // MPEG-2
     {
+      if (strcmp(CurrentFormat, "1080p") == 0)
+      {
+        if (CheckC920() == 1)
+        {
+          if (strcmp(CurrentSource, "C920") == 0)
+          {
+            strcpy(ModeInput, "C920FHDH264");
+          }
+          else
+          {
+            MsgBox2("1080p only available with H264"
+              , "Switching to H264");
+            wait_touch();
+            strcpy(ModeInput, "C920FHDH264");
+          }
+        }
+        else
+        {
+        MsgBox2("1080p only available with C920 Webcam"
+          , "Please select another mode");
+        wait_touch();
+        }
+      }
       if (strcmp(CurrentFormat, "720p") == 0)
       {
-        if (strcmp(CurrentSource, "Pi Cam") != 0)
+        if (strcmp(CurrentSource, "Pi Cam") == 0)
         {
-          MsgBox2("720p only available with Pi Cam", "Selecting the Pi Camera");
-          wait_touch();
+          strcpy(ModeInput, "CAMHDMPEG-2");
         }
-        strcpy(ModeInput, "CAMHDMPEG-2");
+        else if (strcmp(CurrentSource, "CompVid") == 0)
+        {
+          MsgBox2("720p not available with Comp Vid", "Selecting the test card");
+          wait_touch();
+          strcpy(ModeInput, "CARDHDMPEG-2");
+        }
+        else if (strcmp(CurrentSource, "TCAnim") == 0)
+        {
+          MsgBox2("720p not available with TCAnim", "Selecting the test card");
+          wait_touch();
+          strcpy(ModeInput, "CARDHDMPEG-2");
+        }
+        else if (strcmp(CurrentSource, "TestCard") == 0)
+        {
+          strcpy(ModeInput, "CARDHDMPEG-2");
+        }
+        else if (strcmp(CurrentSource, "PiScreen") == 0)
+        {
+          MsgBox2("720p not available with PiScreen", "Selecting the test card");
+          wait_touch();
+          strcpy(ModeInput, "CARDHDMPEG-2");
+        }
+        else if (strcmp(CurrentSource, "Contest") == 0)
+        {
+          MsgBox2("720p not available with Contest", "Selecting the test card");
+          wait_touch();
+          strcpy(ModeInput, "CARDHDMPEG-2");
+        }
+        else if (strcmp(CurrentSource, "Webcam") == 0)
+        {
+          strcpy(ModeInput, "WEBCAMHDMPEG-2");
+        }
+        else if (strcmp(CurrentSource, "C920") == 0)
+        {
+          strcpy(ModeInput, "WEBCAMHDMPEG-2");
+        }
+        else  // shouldn't happen
+        {
+          strcpy(ModeInput, "CARDHDMPEG-2");
+        }
       }
-      //else if (strcmp(CurrentFormat, "16:9") == 0)
-      //{
-        //strcpy(ModeInput, "CAMHDMPEG-2");
-      //}
-      else // (strcmp(CurrentFormat, "4:3") == 0)
+
+      if (strcmp(CurrentFormat, "16:9") == 0)
+      {
+        if (strcmp(CurrentSource, "Pi Cam") == 0)
+        {
+          strcpy(ModeInput, "CAM16MPEG-2");
+        }
+        else if (strcmp(CurrentSource, "CompVid") == 0)
+        {
+          strcpy(ModeInput, "ANALOG16MPEG-2");
+        }
+        else if (strcmp(CurrentSource, "TCAnim") == 0)
+        {
+          MsgBox2("TCAnim not available with MPEG-2", "Selecting the test card");
+          wait_touch();
+          strcpy(ModeInput, "CARD16MPEG-2");
+        }
+        else if (strcmp(CurrentSource, "TestCard") == 0)
+        {
+          strcpy(ModeInput, "CARD16MPEG-2");
+        }
+        else if (strcmp(CurrentSource, "PiScreen") == 0)
+        {
+          MsgBox2("16:9 not available with PiScreen", "Selecting the test card");
+          wait_touch();
+          strcpy(ModeInput, "CARD16MPEG-2");
+        }
+        else if (strcmp(CurrentSource, "Contest") == 0)
+        {
+          MsgBox2("16:9 not available with Contest", "Selecting 4:3");
+          wait_touch();
+          strcpy(ModeInput, "CONTESTMPEG-2");
+        }
+        else if (strcmp(CurrentSource, "Webcam") == 0)
+        {
+          strcpy(ModeInput, "WEBCAM16MPEG-2");
+        }
+        else if (strcmp(CurrentSource, "C920") == 0)
+        {
+          strcpy(ModeInput, "WEBCAM16MPEG-2");
+        }
+        else  // shouldn't happen
+        {
+          strcpy(ModeInput, "CARD16MPEG-2");
+        }
+      }
+
+      if (strcmp(CurrentFormat, "4:3") == 0)
       {
         if (strcmp(CurrentSource, "Pi Cam") == 0)
         {
@@ -2040,9 +2406,15 @@ void ApplyTXConfig()
         }
         else if (strcmp(CurrentSource, "Contest") == 0)
         {
-          strcpy(ModeInput, "CARDMPEG-2");
-          MsgBox2("Contest not available with MPEG-2", "Selecting Test Card F instead");
-          wait_touch();
+          strcpy(ModeInput, "CONTESTMPEG-2");
+        }
+        else if (strcmp(CurrentSource, "Webcam") == 0)
+        {
+          strcpy(ModeInput, "WEBCAMMPEG-2");
+        }
+        else if (strcmp(CurrentSource, "C920") == 0)
+        {
+          strcpy(ModeInput, "WEBCAMMPEG-2");
         }
         else  // Shouldn't happen but give them Test Card F
         {
@@ -2057,11 +2429,13 @@ void ApplyTXConfig()
   printf("a.sh will be called with %s\n", ModeInput);
 
   // Load the Pi Cam driver for CAMMPEG-2 modes
-  if((strcmp(ModeInput,"CAMMPEG-2")==0)||(strcmp(ModeInput,"CAMHDMPEG-2")==0))
+  if ((strcmp(ModeInput,"CAMMPEG-2")==0)
+    ||(strcmp(ModeInput,"CAM16MPEG-2")==0)
+    ||(strcmp(ModeInput,"CAMHDMPEG-2")==0))
   {
     system("sudo modprobe bcm2835_v4l2");
   }
-  // Replace Contest Numbers with BATC Logo
+  // Replace Contest Numbers or Test Card with BATC Logo
   system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/BATC_Black.png\" >/dev/null 2>/dev/null");
   system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
 }
@@ -2095,6 +2469,7 @@ void GreyOut1()
       {
         SetButtonStatus(ButtonNumber(CurrentMenu, 18), 2); // Format
         SetButtonStatus(ButtonNumber(CurrentMenu, 19), 2); // Source
+        SetButtonStatus(ButtonNumber(CurrentMenu, 7), 2);  // Audio
         SetButtonStatus(ButtonNumber(CurrentMenu, 6), 2); // Caption
         SetButtonStatus(ButtonNumber(CurrentMenu, 5), 2); // EasyCap
       }
@@ -2102,6 +2477,7 @@ void GreyOut1()
       {
         SetButtonStatus(ButtonNumber(CurrentMenu, 18), 0); // Format
         SetButtonStatus(ButtonNumber(CurrentMenu, 19), 0); // Source
+        SetButtonStatus(ButtonNumber(CurrentMenu, 7), 0); // Audio
         SetButtonStatus(ButtonNumber(CurrentMenu, 6), 0); // Caption
         SetButtonStatus(ButtonNumber(CurrentMenu, 5), 0); // EasyCap
       }
@@ -2109,7 +2485,11 @@ void GreyOut1()
       {
         SetButtonStatus(ButtonNumber(CurrentMenu, 7), 0); // Audio
       }
-      else  // H264 or IPTS in
+      else if (strcmp(CurrentSource, "C920") == 0)
+      {
+        SetButtonStatus(ButtonNumber(CurrentMenu, 7), 0); // Audio
+      }
+      else  // H264 (but not C920) or IPTS in or TS File
       {
         SetButtonStatus(ButtonNumber(CurrentMenu, 7), 2); // Audio
       }
@@ -2142,28 +2522,42 @@ void GreyOut1()
 
 void GreyOut15()
 {
-  if (strcmp(CurrentEncoding, "H264") == 0)
+  if (strcmp(CurrentFormat, "1080p") == 0)
   {
-    SetButtonStatus(ButtonNumber(CurrentMenu, 8), 2); // TestCard F
-    printf("Trying to set Menu %d\n", CurrentMenu);
-    printf("Trying to set Button %d\n", ButtonNumber(CurrentMenu,8));
-    SetButtonStatus(ButtonNumber(CurrentMenu, 0), 0); // Contest
-    SetButtonStatus(ButtonNumber(CurrentMenu, 7), 0); // TCAnim
-    SetButtonStatus(ButtonNumber(CurrentMenu, 9), 0); // PiScreen
-    SetButtonStatus(ButtonNumber(CurrentMenu, 6), 0); // CompVid
-  }
-  else //MPEG-2
-  {
-    SetButtonStatus(ButtonNumber(CurrentMenu, 8), 0); // TestCard F
-    SetButtonStatus(ButtonNumber(CurrentMenu, 0), 2); // Contest
+    SetButtonStatus(ButtonNumber(CurrentMenu, 5), 2); // Pi Cam
+    SetButtonStatus(ButtonNumber(CurrentMenu, 6), 2); // CompVid
     SetButtonStatus(ButtonNumber(CurrentMenu, 7), 2); // TCAnim
+    SetButtonStatus(ButtonNumber(CurrentMenu, 8), 2); // TestCard
     SetButtonStatus(ButtonNumber(CurrentMenu, 9), 2); // PiScreen
+    SetButtonStatus(ButtonNumber(CurrentMenu, 0), 2); // Contest
+    SetButtonStatus(ButtonNumber(CurrentMenu, 1), 2); // Webcam
+  }
+  else
+  {
+    SetButtonStatus(ButtonNumber(CurrentMenu, 5), 0); // Pi Cam
     SetButtonStatus(ButtonNumber(CurrentMenu, 6), 0); // CompVid
+    SetButtonStatus(ButtonNumber(CurrentMenu, 7), 0); // TCAnim
+    SetButtonStatus(ButtonNumber(CurrentMenu, 8), 0); // TestCard
+    SetButtonStatus(ButtonNumber(CurrentMenu, 9), 0); // PiScreen
+    SetButtonStatus(ButtonNumber(CurrentMenu, 0), 0); // Contest
+    SetButtonStatus(ButtonNumber(CurrentMenu, 1), 0); // Webcam
 
-    if (strcmp(CurrentFormat, "720p") == 0)
+    if (strcmp(CurrentEncoding, "H264") == 0)
     {
-      SetButtonStatus(ButtonNumber(CurrentMenu, 6), 2); // CompVid
-      SetButtonStatus(ButtonNumber(CurrentMenu, 8), 2); // TestCard F
+      SetButtonStatus(ButtonNumber(CurrentMenu, 7), 0); // TCAnim
+      SetButtonStatus(ButtonNumber(CurrentMenu, 9), 0); // PiScreen
+      SetButtonStatus(ButtonNumber(CurrentMenu, 6), 0); // CompVid
+    }
+    else //MPEG-2
+    {
+      SetButtonStatus(ButtonNumber(CurrentMenu, 7), 2); // TCAnim
+      SetButtonStatus(ButtonNumber(CurrentMenu, 9), 2); // PiScreen
+      SetButtonStatus(ButtonNumber(CurrentMenu, 6), 0); // CompVid
+
+      if (strcmp(CurrentFormat, "720p") == 0)
+      {
+        SetButtonStatus(ButtonNumber(CurrentMenu, 6), 2); // CompVid
+      }
     }
   }
 }
@@ -2221,7 +2615,7 @@ void SelectOP(int NoButton)      // Output device
 {
   SelectInGroupOnMenu(CurrentMenu, 5, 9, NoButton, 1);
   SelectInGroupOnMenu(CurrentMenu, 0, 3, NoButton, 1);
-  if (NoButton <= 4) // allow for reverse numbering of rows
+  if (NoButton < 4) // allow for reverse numbering of rows
   {
     NoButton = NoButton + 10;
   }
@@ -2237,7 +2631,7 @@ void SelectOP(int NoButton)      // Output device
 
 void SelectFormat(int NoButton)  // Video Format
 {
-  SelectInGroupOnMenu(CurrentMenu, 5, 6, NoButton, 1);
+  SelectInGroupOnMenu(CurrentMenu, 5, 8, NoButton, 1);
   strcpy(CurrentFormat, TabFormat[NoButton - 5]);
   ApplyTXConfig();
 }
@@ -2245,8 +2639,8 @@ void SelectFormat(int NoButton)  // Video Format
 void SelectSource(int NoButton)  // Video Source
 {
   SelectInGroupOnMenu(CurrentMenu, 5, 9, NoButton, 1);
-  SelectInGroupOnMenu(CurrentMenu, 0, 0, NoButton, 1);
-  if (NoButton <= 4) // allow for reverse numbering of rows
+  SelectInGroupOnMenu(CurrentMenu, 0, 2, NoButton, 1);
+  if (NoButton < 4) // allow for reverse numbering of rows
   {
     NoButton = NoButton + 10;
   }
@@ -2350,7 +2744,7 @@ void SelectSTD(int NoButton)  // PAL or NTSC
     strcat(SetStandard, USBVidDevice);
     strcat(SetStandard, " --set-standard=");
     strcat(SetStandard, ModeSTD);
-    printf(SetStandard);
+    printf("Video Standard set with command %s\n", SetStandard);
     system(SetStandard);
   }
 }
@@ -2666,8 +3060,18 @@ void SelectVidIP(int NoButton)  // Comp Vid or S-Video
 
 void SelectAudio(int NoButton)  // Audio Input
 {
+  int AudioIndex;
+  if (NoButton < 5)
+  {
+    AudioIndex = NoButton + 5;
+  }
+  else
+  {
+    AudioIndex = NoButton - 5;
+  }
+
   SelectInGroupOnMenu(CurrentMenu, 5, 9, NoButton, 1);
-  strcpy(ModeAudio, TabModeAudio[NoButton - 5]);
+  strcpy(ModeAudio, TabModeAudio[AudioIndex]);
   printf("************** Set Audio Input = %s\n",ModeAudio);
   char Param[]="audio";
   SetConfigParam(PATH_PCONFIG,Param,ModeAudio);
@@ -2884,7 +3288,6 @@ void TransmitStart()
 
   char Param[255];
   char Value[255];
-  char Cmd[255];
   #define PATH_SCRIPT_A "sudo /home/pi/rpidatv/scripts/a.sh >/dev/null 2>/dev/null"
 
   strcpy(Param,"modeinput");
@@ -2892,7 +3295,9 @@ void TransmitStart()
   strcpy(ModeInput,Value);
 
   // Check if MPEG-2 camera mode selected 
-  if((strcmp(ModeInput,"CAMMPEG-2")==0)||(strcmp(ModeInput,"CAMHDMPEG-2")==0))
+  if ((strcmp(ModeInput, "CAMMPEG-2")==0)
+    ||(strcmp(ModeInput, "CAM16MPEG-2")==0)
+    ||(strcmp(ModeInput, "CAMHDMPEG-2")==0))
   {
     // Start the viewfinder
     finish();
@@ -2909,9 +3314,14 @@ void TransmitStart()
   }
 
   // Check if a desktop mode is selected; if so, display desktop
-  if  ((strcmp(ModeInput,"CONTEST") == 0) 
+  if  ((strcmp(ModeInput,"CARDH264")==0)
+    || (strcmp(ModeInput,"PATERNAUDIO") == 0)
+    || (strcmp(ModeInput,"CONTEST") == 0) 
     || (strcmp(ModeInput,"DESKTOP") == 0)
-    || (strcmp(ModeInput,"PATERNAUDIO") == 0))
+    || (strcmp(ModeInput,"CARDMPEG-2")==0)
+    || (strcmp(ModeInput,"CONTESTMPEG-2")==0)
+    || (strcmp(ModeInput,"CARD16MPEG-2")==0)
+    || (strcmp(ModeInput,"CARDHDMPEG-2")==0))
   {
     finish();
     strcpy(ScreenState, "TXwithImage");
@@ -2919,42 +3329,21 @@ void TransmitStart()
 
   // Check if non-display input mode selected.  If so, turn off response to buttons.
   if ((strcmp(ModeInput,"ANALOGCAM") == 0)
+    ||(strcmp(ModeInput,"WEBCAMH264") == 0)
     ||(strcmp(ModeInput,"ANALOGMPEG-2") == 0)
     ||(strcmp(ModeInput,"CARRIER") == 0)
     ||(strcmp(ModeInput,"TESTMODE") == 0)
     ||(strcmp(ModeInput,"IPTSIN") == 0)
-    ||(strcmp(ModeInput,"FILETS") == 0))
+    ||(strcmp(ModeInput,"FILETS") == 0)
+    ||(strcmp(ModeInput,"WEBCAMMPEG-2") == 0)
+    ||(strcmp(ModeInput,"ANALOG16MPEG-2") == 0)
+    ||(strcmp(ModeInput,"WEBCAM16MPEG-2") == 0)
+    ||(strcmp(ModeInput,"WEBCAMHDMPEG-2") == 0)
+    ||(strcmp(ModeInput,"C920H264") == 0)
+    ||(strcmp(ModeInput,"C920HDH264") == 0)
+    ||(strcmp(ModeInput,"C920FHDH264") == 0))
   {
      strcpy(ScreenState, "TXwithMenu");
-  }
-
-  // Check if CARDMPEG-2 selected; if so, turn off buttons and display card
-  if(strcmp(ModeInput,"CARDMPEG-2")==0)
-  {
-    finish();
-    strcpy(ScreenState, "TXwithImage");
-
-    // Check if Caption enabled.  If so draw caption on image and display
-    strcpy(Param,"caption");
-    GetConfigParam(PATH_PCONFIG,Param,Value);
-    if(strcmp(Value,"on")==0)
-    {
-      strcpy(Param,"call");
-      GetConfigParam(PATH_PCONFIG,Param,Value);
-      system("rm /home/pi/rpidatv/scripts/images/caption.png >/dev/null 2>/dev/null");
-      system("rm /home/pi/rpidatv/scripts/images/tcf2.jpg >/dev/null 2>/dev/null");
-      strcpy(Cmd, "convert -size 720x80 xc:transparent -fill white -gravity Center -pointsize 40 -annotate 0 \"");
-      strcat(Cmd, Value);
-      strcat(Cmd, "\" /home/pi/rpidatv/scripts/images/caption.png");
-      system(Cmd);
-      system("convert /home/pi/rpidatv/scripts/images/tcf.jpg /home/pi/rpidatv/scripts/images/caption.png -geometry +0+475 -composite /home/pi/rpidatv/scripts/images/tcf2.jpg");
-      system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/tcf2.jpg\" >/dev/null 2>/dev/null");
-    }
-    else 
-    {
-      system("sudo fbi -T 1 -noverbose -a \"/home/pi/rpidatv/scripts/images/tcf.jpg\" >/dev/null 2>/dev/null");
-    }
-    system("(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &");
   }
 
   // Call a.sh to transmit
@@ -4924,14 +5313,18 @@ void waituntil(int w,int h)
           SelectFormat(i);
           printf("4:3\n");
           break;
-        case 6:                               // 720p
+        case 6:                               // 16:9
+          SelectFormat(i);
+          printf("16:9\n");
+          break;
+        case 7:                               // 720p
           SelectFormat(i);
           printf("720p\n");
           break;
-        //case 7:                               // 16:9
-        //  SelectEncoding(i);
-        //  printf("16:9\n");
-        //  break;
+        case 8:                               // 1080p
+          SelectFormat(i);
+          printf("1080p\n");
+          break;
         default:
           printf("Menu 14 Error\n");
         }
@@ -4977,6 +5370,14 @@ void waituntil(int w,int h)
         case 0:                               // Contest
           SelectSource(i);
           printf("Contest\n");
+          break;
+        case 1:                               // Webcam
+          SelectSource(i);
+          printf("Webcam\n");
+          break;
+        case 2:                               // C920
+          SelectSource(i);
+          printf("C920\n");
           break;
         default:
           printf("Menu 15 Error\n");
@@ -5264,6 +5665,10 @@ void waituntil(int w,int h)
         case 9:                               // Audio Off
           SelectAudio(i);
           printf("Audio Off\n");
+          break;
+        case 0:                               // Webcam
+          SelectAudio(i);
+          printf("Audio Webcam\n");
           break;
         default:
           printf("Menu 23 Error\n");
@@ -5696,6 +6101,10 @@ void Start_Highlights_Menu1()
   {
     strcpy(Audiotext, "Audio^Bleeps");
   }
+  else if (strcmp(Value, "webcam") == 0)
+  {
+    strcpy(Audiotext, "Audio^Webcam");
+  }
   else
   {
     strcpy(Audiotext, "Audio^Off");
@@ -6047,71 +6456,6 @@ void Define_Menu3()
   Blue.r=0; Blue.g=0; Blue.b=128;
 
   strcpy(MenuTitle[3], "Menu 3 Portsdown Configuration"); 
-/*
-  // Bottom Row, Menu 3
-
-  // button = CreateButton(3, 0);
-  // AddButtonStatus(button, "  Clean ^  Exit  ", &Blue);
-
-  button = CreateButton(3, 1);
-  AddButtonStatus(button, "FreqShow^Spectrum", &Blue);
-
-  button = CreateButton(3, 2);
-  AddButtonStatus(button, " Info  ", &Blue);
-  AddButtonStatus(button, " Info  ", &Green);
-
-  button = CreateButton(3, 3);
-  AddButtonStatus(button, "RTL-TCP", &Blue);
-  AddButtonStatus(button, "RTL-TCP", &Green);
-
-  button = CreateButton(3, 4);
-  AddButtonStatus(button, "Sig Gen", &Blue);
-  AddButtonStatus(button, "Sig Gen", &Green);
-
-  // 2nd Row, Menu 3
-
-  button = CreateButton(3, 5);
-  AddButtonStatus(button, " 92.9 FM", &Blue);
-  AddButtonStatus(button, " 92.9 FM", &Green);
-
-  button = CreateButton(3, 6);
-  AddButtonStatus(button, "106.0 FM", &Blue);
-  AddButtonStatus(button, "106.0 FM", &Green);
-
-  button = CreateButton(3, 7);
-  AddButtonStatus(button, "144.75 FM", &Blue);
-  AddButtonStatus(button, "144.75 FM", &Green);
-
-  button = CreateButton(3, 8);
-  AddButtonStatus(button, " GB3BF ", &Blue);
-  AddButtonStatus(button, " GB3BF ", &Green);
-
-  button = CreateButton(3, 9);
-  AddButtonStatus(button, "145.8 FM ", &Blue);
-  AddButtonStatus(button, "145.8 FM ", &Green);
-
-  // 3rd line up Menu 3:  Not displayed
-
-  // button = CreateButton(3, 10);
-  // AddButtonStatus(button, "  IQ  ", &Blue);
-  // AddButtonStatus(button, "  IQ  ", &Green);
-
-  // button = CreateButton(3, 11);
-  // AddButtonStatus(button, " Ugly  ", &Blue);
-  // AddButtonStatus(button, " Ugly  ", &Green);
-
-  // button = CreateButton(3, 12);
-  // AddButtonStatus(button, "Express", &Blue);
-  // AddButtonStatus(button, "Express", &Green);
-
-  // button = CreateButton(3, 13);
-  // AddButtonStatus(button, " BATC ", &Blue);
-  // AddButtonStatus(button, " BATC ", &Green);
-
-  // button = CreateButton(3, 14);
-  // AddButtonStatus(button, "Vid Out", &Blue);
-  // AddButtonStatus(button, "Vid Out", &Green);
-*/
 
   // 4th line up Menu 3: Band Details, Preset Freqs, Preset SRs
 
@@ -6126,32 +6470,11 @@ void Define_Menu3()
   button = CreateButton(3, 17);
   AddButtonStatus(button, "Set Preset^SRs", &Blue);
   AddButtonStatus(button, "Set Preset^SRs", &Green);
-/*
-  button = CreateButton(3, 18);
-  AddButtonStatus(button, "Calibrate^  Touch  ", &Blue);
-  //AddButtonStatus(button, "Card MPEG2", &Green);
-
-  //button = CreateButton(3, 19);
-  //AddButtonStatus(button, " DTX-1 ", &Blue);
-  //AddButtonStatus(button, " DTX-1 ", &Green);
 
   // Top of Menu 3
 
-  //button = CreateButton(3, 20);
-  //AddButtonStatus(button, " ", &Black);
-
-  //button = CreateButton(3, 21);
-  //AddButtonStatus(button, " ", &Black);
-*/
   button = CreateButton(3, 22);
   AddButtonStatus(button," M1  ",&Blue);
-  //AddButtonStatus(button," M1  ",&Green);
-
-  //button = CreateButton(3, 23);
-  //AddButtonStatus(button," M3  ",&Blue);
-  //AddButtonStatus(button," M3  ",&Green);
-  
-
 }
 
 void Start_Highlights_Menu3()
@@ -6403,9 +6726,13 @@ void Define_Menu14()
   AddButtonStatus(button, TabFormat[1], &Blue);
   AddButtonStatus(button, TabFormat[1], &Green);
 
-  // button = CreateButton(14, 7);
-  // AddButtonStatus(button, TabFormat[2], &Blue);
-  // AddButtonStatus(button, TabFormat[2], &Green);
+  button = CreateButton(14, 7);
+  AddButtonStatus(button, TabFormat[2], &Blue);
+  AddButtonStatus(button, TabFormat[2], &Green);
+
+  button = CreateButton(14, 8);
+  AddButtonStatus(button, TabFormat[3], &Blue);
+  AddButtonStatus(button, TabFormat[3], &Green);
 }
 
 void Start_Highlights_Menu14()
@@ -6416,16 +6743,20 @@ void Start_Highlights_Menu14()
 
   if(strcmp(CurrentFormat, TabFormat[0]) == 0)
   {
-    SelectInGroupOnMenu(14, 5, 7, 5, 1);
+    SelectInGroupOnMenu(14, 5, 8, 5, 1);
   }
   if(strcmp(CurrentFormat, TabFormat[1]) == 0)
   {
-    SelectInGroupOnMenu(14, 5, 7, 6, 1);
+    SelectInGroupOnMenu(14, 5, 8, 6, 1);
   }
-  //if(strcmp(CurrentFormat, TabFormat[2]) == 0)
-  //{
-  //  SelectInGroupOnMenu(14, 5, 7, 7, 1);
-  //}
+  if(strcmp(CurrentFormat, TabFormat[2]) == 0)
+  {
+    SelectInGroupOnMenu(14, 5, 8, 7, 1);
+  }
+  if(strcmp(CurrentFormat, TabFormat[3]) == 0)
+  {
+    SelectInGroupOnMenu(14, 5, 8, 8, 1);
+  }
 }
 
 void Define_Menu15()
@@ -6449,6 +6780,16 @@ void Define_Menu15()
   AddButtonStatus(button, TabSource[5], &Blue);
   AddButtonStatus(button, TabSource[5], &Green);
   AddButtonStatus(button, TabSource[5], &Grey);
+
+  button = CreateButton(15, 1);
+  AddButtonStatus(button, TabSource[6], &Blue);
+  AddButtonStatus(button, TabSource[6], &Green);
+  AddButtonStatus(button, TabSource[6], &Grey);
+
+  button = CreateButton(15, 2);
+  AddButtonStatus(button, TabSource[7], &Blue);
+  AddButtonStatus(button, TabSource[7], &Green);
+  AddButtonStatus(button, TabSource[7], &Grey);
 
   button = CreateButton(15, 4);
   AddButtonStatus(button, "Cancel", &DBlue);
@@ -6488,38 +6829,49 @@ void Start_Highlights_Menu15()
   char vsource[256];
   ReadModeInput(vcoding, vsource);
 
+  // Call to GreyOut inappropriate buttons
+  GreyOut15();
+
   if(strcmp(CurrentSource, TabSource[0]) == 0)
   {
     SelectInGroupOnMenu(15, 5, 9, 5, 1);
-    SelectInGroupOnMenu(15, 0, 0, 5, 1);
+    SelectInGroupOnMenu(15, 0, 2, 5, 1);
   }
   if(strcmp(CurrentSource, TabSource[1]) == 0)
   {
     SelectInGroupOnMenu(15, 5, 9, 6, 1);
-    SelectInGroupOnMenu(15, 0, 0, 6, 1);
+    SelectInGroupOnMenu(15, 0, 2, 6, 1);
   }
   if(strcmp(CurrentSource, TabSource[2]) == 0)
   {
     SelectInGroupOnMenu(15, 5, 9, 7, 1);
-    SelectInGroupOnMenu(15, 0, 0, 7, 1);
+    SelectInGroupOnMenu(15, 0, 2, 7, 1);
   }
   if(strcmp(CurrentSource, TabSource[3]) == 0)
   {
     SelectInGroupOnMenu(15, 5, 9, 8, 1);
-    SelectInGroupOnMenu(15, 0, 0, 8, 1);
+    SelectInGroupOnMenu(15, 0, 2, 8, 1);
   }
   if(strcmp(CurrentSource, TabSource[4]) == 0)
   {
     SelectInGroupOnMenu(15, 5, 9, 9, 1);
-    SelectInGroupOnMenu(15, 0, 0, 9, 1);
+    SelectInGroupOnMenu(15, 0, 2, 9, 1);
   }
   if(strcmp(CurrentSource, TabSource[5]) == 0)
   {
     SelectInGroupOnMenu(15, 5, 9, 0, 1);
-    SelectInGroupOnMenu(15, 0, 0, 0, 1);
+    SelectInGroupOnMenu(15, 0, 2, 0, 1);
   }
-  // Call to GreyOut inappropriate buttons
-  GreyOut15();
+  if(strcmp(CurrentSource, TabSource[6]) == 0)
+  {
+    SelectInGroupOnMenu(15, 5, 9, 1, 1);
+    SelectInGroupOnMenu(15, 0, 2, 1, 1);
+  }
+  if(strcmp(CurrentSource, TabSource[7]) == 0)
+  {
+    SelectInGroupOnMenu(15, 5, 9, 2, 1);
+    SelectInGroupOnMenu(15, 0, 2, 2, 1);
+  }
 }
 
 void Define_Menu16()
@@ -7082,6 +7434,10 @@ void Define_Menu23()
 
   // Bottom Row, Menu 23
 
+  button = CreateButton(23, 0);
+  AddButtonStatus(button,"Webcam",&Blue);
+  AddButtonStatus(button,"Webcam",&Green);
+
   button = CreateButton(23, 4);
   AddButtonStatus(button, "Cancel", &DBlue);
   AddButtonStatus(button, "Cancel", &LBlue);
@@ -7116,22 +7472,32 @@ void Start_Highlights_Menu23()
   if (strcmp(CurrentAudioState, "auto") == 0)
   {
     SelectInGroupOnMenu(23, 5, 9, 5, 1);
+    SelectInGroupOnMenu(23, 0, 0, 5, 1);
   }
   else if (strcmp(CurrentAudioState, "mic") == 0)
   {
     SelectInGroupOnMenu(23, 5, 9, 6, 1);
+    SelectInGroupOnMenu(23, 0, 0, 6, 1);
   }
   else if (strcmp(CurrentAudioState, "video") == 0)
   {
     SelectInGroupOnMenu(23, 5, 9, 7, 1);
+    SelectInGroupOnMenu(23, 0, 0, 7, 1);
   }
   else if (strcmp(CurrentAudioState, "bleeps") == 0)
   {
     SelectInGroupOnMenu(23, 5, 9, 8, 1);
+    SelectInGroupOnMenu(23, 0, 0, 8, 1);
+  }
+  else if (strcmp(CurrentAudioState, "webcam") == 0)
+  {
+    SelectInGroupOnMenu(23, 5, 9, 0, 1);
+    SelectInGroupOnMenu(23, 0, 0, 0, 1);
   }
   else
   {
     SelectInGroupOnMenu(23, 5, 9, 9, 1);
+    SelectInGroupOnMenu(23, 0, 0, 9, 1);
   }
 }
 

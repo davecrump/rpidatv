@@ -18,6 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
   Some code by Evariste F5OEO
   Rewitten by Dave, G8GKQ
+
+  Updated 27 Feb 18 to include code for driving an Elcom Microwave signal source
 */
 #include <linux/input.h>
 #include <string.h>
@@ -98,6 +100,7 @@ VGfloat CalShiftY = 0;
 float CalFactorX = 1.0;
 float CalFactorY = 1.0;
 int64_t DisplayFreq = 437000000;  // Input freq and display freq are the same
+int64_t OutputFreq = 0;           // Calculated output frequency
 int DisplayLevel = 987;           // calculated for display from (LO) level, atten and freq
 char osctxt[255]="portsdown";     // current source
 int level;                        // current LO level.  Raw data 0-3 for ADF, 0 - 50 for Exp
@@ -156,6 +159,7 @@ void MsgBox4(const char *, const char *, const char *, const char *);
 void wait_touch();
 void adf4351On(int);
 void ResetBandGPIOs();
+void ElcomOn();
 
 /***************************************************************************//**
  * @brief Looks up the value of Param in PathConfigFile and sets value
@@ -671,6 +675,28 @@ void ShowAtten()
   }
 }
 
+void ShowOPFreq()
+{
+  // Display the calculated output freq
+  char OPFreqText[255];
+  char FreqString[255];
+  Fontinfo font = SansTypeface;
+  int pointsize = 20;
+  float vpos = 0.31;
+  float hpos = 0.39;
+  //OutputFreq = 24048100000;
+  
+  if ((strcmp(osctxt, "adf5355") == 0) && (CurrentMenu == 2))
+  // Not required for audio or menu 1
+  {
+      strcpy(OPFreqText, "Output Freq = ");
+      snprintf(FreqString, 12, "%lld", OutputFreq);
+      strcat(OPFreqText, FreqString);
+      //strcat(LevelText, " dB");
+      Text(hpos*wscreen, vpos*hscreen, OPFreqText, font, pointsize);
+  }
+}
+
 void ShowTitle()
 {
   // Initialise and calculate the text display
@@ -870,6 +896,12 @@ void AdjustFreq(int button)
     {
       adf4351On(level); // change adf freq at set level
     }
+
+    if (strcmp(osctxt, "adf5355")==0)
+    {
+      ElcomOn(); // Change Elcom Freq
+    }
+
     // Change the band if required
     ResetBandGPIOs();
   }
@@ -1253,6 +1285,116 @@ void PortsdownOnWithMod()
   strcpy(StartPortsdown, "/home/pi/rpidatv/bin/avc2ts -b 372783 -m 537044 ");
   strcat(StartPortsdown, "-x 720 -y 576 -f 25 -i 100 -o videots -t 3 -p 255 -s SigGen &");
   system(StartPortsdown); 
+
+}
+
+
+void ElcomOn()
+{
+  int D[8]= {0, 0, 0, 0, 0, 0, 0, 0};
+  int CalcFreq;
+
+  // Nominate pins using WiringPi numbers
+
+  // CLK  pin 29 wPi 21
+  // Data pin 31 wPi 22
+  // Elcom LE pin 8 wPi 15
+
+	uint8_t LE_Elcom_GPIO = 15;
+	uint8_t CLK_GPIO = 21;
+	uint8_t DATA_GPIO = 22;
+
+	// Set all nominated pins to outputs
+
+	pinMode(LE_Elcom_GPIO, OUTPUT);
+	pinMode(CLK_GPIO, OUTPUT);
+	pinMode(DATA_GPIO, OUTPUT);
+
+	// Set idle conditions
+
+	digitalWrite(LE_Elcom_GPIO, HIGH);
+	digitalWrite(CLK_GPIO, LOW);
+	digitalWrite(DATA_GPIO, LOW);
+
+  // Divide freq (uint64t) by 1,000,000 to get integer MHz
+  CalcFreq = DisplayFreq/1000000;
+
+  printf("Display Freq = %lld\n", DisplayFreq);
+  printf("CalcFreq = %d MHz\n", CalcFreq);
+
+  // Mult by 3 to get freq for selection
+  CalcFreq = CalcFreq * 3;  // 3 * freq in MHz
+  //printf("CalcFreq * 3 = %d\n", CalcFreq);
+
+  // Divide by 10 to get integer 10s of setting
+  CalcFreq = CalcFreq / 10;
+  //printf("CalcFreq * 3 / 10 = %d\n", CalcFreq);
+
+  // Calculate OutputFreq for display
+  OutputFreq = CalcFreq * 10000000LL;
+  //printf("Output Freq * 3 = %lld\n", OutputFreq);
+  OutputFreq = OutputFreq / 3;
+  //printf("Output Freq = %lld\n", OutputFreq);
+
+
+  // break out the 4 active digits of D[7] to D[4].  D[3] thru D[0] = 0
+  D[7] = CalcFreq / 1000;
+  CalcFreq = CalcFreq - D[7] * 1000;
+  D[6] = CalcFreq / 100;
+  CalcFreq = CalcFreq - D[6] * 100;
+  D[5] = CalcFreq / 10;
+  CalcFreq = CalcFreq - D[5] * 10;
+  D[4] = CalcFreq;
+  D[3] = 0;
+  D[2] = 0;
+  D[1] = 0;
+  D[0] = 0;
+
+  printf("Sending %d%d%d%d%d%d%d%d to Elcom\n", D[7], D[6], D[5], D[4], D[3], D[2], D[1], D[0]);
+
+  // Delay, select device LE low and delay again
+  usleep(1000);
+  digitalWrite(LE_Elcom_GPIO, LOW);
+  usleep(1000);
+
+  // Initialise loop
+  uint16_t i;
+  uint16_t j;
+
+  // Send 8 4-bit words
+  for (i = 0; i <8; i++)
+  {
+    for (j = 0; j < 4; j++)
+    {
+      // Test left-most bit
+      if (D[i] & 0x00000001)
+      {
+        digitalWrite(DATA_GPIO, HIGH);
+        printf("1");
+      }
+      else
+      {
+        digitalWrite(DATA_GPIO, LOW);
+        printf("0");
+      }
+      // Pulse clock
+      usleep(1000);
+      digitalWrite(CLK_GPIO, HIGH);
+      usleep(1000);
+      digitalWrite(CLK_GPIO, LOW);
+      usleep(1000);
+
+      // shift data right so next bit will be rightmost
+      D[i] >>= 1;
+    }
+    printf(" ");
+  }
+  printf("\n");
+	
+  //Set LE high and delay before exit
+  digitalWrite(LE_Elcom_GPIO, HIGH);
+  usleep(10000);
+
 
 }
 
@@ -1721,7 +1863,8 @@ void ImposeBounds()  // Constrain DisplayFreq and level to physical limits
   if (strcmp(osctxt, "adf5355")==0)
   {
     SourceUpperFreq = 13600000000LL;
-    SourceLowerFreq = 54000000;
+    SourceLowerFreq =  1000000000;
+//    SourceLowerFreq = 54000000;
   }
 
   if (DisplayFreq > SourceUpperFreq)
@@ -2028,7 +2171,9 @@ void OscStart()
 
   if (strcmp(osctxt, "adf5355")==0)
   {
-    printf("\nStarting ADF5355 output\n");
+    //printf("\nStarting ADF5355 output\n");
+    printf("\nStarting Elcom Output\n");
+    ElcomOn();
   }
 
   SetButtonStatus(13,1);
@@ -2245,11 +2390,11 @@ void waituntil(int w,int h)
           if(i==9) // Signal Source
           {
             OscStop();               // Stop the current output
-            MsgBox("ADF5355 not implemented yet");
+            MsgBox2("ADF5355 not implemented yet", "Selecting Elcom instead");
             wait_touch();
-            /*
+
             SelectOsc(i);
-            */
+
           }
           if(i==10) // Attenuator in/out
           {
@@ -2370,6 +2515,7 @@ void waituntil(int w,int h)
           ShowFreq(DisplayFreq);
           printf("Calling ShowAtten\n");
           ShowAtten();
+          ShowOPFreq();
           UpdateWindow();
         }
       }
@@ -2446,6 +2592,7 @@ void waituntil(int w,int h)
             ShowTitle();
             ShowFreq(DisplayFreq);
             ShowLevel(DisplayLevel);
+            ShowOPFreq();
             ShowAtten();
           }
           if(i==(Menu1Buttons+30)) // Oscillator on
@@ -2485,6 +2632,7 @@ void waituntil(int w,int h)
           ShowLevel(DisplayLevel);
           ShowFreq(DisplayFreq);
           ShowAtten();
+          ShowOPFreq();
           UpdateWindow();
         }
       }
