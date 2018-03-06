@@ -128,6 +128,50 @@ fi
 
 do_input_setup()
 {
+  menuchoice=$(whiptail --title "Select Category of Input" --menu "Encoding Mode:" 16 78 7 \
+    "1 H264" "SD H264 and Externally Encoded Inputs"  \
+    "2 SD MPEG-2" "SD MPEG-2 Encoded Inputs" \
+    "3 Widescreen" "Widescreen and HD Encoded Inputs" \
+      3>&2 2>&1 1>&3)
+      case "$menuchoice" in
+        1\ *) do_input_setup_h264 ;;
+        2\ *) do_input_setup_mpeg2 ;;
+        3\ *) do_input_setup_wide ;;
+      esac
+}
+
+# CAMH264
+# ANALOGCAM
+# WEBCAMH264
+# CARDH264
+# PATERNAUDIO
+# CONTEST
+# DESKTOP
+# CARRIER
+# TESTMODE
+# FILETS
+# IPTSIN
+# VNC
+
+# CAMMPEG-2
+# ANALOGMPEG-2
+# WEBCAMMPEG-2
+# CARDMPEG-2
+# CONTESTMPEG-2
+
+# CAM16MPEG-2
+# CAMHDMPEG-2
+# ANALOG16MPEG-2
+# WEBCAM16MPEG-2
+# WEBCAMHDMPEG-2
+# CARD16MPEG-2
+# CARDHDMPEG-2
+# C920H264
+# C920HDH264
+# C920FHDH264
+
+do_input_setup_h264()
+{
   MODE_INPUT=$(get_config_var modeinput $PCONFIGFILE)
   Radio1=OFF
   Radio2=OFF
@@ -142,106 +186,69 @@ do_input_setup()
   Radio11=OFF
   Radio12=OFF
   Radio13=OFF
-  Radio14=OFF
+
   case "$MODE_INPUT" in
   CAMH264)
     Radio1=ON
   ;;
-  CAMMPEG-2)
+  ANALOGCAM)
     Radio2=ON
   ;;
-  FILETS)
+  WEBCAMH264)
     Radio3=ON
   ;;
-  PATERNAUDIO)
+  CARDH264)
     Radio4=ON
   ;;
-  CARRIER)
+  PATERNAUDIO)
     Radio5=ON
   ;;
-  TESTMODE)
+  CONTEST)
     Radio6=ON
   ;;
-  IPTSIN)
+  DESKTOP)
     Radio7=ON
   ;;
-  ANALOGCAM)
+  CARRIER)
     Radio8=ON
   ;;
-  VNC)
+  TESTMODE)
     Radio9=ON
   ;;
-  DESKTOP)
+  FILETS)
     Radio10=ON
   ;;
-  CONTEST)
+  IPTSIN)
     Radio11=ON
   ;;
-  ANALOGMPEG-2)
+  VNC)
     Radio12=ON
   ;;
-  CARDMPEG-2)
-    Radio13=ON
-  ;;
-  CAMHDMPEG-2)
-    Radio14=ON
-  ;;
   *)
-    Radio1=ON
+    Radio13=ON
   ;;
   esac
 
   chinput=$(whiptail --title "$StrInputSetupTitle" --radiolist \
     "$StrInputSetupDescription" 20 78 14 \
     "CAMH264" "$StrInputSetupCAMH264" $Radio1 \
-    "CAMMPEG-2" "$StrInputSetupCAMMPEG_2" $Radio2 \
-    "FILETS" "$StrInputSetupFILETS" $Radio3\
-    "PATERNAUDIO" "$StrInputSetupPATERNAUDIO" $Radio4 \
-    "CARRIER" "$StrInputSetupCARRIER" $Radio5 \
-    "TESTMODE" "$StrInputSetupTESTMODE" $Radio6 \
-    "IPTSIN" "$StrInputSetupIPTSIN" $Radio7 \
-    "ANALOGCAM" "$StrInputSetupANALOGCAM" $Radio8 \
-    "VNC" "$StrInputSetupVNC" $Radio9 \
-    "DESKTOP" "$StrInputSetupDESKTOP" $Radio10 \
-    "CONTEST" "$StrInputSetupCONTEST" $Radio11  \
-    "ANALOGMPEG-2" "MPEG-2 and sound from Comp Video Input" $Radio12 \
-    "CARDMPEG-2" "MPEG-2 Static Test Card F with Audio" $Radio13 \
-    "CAMHDMPEG-2" "MPEG-2 1280x720 HD Pi Cam with Audio" $Radio14 \
+    "ANALOGCAM" "$StrInputSetupANALOGCAM" $Radio2 \
+    "WEBCAMH264" "H264 SD USB Webcam, no audio" $Radio3 \
+    "CARDH264" "H264 Static Test Card F, no audio" $Radio4 \
+    "PATERNAUDIO" "$StrInputSetupPATERNAUDIO" $Radio5 \
+    "CONTEST" "$StrInputSetupCONTEST" $Radio6  \
+    "DESKTOP" "$StrInputSetupDESKTOP" $Radio7 \
+    "CARRIER" "$StrInputSetupCARRIER" $Radio8 \
+    "TESTMODE" "$StrInputSetupTESTMODE" $Radio9 \
+    "FILETS" "$StrInputSetupFILETS" $Radio10\
+    "IPTSIN" "$StrInputSetupIPTSIN" $Radio11 \
+    "VNC" "$StrInputSetupVNC" $Radio12 \
+    "OTHER" "MPEG-2 or Widescreen Mode" $Radio13 \
   3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then
     case "$chinput" in
 
-    CAMMPEG-2)
-      # Make sure that the camera driver is loaded
-      lsmod | grep -q 'bcm2835_v4l2'
-      if [ $? != 0 ]; then   ## not loaded
-        sudo modprobe bcm2835_v4l2
-      fi
-    ;;
-    FILETS)
-      TSVIDEOFILE=$(get_config_var tsvideofile $PCONFIGFILE)
-      filename=$TSVIDEOFILE
-      FileBrowserTitle=TS:
-      Filebrowser "$PATHTS/"
-      whiptail --title "$StrInputSetupFILETSName" --msgbox "$filename" 8 44
-      set_config_var tsvideofile "$filename" $PCONFIGFILE
-      PATHTS=`dirname $filename`
-      set_config_var pathmedia "$PATHTS" $PCONFIGFILE
-    ;;
-    PATERNAUDIO)
-      PATERNFILE=$(get_config_var paternfile $PCONFIGFILE)
-      filename=$PATERNFILE
-      FileBrowserTitle=JPEG:
-      Pathbrowser "$PATHTS/"
-      whiptail --title "$StrInputSetupPATERNAUDIOName" --msgbox "$filename" 8 44
-      set_config_var paternfile "$filename" $PCONFIGFILE
-      set_config_var pathmedia "$filename" $PCONFIGFILE
-    ;;
-    IPTSIN)
-      CURRENTIP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
-      whiptail --title "$StrInputSetupIPTSINTitle" --msgbox "$StrInputSetupIPTSINName""$CURRENTIP" 8 78
-    ;;
     ANALOGCAM)
       ANALOGCAMNAME=$(get_config_var analogcamname $PCONFIGFILE)
       Radio1=OFF
@@ -272,6 +279,29 @@ do_input_setup()
          set_config_var analogcamname "$newcamname" $PCONFIGFILE
       fi
     ;;
+    PATERNAUDIO)
+      PATERNFILE=$(get_config_var paternfile $PCONFIGFILE)
+      filename=$PATERNFILE
+      FileBrowserTitle=JPEG:
+      Pathbrowser "$PATHTS/"
+      whiptail --title "$StrInputSetupPATERNAUDIOName" --msgbox "$filename" 8 44
+      set_config_var paternfile "$filename" $PCONFIGFILE
+      set_config_var pathmedia "$filename" $PCONFIGFILE
+    ;;
+    FILETS)
+      TSVIDEOFILE=$(get_config_var tsvideofile $PCONFIGFILE)
+      filename=$TSVIDEOFILE
+      FileBrowserTitle=TS:
+      Filebrowser "$PATHTS/"
+      whiptail --title "$StrInputSetupFILETSName" --msgbox "$filename" 8 44
+      set_config_var tsvideofile "$filename" $PCONFIGFILE
+      PATHTS=`dirname $filename`
+      set_config_var pathmedia "$PATHTS" $PCONFIGFILE
+    ;;
+    IPTSIN)
+      CURRENTIP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
+      whiptail --title "$StrInputSetupIPTSINTitle" --msgbox "$StrInputSetupIPTSINName""$CURRENTIP" 8 78
+    ;;
     VNC)
       VNCADDR=$(get_config_var vncaddr $PCONFIGFILE)
       VNCADDR=$(whiptail --inputbox "$StrInputSetupVNCName" 8 78 $VNCADDR --title "$StrInputSetupVNCTitle" 3>&1 1>&2 2>&3)
@@ -279,18 +309,212 @@ do_input_setup()
         set_config_var vncaddr "$VNCADDR" $PCONFIGFILE
       fi
     ;;
-    CONTEST)
-      # do_show_numbers
-    ;;
-    CAMHDMPEG-2)
+    esac
+    if [ "$chinput" != "OTHER" ]; then
+      set_config_var modeinput "$chinput" $PCONFIGFILE
+    fi
+  fi
+}
+
+do_input_setup_mpeg2()
+{
+  MODE_INPUT=$(get_config_var modeinput $PCONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  Radio3=OFF
+  Radio4=OFF
+  Radio5=OFF
+  Radio6=OFF
+  Radio7=OFF
+
+  case "$MODE_INPUT" in
+  CAMMPEG-2)
+    Radio1=ON
+  ;;
+  ANALOGMPEG-2)
+    Radio2=ON
+  ;;
+  WEBCAMMPEG-2)
+    Radio3=ON
+  ;;
+  CARDMPEG-2)
+    Radio4=ON
+  ;;
+  CONTESTMPEG-2)
+    Radio5=ON
+  ;;
+  *)
+    Radio6=ON
+  ;;
+  esac
+
+  chinput=$(whiptail --title "$StrInputSetupTitle" --radiolist \
+    "$StrInputSetupDescription" 20 78 10 \
+    "CAMMPEG-2" "$StrInputSetupCAMMPEG_2" $Radio1 \
+    "ANALOGMPEG-2" "MPEG-2 and sound from Comp Video Input" $Radio2 \
+    "WEBCAMMPEG-2" "MPEG-2 SD USB Webcam with Audio" $Radio3 \
+    "CARDMPEG-2" "MPEG-2 Static Test Card F with Audio" $Radio4 \
+    "CONTESTMPEG-2" "$StrInputSetupCONTEST" $Radio5  \
+    "OTHER" "H264 or Widescreen Mode" $Radio6 \
+  3>&2 2>&1 1>&3)
+
+  if [ $? -eq 0 ]; then
+    case "$chinput" in
+
+    CAMMPEG-2)
       # Make sure that the camera driver is loaded
       lsmod | grep -q 'bcm2835_v4l2'
       if [ $? != 0 ]; then   ## not loaded
         sudo modprobe bcm2835_v4l2
       fi
     ;;
+    ANALOGMPEG-2)
+      ANALOGCAMNAME=$(get_config_var analogcamname $PCONFIGFILE)
+      Radio1=OFF
+      Radio2=OFF
+      Radio3=OFF
+
+      case "$ANALOGCAMNAME" in
+        "/dev/video0")
+          Radio1=ON
+        ;;
+        "/dev/video1")
+          Radio2=ON
+        ;;
+        auto)
+          Radio3=ON
+        ;;
+        *)
+          Radio1=ON
+        ;;
+      esac
+      newcamname=$(whiptail --title "$StrInputSetupANALOGCAMName" --radiolist \
+        "$StrInputSetupANALOGCAMTitle" 20 78 5 \
+        "/dev/video0" "Normal with no PiCam" $Radio1 \
+        "/dev/video1" "Sometimes required with PiCam" $Radio2 \
+        "auto" "Automatically select device name" $Radio3 \
+        3>&2 2>&1 1>&3)
+      if [ $? -eq 0 ]; then
+         set_config_var analogcamname "$newcamname" $PCONFIGFILE
+      fi
+    ;;
     esac
-    set_config_var modeinput "$chinput" $PCONFIGFILE
+    if [ "$chinput" != "OTHER" ]; then
+      set_config_var modeinput "$chinput" $PCONFIGFILE
+    fi
+  fi
+}
+
+do_input_setup_wide()
+{
+  MODE_INPUT=$(get_config_var modeinput $PCONFIGFILE)
+  Radio1=OFF
+  Radio2=OFF
+  Radio3=OFF
+  Radio4=OFF
+  Radio5=OFF
+  Radio6=OFF
+  Radio7=OFF
+  Radio8=OFF
+  Radio9=OFF
+  Radio10=OFF
+  Radio11=OFF
+
+  case "$MODE_INPUT" in
+  CAM16MPEG-2)
+    Radio1=ON
+  ;;
+  CAMHDMPEG-2)
+    Radio2=ON
+  ;;
+  ANALOG16MPEG-2)
+    Radio3=ON
+  ;;
+  WEBCAM16MPEG-2)
+    Radio4=ON
+  ;;
+  WEBCAMHDMPEG-2)
+    Radio5=ON
+  ;;
+  CARD16MPEG-2)
+    Radio6=ON
+  ;;
+  CARDHDMPEG-2)
+    Radio7=ON
+  ;;
+  C920H264)
+    Radio8=ON
+  ;;
+  C920HDH264)
+    Radio9=ON
+  ;;
+  C920FHDH264)
+    Radio10=ON
+  ;;
+  *)
+    Radio11=ON
+  ;;
+  esac
+
+  chinput=$(whiptail --title "$StrInputSetupTitle" --radiolist \
+    "$StrInputSetupDescription" 20 78 11 \
+    "CAM16MPEG-2" "MPEG-2 1024x576 16:9 Pi Cam with Audio" $Radio1 \
+    "CAMHDMPEG-2" "MPEG-2 1280x720 HD Pi Cam with Audio" $Radio2 \
+    "ANALOG16MPEG-2" "MPEG-2 1024x576 16:9 Comp Vid with Audio" $Radio3 \
+    "WEBCAM16MPEG-2" "MPEG-2 1024x576 16:9 USB Webcam with Audio" $Radio4 \
+    "WEBCAMHDMPEG-2" "MPEG-2 1280x720 HD USB Webcam with Audio" $Radio5 \
+    "CARD16MPEG-2" "MPEG-2 1024x576 HD 16:9 Static Test Card with Audio" $Radio6 \
+    "CARDHDMPEG-2" "MPEG-2 1280x720 HD 16:9 Static Test Card with Audio" $Radio7 \
+    "C920H264" "H264 640x480 with Audio from C920 Webcam" $Radio8 \
+    "C920HDH264" "H264 1024x720 with Audio from C920 Webcam" $Radio9 \
+    "C920FHDH264" "H264 1920x1080 with Audio from C920 Webcam" $Radio10 \
+    "OTHER" "Non-Widescreen Mode" $Radio11 \
+  3>&2 2>&1 1>&3)
+
+  if [ $? -eq 0 ]; then
+    case "$chinput" in
+
+    "CAM16MPEG-2" | "CAMHDMPEG-2")
+      # Make sure that the camera driver is loaded
+      lsmod | grep -q 'bcm2835_v4l2'
+      if [ $? != 0 ]; then   ## not loaded
+        sudo modprobe bcm2835_v4l2
+      fi
+    ;;
+    ANALOG16MPEG-2)
+      ANALOGCAMNAME=$(get_config_var analogcamname $PCONFIGFILE)
+      Radio1=OFF
+      Radio2=OFF
+      Radio3=OFF
+
+      case "$ANALOGCAMNAME" in
+        "/dev/video0")
+          Radio1=ON
+        ;;
+        "/dev/video1")
+          Radio2=ON
+        ;;
+        auto)
+          Radio3=ON
+        ;;
+        *)
+          Radio1=ON
+        ;;
+      esac
+      newcamname=$(whiptail --title "$StrInputSetupANALOGCAMName" --radiolist \
+        "$StrInputSetupANALOGCAMTitle" 20 78 5 \
+        "/dev/video0" "Normal with no PiCam" $Radio1 \
+        "/dev/video1" "Sometimes required with PiCam" $Radio2 \
+        "auto" "Automatically select device name" $Radio3 \
+        3>&2 2>&1 1>&3)
+      if [ $? -eq 0 ]; then
+         set_config_var analogcamname "$newcamname" $PCONFIGFILE
+      fi
+    ;;
+    esac
+    if [ "$chinput" != "OTHER" ]; then
+      set_config_var modeinput "$chinput" $PCONFIGFILE
+    fi
   fi
 }
 
@@ -891,14 +1115,15 @@ do_stop_transmit()
   gpio mode $GPIO_PTT out
   gpio write $GPIO_PTT 0
 
+  # Display the BATC Logo on the Touchscreen
+  sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png >/dev/null 2>/dev/null
+  (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+
   # Check if driver for Logitech C270 or C525 needs to be reloaded
   dmesg | grep -E -q "046d:0825|Webcam C525"
   if [ $? == 0 ]; then
-    # printf "Either C270 or C525 detected\n"
     sleep 3
     v4l2-ctl --list-devices > /dev/null 2> /dev/null
-  # else
-    # printf "Neither C270 nor C525 detected\n"
   fi
 }
 
@@ -1213,6 +1438,7 @@ do_audio_switch()
   Radio3=OFF
   Radio4=OFF
   Radio5=OFF
+  Radio6=OFF
   case "$AUDIO" in
   auto)
     Radio1=ON
@@ -1223,11 +1449,14 @@ do_audio_switch()
   video)
     Radio3=ON
   ;;
-  bleeps)
+  webcam)
     Radio4=ON
   ;;
-  no_audio)
+  bleeps)
     Radio5=ON
+  ;;
+  no_audio)
+    Radio65=ON
   ;;
   *)
     Radio1=ON
@@ -1239,8 +1468,9 @@ do_audio_switch()
     "auto" "Auto-select from Mic or EasyCap Dongle" $Radio1 \
     "mic" "Use the USB Audio Dongle Mic Input" $Radio2 \
     "video" "Use the EasyCap Video Dongle Audio Input" $Radio3 \
-    "bleeps" "Generate test bleeps" $Radio4 \
-    "no_audio" "Do not include audio" $Radio5 \
+    "webcam" "Use the Webcam Microphone" $Radio4 \
+    "bleeps" "Generate test bleeps" $Radio5 \
+    "no_audio" "Do not include audio" $Radio6 \
     3>&2 2>&1 1>&3)
 
   if [ $? -eq 0 ]; then                     ## If the selection has changed

@@ -1,6 +1,13 @@
-201802201
+201803060
+Adds Webcam as a separate switched video and audio source
+Makes test cards and contest numbers available for both H264 and MPEG-2
+Adds some 16:9 and 720p modes
+Adds support for native H264 and audio streaming from the Logitech C920
+SigGen supports the Elcom microwave oscillators (select ADF5355..)
+
+201802202
 Restores "save-to-USB" capability
-Enables C920 Wecam
+Enables C920 Webcam
 Instant band switching
 Decreases Attenuator spi clock frequency for reliability
 Corrects bug that did not copy presets across on upgrade

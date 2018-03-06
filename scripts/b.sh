@@ -1,6 +1,6 @@
 #! /bin/bash
 
-Version 201802040
+# Version 201802040
 
 # This script shuts down any transmission that has been started by a.sh.
 # It can be called by other programs that want to start and stop transmission
@@ -14,6 +14,7 @@ PATHRPI=/home/pi/rpidatv/bin
 CONFIGFILE=$PATHSCRIPT"/rpidatvconfig.txt"
 PCONFIGFILE="/home/pi/rpidatv/scripts/portsdown_config.txt"
 PATHCONFIGS="/home/pi/rpidatv/scripts/configs"  ## Path to config files
+GPIO_PTT=29  ## WiringPi value, not BCM
 
 ############ Function to Read from Config File ###############
 
@@ -69,14 +70,18 @@ MODE_OUTPUT=$(get_config_var modeoutput $PCONFIGFILE)
   # Stop the audio for CompVid mode
   sudo killall arecord >/dev/null 2>/dev/null
 
+  # Make sure that the PTT is released (required for carrier and test modes)
+  gpio mode $GPIO_PTT out
+  gpio write $GPIO_PTT 0
+
+
   # Check if driver for Logitech C270 or C525 needs to be reloaded
   dmesg | grep -E -q "046d:0825|Webcam C525"
   if [ $? == 0 ]; then
-    printf "Either C270 or C525 detected\n"
     sleep 3
     v4l2-ctl --list-devices > /dev/null 2> /dev/null
-  else
-    printf "Neither C270 nor C525 detected\n"
   fi
+
+printf "Transmit processes stopped\n"
 
 
