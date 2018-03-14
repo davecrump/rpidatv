@@ -176,6 +176,7 @@ void Start_Highlights_Menu24();
 void Start_Highlights_Menu26();
 void Start_Highlights_Menu27();
 void Start_Highlights_Menu28();
+void MsgBox(const char *);
 void MsgBox2(const char *, const char *);
 void MsgBox4(const char *, const char *, const char *, const char *);
 void wait_touch();
@@ -2214,10 +2215,23 @@ void ApplyTXConfig()
       }
       if (strcmp(CurrentFormat, "16:9") == 0)
       {
-        MsgBox2("16:9 only available with MPEG-2"
-          , "Selecting Pi Cam 16:9 MPEG-2");
-          strcpy(ModeInput, "CAM16MPEG-2");
-        wait_touch();
+        if (CheckC920() == 1)
+        {
+          if (strcmp(CurrentSource, "C920") == 0)
+          {
+            MsgBox2("16:9 not available with C920"
+              , "Selecting C920 720p");
+            strcpy(ModeInput, "C920HDH264");
+            wait_touch();
+          }
+          else
+          {
+            MsgBox2("16:9 only available with MPEG-2"
+              , "Selecting Pi Cam 16:9 MPEG-2");
+            strcpy(ModeInput, "CAM16MPEG-2");
+            wait_touch();
+          }
+        }
       }
       if (strcmp(CurrentFormat, "4:3") == 0)
       {
@@ -2550,6 +2564,7 @@ void GreyOut15()
     }
     else //MPEG-2
     {
+
       SetButtonStatus(ButtonNumber(CurrentMenu, 7), 2); // TCAnim
       SetButtonStatus(ButtonNumber(CurrentMenu, 9), 2); // PiScreen
       SetButtonStatus(ButtonNumber(CurrentMenu, 6), 0); // CompVid
@@ -3071,6 +3086,7 @@ void SelectAudio(int NoButton)  // Audio Input
   }
 
   SelectInGroupOnMenu(CurrentMenu, 5, 9, NoButton, 1);
+  SelectInGroupOnMenu(CurrentMenu, 0, 0, NoButton, 1);
   strcpy(ModeAudio, TabModeAudio[AudioIndex]);
   printf("************** Set Audio Input = %s\n",ModeAudio);
   char Param[]="audio";
@@ -3135,7 +3151,7 @@ void SavePreset(int PresetButton)
   char Prompt[63];
 
   // Read the Preset Label and ask for a new value
-  snprintf(Prompt, 62, "Enter the new label for preset%d:", PresetButton + 1);
+  snprintf(Prompt, 62, "Enter the new label for Preset %d:", PresetButton + 1);
   strcpy(Value, "");
   snprintf(Param, 10, "p%dlabel", PresetButton + 1);
   GetConfigParam(PATH_PPRESETS, Param, Value);
@@ -3288,7 +3304,8 @@ void TransmitStart()
 
   char Param[255];
   char Value[255];
-  #define PATH_SCRIPT_A "sudo /home/pi/rpidatv/scripts/a.sh >/dev/null 2>/dev/null"
+//  #define PATH_SCRIPT_A "sudo /home/pi/rpidatv/scripts/a.sh >/dev/null 2>/dev/null"
+  #define PATH_SCRIPT_A "/home/pi/rpidatv/scripts/a.sh >/dev/null 2>/dev/null"
 
   strcpy(Param,"modeinput");
   GetConfigParam(PATH_PCONFIG,Param,Value);
@@ -3354,10 +3371,15 @@ void TransmitStop()
 {
   char Param[255];
   char Value[255];
+  int WebcamPresent = 0;
+
   // printf("Transmit Stop\n");
 
   // Turn the VCO off
   system("sudo /home/pi/rpidatv/bin/adf4351 off");
+
+  // Check for C525 or C270 webcam
+  WebcamPresent = DetectLogitechWebcam();
 
   // Stop DATV Express transmitting
   char expressrx[50];
@@ -3397,14 +3419,14 @@ void TransmitStop()
   pinMode(GPIO_PTT, OUTPUT);
   digitalWrite(GPIO_PTT, LOW);
 
-  // Wait a further 3 seconds  and reset v42l-ctl if Logitech C270 or C525 present
-  if (DetectLogitechWebcam() == 1)
+  // Wait a further 3 seconds and reset v42l-ctl if Logitech C270 or C525 present
+  if (WebcamPresent == 1)
   {
     init(&wscreen, &hscreen);
     Start(wscreen, hscreen);
     MsgBox4("Please wait 3 seconds for", "the Logitech Camera driver", "to be reset", "Allow 10 seconds for the C270");
     usleep(3000000);
-    finish();
+    BackgroundRGB(255,255,255,255);
     system("v4l2-ctl --list-devices > /dev/null 2> /dev/null");
   }
 }
@@ -3758,7 +3780,7 @@ void MsgBox4(const char *message1, const char *message2, const char *message3, c
   TextMid(wscreen/2, hscreen/2 - 2.1 * th, message4, SansTypeface, 25);
 
   End();
-  printf("MsgBox4 called and waiting for touch\n");
+  printf("MsgBox4 called\n");
 }
 
 
@@ -4309,12 +4331,25 @@ void Keyboard(char RequestText[64], char InitText[64], int MaxLength)
     }  
 
     // Display the completed keyboard page
-
     UpdateWindow();
 
+    // Wait for key press
     if (getTouchSample(&rawX, &rawY, &rawPressure)==0) continue;
+
     token = IsMenuButtonPushed(rawX, rawY);
     printf("Keyboard Token %d\n", token);
+
+    // Highlight special keys when touched
+    if ((token == 8) || (token == 9) || (token == 2) || (token == 3)) // Enter, backspace, L and R arrows
+    {
+        SetButtonStatus(ButtonNumber(41, token), 1);
+        DrawButton(ButtonNumber(41, token));
+        UpdateWindow();
+        usleep(300000);
+        SetButtonStatus(ButtonNumber(41, token), 0);
+        DrawButton(ButtonNumber(41, token));
+        UpdateWindow();
+    }
 
     if (token == 8)  // Enter pressed
     {
@@ -4557,11 +4592,11 @@ void ChangePresetFreq(NoButton)
   //Define request string depending on transverter or not
   if ((TabBandLO[CurrentBand] < 0.1) && (TabBandLO[CurrentBand] > -0.1))
   {
-    strcpy(RequestText, "Enter new frequency for Preset ");
+    strcpy(RequestText, "Enter new frequency for Button ");
   }
   else
   {
-    strcpy(RequestText, "Enter new transmit frequency for Preset ");
+    strcpy(RequestText, "Enter new transmit frequency for Button ");
   }
   snprintf(PresetNo, 2, "%d", FreqIndex + 1);
   strcat(RequestText, PresetNo);
@@ -4657,7 +4692,7 @@ void ChangePresetSR(NoButton)
 
   while ((SRCheck < 50) || (SRCheck > 9999))
   {
-    strcpy(RequestText, "Enter new Symbol Rate for Preset ");
+    strcpy(RequestText, "Enter new Symbol Rate for Button ");
     snprintf(PresetNo, 2, "%d", SRIndex + 1);
     strcat(RequestText, PresetNo);
     strcat(RequestText, " in KS/s:");

@@ -53,6 +53,24 @@ end
 EOF
 }
 
+############ Function to Read value with - from Config File ###############
+
+get-config_var() {
+lua - "$1" "$2" <<EOF
+local key=assert(arg[1])
+local fn=assert(arg[2])
+local file=assert(io.open(fn))
+for line in file:lines() do
+local val = line:match("^#?%s*"..key.."=[+-]?(.*)$")
+if (val ~= nil) then
+print(val)
+break
+end
+end
+EOF
+}
+
+
 ############ Function to Select Files ###############
 
 Filebrowser() {
@@ -1647,58 +1665,58 @@ do_4351_ref()
 
 do_atten_levels()
 {
-  ATTENLEVEL0=0.0
-  ATTENLEVEL0=$(whiptail --inputbox "Enter 0 to -31.5 dB" 8 78 $ATTENLEVEL0 --title "SET ATTENUATOR LEVEL FOR THE 71 MHz BAND" 3>&1 1>&2 2>&3)
+  ATTENLEVEL0=$(get-config_var d1attenlevel $PATH_PPRESETS)
+  ATTENLEVEL0=$(whiptail --inputbox "Enter 0 to 31.5 dB" 8 78 $ATTENLEVEL0 --title "SET ATTENUATOR LEVEL FOR THE 71 MHz BAND" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var d1attenlevel "$ATTENLEVEL0" $PATH_PPRESETS
+    set_config_var d1attenlevel "-""$ATTENLEVEL0" $PATH_PPRESETS
   fi
 
-  ATTENLEVEL1=0.0
-  ATTENLEVEL1=$(whiptail --inputbox "Enter 0 to -31.5 dB" 8 78 $ATTENLEVEL1 --title "SET ATTENUATOR LEVEL FOR THE 146 MHz BAND" 3>&1 1>&2 2>&3)
+  ATTENLEVEL1=$(get-config_var d2attenlevel $PATH_PPRESETS)
+  ATTENLEVEL1=$(whiptail --inputbox "Enter 0 to 31.5 dB" 8 78 $ATTENLEVEL1 --title "SET ATTENUATOR LEVEL FOR THE 146 MHz BAND" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var d2attenlevel "$ATTENLEVEL1" $PATH_PPRESETS
+    set_config_var d2attenlevel "-""$ATTENLEVEL1" $PATH_PPRESETS
   fi
 
-  ATTENLEVEL2=0.0
-  ATTENLEVEL2=$(whiptail --inputbox "Enter 0 to -31.5 dB" 8 78 $ATTENLEVEL2 --title "SET ATTENUATOR LEVEL FOR THE 437MHz BAND" 3>&1 1>&2 2>&3)
+  ATTENLEVEL2=$(get-config_var d3attenlevel $PATH_PPRESETS)
+  ATTENLEVEL2=$(whiptail --inputbox "Enter 0 to 31.5 dB" 8 78 $ATTENLEVEL2 --title "SET ATTENUATOR LEVEL FOR THE 437MHz BAND" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var d3attenlevel "$ATTENLEVEL2" $PATH_PPRESETS
+    set_config_var d3attenlevel "-""$ATTENLEVEL2" $PATH_PPRESETS
   fi
 
-  ATTENLEVEL3=0.0
-  ATTENLEVEL3=$(whiptail --inputbox "Enter 0 to -31.5 dB" 8 78 $ATTENLEVEL3 --title "SET ATTENUATOR LEVEL FOR THE 1255 MHz BAND" 3>&1 1>&2 2>&3)
+  ATTENLEVEL3=$(get-config_var d4attenlevel $PATH_PPRESETS)
+  ATTENLEVEL3=$(whiptail --inputbox "Enter 0 to 31.5 dB" 8 78 $ATTENLEVEL3 --title "SET ATTENUATOR LEVEL FOR THE 1255 MHz BAND" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var d4attenlevel "$ATTENLEVEL3" $PATH_PPRESETS
+    set_config_var d4attenlevel "-""$ATTENLEVEL3" $PATH_PPRESETS
   fi
 
-  ATTENLEVEL4=0.0
-  ATTENLEVEL4=$(whiptail --inputbox "Enter 0 to -31.5 dB" 8 78 $ATTENLEVEL4 --title "SET ATTENUATOR LEVEL FOR THE 2400 MHz BAND" 3>&1 1>&2 2>&3)
+  ATTENLEVEL4=$(get-config_var d5attenlevel $PATH_PPRESETS)
+  ATTENLEVEL4=$(whiptail --inputbox "Enter 0 to 31.5 dB" 8 78 $ATTENLEVEL4 --title "SET ATTENUATOR LEVEL FOR THE 2400 MHz BAND" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var d5attenlevel "$ATTENLEVEL4" $PATH_PPRESETS
+    set_config_var d5attenlevel "-""$ATTENLEVEL4" $PATH_PPRESETS
   fi
 
-  ATTENLEVEL5=0.0
-  ATTENLEVEL5=$(whiptail --inputbox "Enter 0 to -31.5 dB" 8 78 $ATTENLEVEL5 --title "SET ATTENUATOR LEVEL FOR TRANSVERTER 1" 3>&1 1>&2 2>&3)
+  ATTENLEVEL5=$(get-config_var t1attenlevel $PATH_PPRESETS)
+  ATTENLEVEL5=$(whiptail --inputbox "Enter 0 to 31.5 dB" 8 78 $ATTENLEVEL5 --title "SET ATTENUATOR LEVEL FOR TRANSVERTER 1" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var t1attenlevel "$ATTENLEVEL5" $PATH_PPRESETS
+    set_config_var t1attenlevel "-""$ATTENLEVEL5" $PATH_PPRESETS
   fi
 
-  ATTENLEVEL6=0.0
-  ATTENLEVEL6=$(whiptail --inputbox "Enter 0 to -31.5 dB" 8 78 $ATTENLEVEL6 --title "SET ATTENUATOR LEVEL FOR TRANSVERTER 2" 3>&1 1>&2 2>&3)
+  ATTENLEVEL6=$(get-config_var t2attenlevel $PATH_PPRESETS)
+  ATTENLEVEL6=$(whiptail --inputbox "Enter 0 to 31.5 dB" 8 78 $ATTENLEVEL6 --title "SET ATTENUATOR LEVEL FOR TRANSVERTER 2" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var t2attenlevel "$ATTENLEVEL6" $PATH_PPRESETS
+    set_config_var t2attenlevel "-""$ATTENLEVEL6" $PATH_PPRESETS
   fi
 
-  ATTENLEVEL7=0.0
-  ATTENLEVEL7=$(whiptail --inputbox "Enter 0 to -31.5 dB" 8 78 $ATTENLEVEL7 --title "SET ATTENUATOR LEVEL FOR TRANSVERTER 3" 3>&1 1>&2 2>&3)
+  ATTENLEVEL7=$(get-config_var t3attenlevel $PATH_PPRESETS)
+  ATTENLEVEL7=$(whiptail --inputbox "Enter 0 to 31.5 dB" 8 78 $ATTENLEVEL7 --title "SET ATTENUATOR LEVEL FOR TRANSVERTER 3" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var t3attenlevel "$ATTENLEVEL7" $PATH_PPRESETS
+    set_config_var t3attenlevel "-""$ATTENLEVEL7" $PATH_PPRESETS
   fi
 
-  ATTENLEVEL8=0.0
-  ATTENLEVEL8=$(whiptail --inputbox "Enter 0 to -31.5 dB" 8 78 $ATTENLEVEL8 --title "SET ATTENUATOR LEVEL FOR TRANSVERTER 4" 3>&1 1>&2 2>&3)
+  ATTENLEVEL8=$(get-config_var t4attenlevel $PATH_PPRESETS)
+  ATTENLEVEL8=$(whiptail --inputbox "Enter 0 to 31.5 dB" 8 78 $ATTENLEVEL8 --title "SET ATTENUATOR LEVEL FOR TRANSVERTER 4" 3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
-    set_config_var t4attenlevel "$ATTENLEVEL8" $PATH_PPRESETS
+    set_config_var t4attenlevel "-""$ATTENLEVEL8" $PATH_PPRESETS
   fi
 }
 

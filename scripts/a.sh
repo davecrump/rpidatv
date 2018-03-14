@@ -130,6 +130,7 @@ detect_audio()
         | head -c 6 | tail -c 1)"
       WC_AUDIO_CHANNELS=2
       WC_AUDIO_SAMPLE=48000
+      WC_VIDEO_FPS=30
     fi
 
     # Check for the presence of a Webcam with mono audio
@@ -142,12 +143,9 @@ detect_audio()
         "Webcam C525|U0x46d0x825|Webcam C170" \
         | head -c 6 | tail -c 1)"
       WC_AUDIO_CHANNELS=1
-      WC_AUDIO_SAMPLE=44100
-    fi
-
-      WC_AUDIO_CHANNELS=2
       WC_AUDIO_SAMPLE=48000
-
+      WC_VIDEO_FPS=24
+    fi
 
     # At least one card detected, so sort out what card parameters are used
     case "$AUDIO_PREF" in
@@ -733,14 +731,14 @@ fi
         # No code for beeps here
         if [ "$AUDIO_CARD" == 0 ]; then
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048  \
-            -f v4l2 -input_format h264 \
+            -f v4l2 -input_format h264 -video_size 720x576 \
             -i /dev/video0 \
             -framerate 25 -video_size 720x576 -c:v h264_omx -b:v 576k \
             -g 25 \
             -f flv rtmp://fms.batc.tv/live/$BATC_OUTPUT/$BATC_OUTPUT &
         else
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
-            -f v4l2 -input_format h264 \
+            -f v4l2 -input_format h264 -video_size 720x576 \
             -i /dev/video0 -thread_queue_size 2048 \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
@@ -1114,22 +1112,26 @@ fi
        if [ $C920Present == 1 ]; then
          v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=640,height=480,pixelformat=0
       fi
-
+      VIDEO_WIDTH="640"
+      VIDEO_HEIGHT="480"
+      VIDEO_FPS=$WC_VIDEO_FPS
     ;;
     WEBCAM16MPEG-2)
       if [ $C920Present == 1 ]; then
-         v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=1280,height=768,pixelformat=0
+         v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=1280,height=720,pixelformat=0
       fi
       VIDEO_WIDTH="1280"
-      VIDEO_HEIGHT="768"
+      VIDEO_HEIGHT="720"
+      VIDEO_FPS=$WC_VIDEO_FPS
       SCALE="scale=1024:576,"
     ;;
     WEBCAMHDMPEG-2)
       if [ $C920Present == 1 ]; then
-         v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=1280,height=768,pixelformat=0
+         v4l2-ctl --device="$VID_WEBCAM" --set-fmt-video=width=1280,height=720,pixelformat=0
       fi
       VIDEO_WIDTH="1280"
-      VIDEO_HEIGHT="768"
+      VIDEO_HEIGHT="720"
+      VIDEO_FPS=$WC_VIDEO_FPS
     ;;
     esac
 
@@ -1225,7 +1227,6 @@ fi
             -framerate 25 -c:v h264_omx -b:v 576k \
             -vf "$CAPTION""$SCALE"yadif=0:1:0 -g 25 \
             -f flv $STREAM_URL/$STREAM_KEY &
-
        else
           # With audio
           $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -thread_queue_size 2048\
@@ -1239,73 +1240,74 @@ fi
             -f flv $STREAM_URL/$STREAM_KEY &
         fi
       ;;
-      *)
-#            -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
-#            -i hw:$AUDIO_CARD_NUMBER,0 \
 
-    if [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "0" ]; then
+      *) # Transmitting modes
 
-      # ******************************* MPEG-2 ANALOG VIDEO WITH NO AUDIO ************************************
+      if [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "0" ]; then
 
-      sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
-        -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512 \
-        -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
-        -i $VID_USB -fflags nobuffer \
-        \
-        -c:v mpeg2video  -vf "$CAPTION""$SCALE""format=yuva420p, hqdn3d=15" \
-        -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO \
-        -f mpegts  -blocksize 1880 \
-        -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
-        -mpegts_service_id $SERVICEID \
-        -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-        -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
-        -muxrate $BITRATE_TS -y $OUTPUT &
+        # ******************************* MPEG-2 ANALOG VIDEO WITH NO AUDIO ************************************
 
-    elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
+        sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG \
+          -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512 \
+          -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
+          -i $VID_USB -fflags nobuffer \
+          \
+          -c:v mpeg2video  -vf "$CAPTION""$SCALE""format=yuva420p,hqdn3d=15" \
+          -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO \
+          -f mpegts -blocksize 1880 \
+          -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
+          -mpegts_service_id $SERVICEID \
+          -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
+          -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
+          -muxrate $BITRATE_TS -y $OUTPUT &
 
-      # ******************************* MPEG-2 ANALOG VIDEO WITH BEEP ************************************
+      elif [ "$AUDIO_CARD" == "0" ] && [ "$AUDIO_CHANNELS" == "1" ]; then
 
-      sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET"\
-        -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512\
-        -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT"\
-        -i $VID_USB -fflags nobuffer \
-        \
-        -f lavfi -ac 1 \
-        -i "sine=frequency=500:beep_factor=4:sample_rate=44100:duration=0" \
-        \
-        -c:v mpeg2video -vf "$CAPTION""$SCALE""format=yuva420p, hqdn3d=15" \
-        -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
-        -f mpegts  -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
-        -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
-        -mpegts_service_id $SERVICEID \
-        -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-        -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
-        -muxrate $BITRATE_TS -y $OUTPUT &
+        # ******************************* MPEG-2 ANALOG VIDEO WITH BEEP ************************************
 
-    else
-      # ******************************* MPEG-2 ANALOG VIDEO WITH AUDIO ************************************
+        sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET"\
+          -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512\
+          -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT"\
+          -i $VID_USB -fflags nobuffer \
+          \
+          -f lavfi -ac 1 \
+          -i "sine=frequency=500:beep_factor=4:sample_rate=44100:duration=0" \
+          \
+          -c:v mpeg2video -vf "$CAPTION""$SCALE""format=yuva420p,hqdn3d=15" \
+          -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
+          -f mpegts -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
+          -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
+          -mpegts_service_id $SERVICEID \
+          -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
+          -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
+          -muxrate $BITRATE_TS -y $OUTPUT &
 
-      # PCR PID ($PIDSTART) seems to be fixed as the same as the video PID.  
-      # PMT, Vid and Audio PIDs can all be set.
+      else
 
-      sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET"\
-        -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512\
-        -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT"\
-        -i $VID_USB -fflags nobuffer \
-        \
-        -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
-        -i hw:$AUDIO_CARD_NUMBER,0 \
-        \
-        -c:v mpeg2video -vf "$CAPTION""$SCALE""format=yuva420p, hqdn3d=15" \
-        -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
-        -f mpegts  -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
-        -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
-        -mpegts_service_id $SERVICEID \
-        -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
-        -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
-        -muxrate $BITRATE_TS -y $OUTPUT &
+        # ******************************* MPEG-2 ANALOG VIDEO WITH AUDIO ************************************
 
-    fi
+        # PCR PID ($PIDSTART) seems to be fixed as the same as the video PID.  
+        # PMT, Vid and Audio PIDs can all be set.
+
+        sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET"\
+          -analyzeduration 0 -probesize 2048  -fpsprobesize 0 -thread_queue_size 512\
+          -f v4l2 -framerate $VIDEO_FPS -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT"\
+          -i $VID_USB -fflags nobuffer \
+          \
+          -thread_queue_size 512 \
+          -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
+          -i hw:$AUDIO_CARD_NUMBER,0 \
+          \
+          -c:v mpeg2video -vf "$CAPTION""$SCALE""format=yuva420p,hqdn3d=15" \
+          -b:v $BITRATE_VIDEO -minrate:v $BITRATE_VIDEO -maxrate:v  $BITRATE_VIDEO\
+          -f mpegts -blocksize 1880 -acodec mp2 -b:a 64K -ar 44100 -ac $AUDIO_CHANNELS\
+          -mpegts_original_network_id 1 -mpegts_transport_stream_id 1 \
+          -mpegts_service_id $SERVICEID \
+          -mpegts_pmt_start_pid $PIDPMT -streamid 0:"$PIDVIDEO" -streamid 1:"$PIDAUDIO" \
+          -metadata service_provider=$CALL -metadata service_name=$CHANNEL \
+          -muxrate $BITRATE_TS -y $OUTPUT &
+
+      fi
     ;;
     esac
   ;;
@@ -1551,7 +1553,7 @@ fi
       ;;
     esac
 
-    # And send the camera stream to the fifo
+    # And send the camera stream with audio to the fifo
 
     sudo nice -n -30 $PATHRPI"/ffmpeg" \
       -f v4l2 -vcodec h264 \
