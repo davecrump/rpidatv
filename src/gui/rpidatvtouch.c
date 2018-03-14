@@ -2564,6 +2564,7 @@ void GreyOut15()
     }
     else //MPEG-2
     {
+
       SetButtonStatus(ButtonNumber(CurrentMenu, 7), 2); // TCAnim
       SetButtonStatus(ButtonNumber(CurrentMenu, 9), 2); // PiScreen
       SetButtonStatus(ButtonNumber(CurrentMenu, 6), 0); // CompVid
