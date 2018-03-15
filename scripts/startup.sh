@@ -123,7 +123,7 @@ do
   # Create a BATC Splash screen with the IP Address displayed
   rm /home/pi/rpidatv/scripts/images/BATC_IP_Splash.png >/dev/null 2>/dev/null
   convert /home/pi/rpidatv/scripts/images/BATC_Black.png\
-   -gravity South -pointsize 25 -fill "rgb(255,255,255)"\
+   -gravity South -pointsize 40 -fill "rgb(255,255,255)"\
    -annotate 0 "$IPCaption"\
    /home/pi/rpidatv/scripts/images/BATC_IP_Splash.png
 
