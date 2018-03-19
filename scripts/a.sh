@@ -99,13 +99,14 @@ detect_audio()
   else                   ## card detected
     printf "Audio card present\n"
     # Check for the presence of a dedicated audio device
-    arecord -l | grep -E -q "USB Audio Device|USB AUDIO|Head|Sound Device|Webcam C525|U0x46d0x825"
+    arecord -l | grep -E -q "USB Audio Device|USB AUDIO|Head|Sound Device"
     if [ $? == 0 ]; then   ## Present
       # Look for the dedicated USB Audio Device, select the line and take
       # the 6th character.  Max card number = 8 !!
-      MIC="$(arecord -l | grep -E "USB Audio Device|USB AUDIO|Head|Sound Device|Webcam C525|U0x46d0x825" \
+      MIC="$(arecord -l | grep -E "USB Audio Device|USB AUDIO|Head|Sound Device" \
         | head -c 6 | tail -c 1)"
     fi
+
     # Check for the presence of a Video dongle with audio
     arecord -l | grep -E -q \
       "usbtv|U0x534d0x21|DVC90|Cx231xxAudio|STK1160|U0xeb1a0x2861|AV TO USB|Grabby"
@@ -146,6 +147,10 @@ detect_audio()
       WC_AUDIO_SAMPLE=48000
       WC_VIDEO_FPS=24
     fi
+
+    printf "MIC = $MIC\n"
+    printf "USBTV = $USBTV\n"
+    printf "WCAM = $WCAM\n"
 
     # At least one card detected, so sort out what card parameters are used
     case "$AUDIO_PREF" in
@@ -260,7 +265,6 @@ detect_audio()
       ;;
     esac
   fi
-  printf "WCAM = $WCAM\n"
 
   printf "AUDIO_CARD = $AUDIO_CARD\n"
   printf "AUDIO_CARD_NUMBER = $AUDIO_CARD_NUMBER \n"
@@ -1420,6 +1424,7 @@ fi
             -f image2 -loop 1 \
             -i $IMAGEFILE \
             \
+            -thread_queue_size 512 \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
             \
@@ -1497,11 +1502,13 @@ fi
           # PCR PID ($PIDSTART) seems to be fixed as the same as the video PID.  
           # PMT, Vid and Audio PIDs can all be set. 
 
-          sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET"\
+          sudo nice -n -30 $PATHRPI"/ffmpeg" -loglevel $MODE_DEBUG -itsoffset "$ITS_OFFSET" \
+            -thread_queue_size 512 \
             -f image2 -loop 1 \
             -framerate 5 -video_size "$VIDEO_WIDTH"x"$VIDEO_HEIGHT" \
             -i $IMAGEFILE \
             \
+            -thread_queue_size 512 \
             -f alsa -ac $AUDIO_CHANNELS -ar $AUDIO_SAMPLE \
             -i hw:$AUDIO_CARD_NUMBER,0 \
             \
