@@ -1,3 +1,7 @@
+201803180
+Handles Logitech C525 post-transmit reset better
+Corrects USB Mic selection when Webcam connected
+
 201803061
 Adds Webcam as a separate switched video and audio source
 Logitech C920, C525 and C170 webcams work as video sources
