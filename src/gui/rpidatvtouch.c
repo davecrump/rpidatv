@@ -153,7 +153,7 @@ char FreqBtext[31];
 int Inversed=0;           //Display is inversed (Waveshare=1)
 int PresetStoreTrigger=0; //Set to 1 if awaiting preset being stored
 
-pthread_t thfft,thbutton,thview;
+pthread_t thfft,thbutton,thview,thwait3;
 
 // Function Prototypes
 
@@ -3367,6 +3367,17 @@ void TransmitStart()
   system(PATH_SCRIPT_A);
 }
 
+void *Wait3Seconds(void * arg)
+{
+  printf("Waiting 3 seconds for C525 Camera Reset\n");
+  usleep(3000000);
+  system("v4l2-ctl --list-devices > /dev/null 2> /dev/null");
+  usleep(500000);
+  printf("C525 has been reset\n");
+  strcpy(ScreenState, "NormalMenu");
+  return NULL;
+}
+
 void TransmitStop()
 {
   char Param[255];
@@ -3422,12 +3433,16 @@ void TransmitStop()
   // Wait a further 3 seconds and reset v42l-ctl if Logitech C270 or C525 present
   if (WebcamPresent == 1)
   {
-    init(&wscreen, &hscreen);
-    Start(wscreen, hscreen);
-    MsgBox4("Please wait 3 seconds for", "the Logitech Camera driver", "to be reset", "Allow 10 seconds for the C270");
-    usleep(3000000);
-    BackgroundRGB(255,255,255,255);
-    system("v4l2-ctl --list-devices > /dev/null 2> /dev/null");
+    // Check if Webcam was in use
+    if ((strcmp(ModeInput,"WEBCAMH264") == 0)
+      ||(strcmp(ModeInput,"WEBCAMMPEG-2") == 0)
+      ||(strcmp(ModeInput,"WEBCAM16MPEG-2") == 0)
+      ||(strcmp(ModeInput,"WEBCAMHDMPEG-2") == 0))
+    {
+      strcpy(ScreenState, "WebcamWait");
+      // Create Wait 3 seconds timer thread
+      pthread_create (&thwait3, NULL, &Wait3Seconds, NULL);
+    }
   }
 }
 
@@ -4771,6 +4786,9 @@ void waituntil(int w,int h)
       // VideoView                                  VideoView   (not implemented yet)
       // Snap                                       Snap        (not implemented yet)
       // SigGen?                                    SigGen      (not implemented yet)
+      // WebcamWait                                 Waiting 3 secs for Webcam reset
+
+      //printf("Screenstate is %s \n", ScreenState);
 
      // Sort TXwithImage first:
     if (strcmp(ScreenState, "TXwithImage") == 0)
@@ -4792,10 +4810,19 @@ void waituntil(int w,int h)
     if (strcmp(ScreenState, "TXwithMenu") == 0)
     {
       TransmitStop();
-      SelectPTT(i,0);
-      strcpy(ScreenState, "NormalMenu");
-
+      SelectPTT(20, 0);
       UpdateWindow();
+      if (strcmp(ScreenState, "WebcamWait") != 0)
+      {
+        strcpy(ScreenState, "NormalMenu");
+      }
+      continue;
+    }
+
+    if (strcmp(ScreenState, "WebcamWait") == 0)
+    {
+      // Do nothing
+      printf("In WebcamWait \n");
       continue;
     }
 
