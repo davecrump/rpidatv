@@ -1,3 +1,6 @@
+201803181
+Adds support for Logitech C910 Webcam
+
 201803180
 Handles Logitech C525 post-transmit reset better
 Corrects USB Mic selection when Webcam connected

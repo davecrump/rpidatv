@@ -1137,8 +1137,8 @@ do_stop_transmit()
   sudo fbi -T 1 -noverbose -a /home/pi/rpidatv/scripts/images/BATC_Black.png >/dev/null 2>/dev/null
   (sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
 
-  # Check if driver for Logitech C270 or C525 needs to be reloaded
-  dmesg | grep -E -q "046d:0825|Webcam C525"
+  # Check if driver for Logitech C270, C525 or C910 needs to be reloaded
+  dmesg | grep -E -q "046d:0825|Webcam C525|046d:0821"
   if [ $? == 0 ]; then
     sleep 3
     v4l2-ctl --list-devices > /dev/null 2> /dev/null
