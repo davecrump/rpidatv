@@ -1054,7 +1054,7 @@ void GetUSBVidDev(char VidDevName[256])
   }
   pclose(fp);
 
-  if (strcmp(WebcamName, "none") == 0)  // not detected from "Webcam", so try "046d:0825"
+  if (strcmp(WebcamName, "none") == 0)  // not detected from "Webcam", so try "046d:0825" for C270
   {
     fp = popen("v4l2-ctl --list-devices 2> /dev/null | sed -n '/046d:0825/,/dev/p' | grep 'dev' | tr -d '\t'", "r");
     if (fp == NULL)
@@ -1074,8 +1074,27 @@ void GetUSBVidDev(char VidDevName[256])
     pclose(fp);
   }
 
-  printf("Webcam device name is %s", WebcamName);
+  if (strcmp(WebcamName, "none") == 0)  // not detected from "Webcam", so try "046d:0821" for C910
+  {
+    fp = popen("v4l2-ctl --list-devices 2> /dev/null | sed -n '/046d:0821/,/dev/p' | grep 'dev' | tr -d '\t'", "r");
+    if (fp == NULL)
+    {
+      printf("Failed to run command\n" );
+      exit(1);
+    }
 
+    /* Read the output a line at a time - output it. */
+    while (fgets(response_line, 250, fp) != NULL)
+    {
+      if (strlen(response_line) > 1)
+       {
+        strcpy(WebcamName, response_line);
+      }
+    }
+    pclose(fp);
+  }
+
+  printf("Webcam device name is %s\n", WebcamName);
 
   // Now look for USB devices, but reject any lines that match the Webcam address
   fp = popen("v4l2-ctl --list-devices 2> /dev/null | sed -n '/usb/,/dev/p' | grep 'dev' | tr -d '\t'", "r");
@@ -1122,7 +1141,8 @@ void GetUSBVidDev(char VidDevName[256])
 int DetectLogitechWebcam()
 {
   char shell_command[255];
-  char DMESG_PATTERN[255] = "046d:0825|Webcam C525";
+  // Pattern for C270, C525 and C910
+  char DMESG_PATTERN[255] = "046d:0825|Webcam C525|046d:0821";
   FILE * shell;
   sprintf(shell_command, "dmesg | grep -E -q \"%s\"", DMESG_PATTERN);
   shell = popen(shell_command, "r");
@@ -3058,7 +3078,7 @@ void SelectVidIP(int NoButton)  // Comp Vid or S-Video
   SetConfigParam(PATH_PCONFIG,Param,ModeVidIP);
 
   // Now Set the Analog Capture (input) Socket
-  //format v4l2-ctl -d $ANALOGCAMNAME --set-input=$ANALOGCAMINPUT
+  // command format: v4l2-ctl -d $ANALOGCAMNAME --set-input=$ANALOGCAMINPUT
 
   GetUSBVidDev(USBVidDevice);
   if (strlen(USBVidDevice) == 12)  // /dev/video* with a new line
@@ -3369,7 +3389,7 @@ void TransmitStart()
 
 void *Wait3Seconds(void * arg)
 {
-  printf("Waiting 3 seconds for C525 Camera Reset\n");
+  printf("Waiting 3 seconds for Logitech Camera Reset\n");
   usleep(3000000);
   system("v4l2-ctl --list-devices > /dev/null 2> /dev/null");
   usleep(500000);
@@ -3389,7 +3409,7 @@ void TransmitStop()
   // Turn the VCO off
   system("sudo /home/pi/rpidatv/bin/adf4351 off");
 
-  // Check for C525 or C270 webcam
+  // Check for C910, C525 or C270 webcam
   WebcamPresent = DetectLogitechWebcam();
 
   // Stop DATV Express transmitting
@@ -3430,7 +3450,7 @@ void TransmitStop()
   pinMode(GPIO_PTT, OUTPUT);
   digitalWrite(GPIO_PTT, LOW);
 
-  // Wait a further 3 seconds and reset v42l-ctl if Logitech C270 or C525 present
+  // Wait a further 3 seconds and reset v42l-ctl if Logitech C910, C270 or C525 present
   if (WebcamPresent == 1)
   {
     // Check if Webcam was in use
@@ -8210,7 +8230,7 @@ int main(int argc, char **argv)
     strcat(SetStandard, USBVidDevice);
     strcat(SetStandard, " --set-standard=");
     strcat(SetStandard, Value);
-    printf(SetStandard);
+    //printf(SetStandard);
     system(SetStandard);
   }
 

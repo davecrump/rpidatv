@@ -119,7 +119,7 @@ detect_audio()
     fi
 
     C920Present=0
-    # Check for the presence of a Webcam with stereo audio
+    # Check for the presence of a C920 Webcam with stereo audio
     arecord -l | grep -E -q \
       "Webcam C920"
     if [ $? == 0 ]; then   ## Present
@@ -128,6 +128,20 @@ detect_audio()
       # the 6th character.  Max card number = 8 !!
       WCAM="$(arecord -l | grep -E \
         "Webcam C920" \
+        | head -c 6 | tail -c 1)"
+      WC_AUDIO_CHANNELS=2
+      WC_AUDIO_SAMPLE=48000
+      WC_VIDEO_FPS=30
+    fi
+
+    # Check for the presence of a C910 Webcam with stereo audio
+    arecord -l | grep -E -q \
+      "U0x46d0x821"
+    if [ $? == 0 ]; then   ## Present
+      # Look for the video dongle, select the line and take
+      # the 6th character.  Max card number = 8 !!
+      WCAM="$(arecord -l | grep -E \
+        "U0x46d0x821" \
         | head -c 6 | tail -c 1)"
       WC_AUDIO_CHANNELS=2
       WC_AUDIO_SAMPLE=48000
@@ -278,10 +292,11 @@ detect_video()
 {
   # List the video devices, select the 2 lines for any Webcam device, then
   # select the line with the device details and delete the leading tab
+  # This selects any device with "Webcam" int its description
   VID_WEBCAM="$(v4l2-ctl --list-devices 2> /dev/null | \
     sed -n '/Webcam/,/dev/p' | grep 'dev' | tr -d '\t')"
 
-  if [ "${#VID_WEBCAM}" -lt "10" ]; then
+  if [ "${#VID_WEBCAM}" -lt "10" ]; then # $VID_WEBCAM currently empty
 
     # List the video devices, select the 2 lines for a C270 device, then
     # select the line with the device details and delete the leading tab
@@ -289,14 +304,20 @@ detect_video()
       sed -n '/046d:0825/,/dev/p' | grep 'dev' | tr -d '\t')"
   fi
 
-  printf "The first Webcam device string is $VID_WEBCAM\n"
+  if [ "${#VID_WEBCAM}" -lt "10" ]; then # $VID_WEBCAM currently empty
 
+    # List the video devices, select the 2 lines for a C910 device, then
+    # select the line with the device details and delete the leading tab
+    VID_WEBCAM="$(v4l2-ctl --list-devices 2> /dev/null | \
+      sed -n '/046d:0821/,/dev/p' | grep 'dev' | tr -d '\t')"
+  fi
+
+  printf "The first Webcam device string is $VID_WEBCAM\n"
 
   # List the video devices, select the 2 lines for any usb device, then
   # select the line with the device details and delete the leading tab
   VID_USB1="$(v4l2-ctl --list-devices 2> /dev/null | \
     sed -n '/usb/,/dev/p' | grep 'dev' | tr -d '\t' | head -n1)"
-
   
   printf "The first USB device string is $VID_USB1\n"
  
