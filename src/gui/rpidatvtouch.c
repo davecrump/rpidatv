@@ -673,7 +673,7 @@ void ExecuteUpdate(int NoButton)
       strcpy(LinuxCommand, "rm /home/pi/update.sh >/dev/null 2>/dev/null");
       system(LinuxCommand);
 
-      if (GetLinuxVer() != 8)  // Jessie, so rpidatv repo
+      if (GetLinuxVer() == 8)  // Jessie, so rpidatv repo
       {
         printf("Downloading Normal Update Jessie Version\n");
         strcpy(LinuxCommand, "wget https://raw.githubusercontent.com/BritishAmateurTelevisionClub/rpidatv/master/update.sh");
@@ -718,7 +718,7 @@ void ExecuteUpdate(int NoButton)
       strcpy(LinuxCommand, "rm /home/pi/update.sh >/dev/null 2>/dev/null");
       system(LinuxCommand);
 
-      if (GetLinuxVer() != 8)  // Jessie, so rpidatv repo
+      if (GetLinuxVer() == 8)  // Jessie, so rpidatv repo
       {
         printf("Downloading Development Update for Jessie\n");
         strcpy(LinuxCommand, "wget https://raw.githubusercontent.com/davecrump/rpidatv/master/update.sh");
