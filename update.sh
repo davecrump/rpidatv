@@ -1,13 +1,28 @@
 #!/bin/bash
 
-# Updated by davecrump 201802040
-# Modified to overwrite ~/rpidatv/scripts and
-# ~/rpidatv/src, then compile
-# rpidatv, rpidatvgui avc2ts and adf4351
+# Updated by davecrump 201804010
+
+DisplayUpdateMsg() {
+# Delete any old update message image  201802040
+rm /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
+
+# Create the update image in the tempfs folder
+convert -size 720x576 xc:white \
+    -gravity North -pointsize 40 -annotate 0 "\nUpdating Portsdown Software" \
+    -gravity Center -pointsize 50 -annotate 0 "$1""\n\nPlease wait" \
+    -gravity South -pointsize 50 -annotate 0 "DO NOT TURN POWER OFF" \
+    /home/pi/tmp/update.jpg
+
+# Display the update message on the desktop
+sudo fbi -T 1 -noverbose -a /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
+(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+}
 
 reset
 
 printf "\nCommencing update.\n\n"
+
+DisplayUpdateMsg "Step 3 of 10\nSaving Current Config\n\nXXX-------"
 
 # Note previous version number
 cp -f -r /home/pi/rpidatv/scripts/installed_version.txt /home/pi/prev_installed_version.txt
@@ -37,18 +52,7 @@ if [ ! -f "/usr/bin/fbi" ]; then
   sudo apt-get -y install fbi
 fi
 
-# Delete any old update message image  201802040
-rm /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
-
-# Create the update image in the tempfs folder
-convert -size 720x576 xc:white \
-    -gravity Center -pointsize 50 -annotate 0 "Updating Portsdown\nSoftware\n\nPlease wait" \
-    -gravity South -pointsize 50 -annotate 0 "DO NOT TURN POWER OFF" \
-    /home/pi/tmp/update.jpg
-
-# Display the update message on the desktop
-sudo fbi -T 1 -noverbose -a /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
-(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
+DisplayUpdateMsg "Step 4 of 10\nUpdating Software Packages\n\nXXXX------"
 
 # Uninstall the apt-listchanges package to allow silent install of ca certificates
 # http://unix.stackexchange.com/questions/124468/how-do-i-resolve-an-apparent-hanging-update-process
@@ -76,6 +80,8 @@ cd /boot
 sudo sed -i '/dtoverlay=ads7846/d' config.txt
 
 # ---------- Update rpidatv -----------
+
+DisplayUpdateMsg "Step 5 of 10\nDownloading Portsdown SW\n\nXXXXX-----"
 
 cd /home/pi
 
@@ -118,6 +124,8 @@ else
   rm master.zip
   rm -rf rpidatv-master
 fi
+
+DisplayUpdateMsg "Step 6 of 10\nCompiling Portsdown SW\n\nXXXXXX----"
 
 # Compile rpidatv core
 sudo killall -9 rpidatv
@@ -209,6 +217,9 @@ sudo sed -i 's/^BLANK_TIME.*/BLANK_TIME=0/' config
 sudo sed -i 's/^POWERDOWN_TIME.*/POWERDOWN_TIME=0/' config
 cd /home/pi
 
+DisplayUpdateMsg "Step 7 of 10\nCompiling Accessories\n\nXXXXXXX---"
+
+
 # Delete, download, compile and install DATV Express-server (201702021)
 
 if [ ! -f "/bin/netcat" ]; then
@@ -238,6 +249,8 @@ cd /home/pi/pi-sdn-build
 make
 mv pi-sdn /home/pi/
 cd /home/pi
+
+DisplayUpdateMsg "Step 8 of 10\nRestoring Config\n\nXXXXXXXX--"
 
 # Update the call to pi-sdn if it is enabled (201702020)
 if [ -f /home/pi/.pi-sdn ]; then
@@ -330,6 +343,9 @@ if [ -f "/home/pi/touchcal.txt" ]; then
   cp -f -r /home/pi/touchcal.txt /home/pi/rpidatv/scripts/touchcal.txt
 fi
 
+DisplayUpdateMsg "Step 9 of 10\nInstalling FreqShow SW\n\nXXXXXXXXX-"
+
+
 # Either install FreqShow, or downgrade sdl so that it works (20180101)
 if [ -f "/home/pi/FreqShow/LICENSE" ]; then
   # Freqshow has already been installed, so downgrade the sdl version
@@ -366,25 +382,9 @@ cp /home/pi/rpidatv/scripts/latest_version.txt /home/pi/rpidatv/scripts/installe
 cp -f -r /home/pi/prev_installed_version.txt /home/pi/rpidatv/scripts/prev_installed_version.txt
 rm -rf /home/pi/prev_installed_version.txt
 
-# Delete any old update image
-rm /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
+DisplayUpdateMsg "Step 10 of 10\nRebooting\n\nXXXXXXXXXX"
+printf "\nRebooting\n"
+sleep 2
+sudo reboot now
 
-# Create the update image in the tempfs folder
-convert -size 720x576 xc:white \
-    -gravity Center -pointsize 50 -annotate 0 "Update Complete\n\nPLEASE REBOOT NOW\n\n(by pressing "y" on the keyboard)" \
-    /home/pi/tmp/update.jpg
-
-# Display the reboot message on the touchscreen
-sudo fbi -T 1 -noverbose -a /home/pi/tmp/update.jpg >/dev/null 2>/dev/null
-(sleep 1; sudo killall -9 fbi >/dev/null 2>/dev/null) &  ## kill fbi once it has done its work
-
-# Offer reboot
-printf "A reboot may be required before using the update.\n"
-printf "Do you want to reboot now? (y/n)\n"
-read -n 1
-printf "\n"
-if [[ "$REPLY" = "y" || "$REPLY" = "Y" ]]; then
-  printf "\nRebooting\n"
-  sudo reboot now
-fi
 exit
