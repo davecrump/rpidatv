@@ -3268,7 +3268,7 @@ void SelectSTD(int NoButton)  // PAL or NTSC
   }
 }
 
-void ChangeBandDetails(NoButton)
+void ChangeBandDetails(int NoButton)
 {
   char Param[31];
   char Value[31];
@@ -5098,7 +5098,7 @@ void Keyboard(char RequestText[64], char InitText[64], int MaxLength)
   }
 }
 
-void ChangePresetFreq(NoButton)
+void ChangePresetFreq(int NoButton)
 {
   char RequestText[64];
   char InitText[64];
@@ -5198,7 +5198,7 @@ void ChangePresetFreq(NoButton)
   }
 }
 
-void ChangePresetSR(NoButton)
+void ChangePresetSR(int NoButton)
 {
   char RequestText[64];
   char InitText[64];
@@ -5377,7 +5377,7 @@ void ChangeADFRef(int NoButton)
   printf("ADFRef set to: %s\n", CurrentADFRef);
 }
 
-void ChangePID(NoButton)
+void ChangePID(int NoButton)
 {
   char RequestText[64];
   char InitText[64];
@@ -7860,7 +7860,7 @@ void Define_Menu16()
   AddButtonStatus(button, FreqLabel[4], &Green);
 }
 
-void MakeFreqText(index)
+void MakeFreqText(int index)
 {
   char Param[255];
   char Value[255];
