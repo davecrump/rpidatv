@@ -65,6 +65,7 @@ sudo apt-get update
 
 # Update the distribution (added 20170403)
 sudo apt-get -y dist-upgrade
+sudo apt-get update
 
 # Check that ImageMagick is installed (201704050)
 sudo apt-get -y install imagemagick
