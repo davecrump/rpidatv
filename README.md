@@ -30,8 +30,7 @@ wget https://raw.githubusercontent.com/BritishAmateurTelevisionClub/rpidatv/mast
 chmod +x install.sh
 ./install.sh
 ```
-
-- If your ISP is Virgin Media and you receive an error after entering the wget line: 'GnuTLS: A TLS fatal alert has been received.', it may be that your ISP is blocking access to GitHub.  If (only if) you get this error with Virgin Media, paste the following command in, and press return.
+- If your ISP is Virgin Media (or Telstra in Australia) and you receive an error after entering the wget line: 'GnuTLS: A TLS fatal alert has been received.', it may be that your ISP is blocking access to GitHub.  If (only if) you get this error with Virgin Media or Telstra, paste the following command in, and press return.
 ```sh
 sudo sed -i 's/^#name_servers.*/name_servers=8.8.8.8/' /etc/resolvconf.conf
 ```
