@@ -1,5 +1,5 @@
 modeinput=DESKTOP
-modeoutput=IQ
+modeoutput=QPSKRF
 freqoutput=437
 symbolrate=333
 fec=7
