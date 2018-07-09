@@ -65,6 +65,7 @@ GRAPHICS=$(get_config_var rx0graphics $RXPRESETSFILE)
 
 PARAMS=$(get_config_var rx0parameters $RXPRESETSFILE)
 
+
 SOUND=$(get_config_var rx0sound $RXPRESETSFILE)
 
 FLOCK=$(get_config_var rx0fastlock $RXPRESETSFILE)
@@ -85,6 +86,7 @@ sudo killall -9 hello_video.bin >/dev/null 2>/dev/null
 sudo killall -9 hello_video2.bin >/dev/null 2>/dev/null
 sudo killall leandvb >/dev/null 2>/dev/null
 sudo killall ts2es >/dev/null 2>/dev/null
+
 mkfifo fifo.264
 mkfifo videots
 
@@ -124,13 +126,13 @@ fi
 # read videots and output video es
 $PATHBIN"ts2es" -video videots fifo.264 &
 
+
 # Play the es from fifo.264 in either the H264 or MPEG-2 player.
 if [ "$ENCODING" = "H264" ]; then
   $PATHBIN"hello_video.bin" fifo.264 &
 else  # MPEG-2
   $PATHBIN"hello_video2.bin" fifo.264 &
 fi
-
 
 # Notes:
 # --fd-pp FDNUM        Dump preprocessed IQ data to file descriptor

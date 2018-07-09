@@ -216,7 +216,6 @@ int FinishedButton2 = 1;    // Used to control FFT
 fftwf_complex *fftout=NULL; // FFT for RX
 #define FFT_SIZE 256        // for RX display
 
-
 // Range and Bearing Calculator Parameters
 int GcBearing(const float, const float, const float, const float);
 float GcDistance(const float, const float, const float, const float, const char *);
@@ -5414,6 +5413,31 @@ void ChangeVidBand(int NoButton)
   {
     CompVidBand = NoButton - 5;
   }
+}
+
+void ReceiveLOStart()
+{
+  char Param[15];
+  char Value[15];
+  char bashCall[127];
+
+  strcpy(Param, TabBand[CurrentBand]);
+  strcat(Param, "lo");
+  GetConfigParam(PATH_RXPRESETS, Param, Value);
+
+  if(strcmp(Value, "0") != 0)  // Start the LO
+  {
+    strcpy(bashCall, "sudo /home/pi/rpidatv/bin/adf4351 ");
+    strcat(bashCall, Value);
+    strcat(bashCall, " ");
+    strcat(bashCall, CurrentADFRef);
+    strcat(bashCall, " 3"); //max level
+  }
+  else                        // Stop the LO
+  {
+    strcpy(bashCall, "sudo /home/pi/rpidatv/bin/adf4351 off");
+  }
+  system(bashCall);
 }
 
 void ReceiveLOStart()
